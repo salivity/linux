@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How Linux Kernel Uses Read-Copy-Update (RCU) - linux</title>
+    <meta name="description" content="The Read-Copy-Update (RCU) mechanism in the Linux kernel is a synchronization pattern optimized for read-heavy workloads, allowing concurrent reads to occur without locks while updates happen safely in the background. This article explores the core archi">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-linux-kernel-uses-read-copy-update-rcu">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How Linux Kernel Uses Read-Copy-Update (RCU) - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-linux-kernel-uses-read-copy-update-rcu" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="The Read-Copy-Update (RCU) mechanism in the Linux kernel is a synchronization pattern optimized for read-heavy workloads, allowing concurrent reads to occur without locks while updates happen safely in the background. This article explores the core archi" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-linux-kernel-uses-read-copy-update-rcu">How Linux Kernel
+Uses Read-Copy-Update (RCU)</h1>
+<p>The Read-Copy-Update (RCU) mechanism in the Linux kernel is a
+synchronization pattern optimized for read-heavy workloads, allowing
+concurrent reads to occur without locks while updates happen safely in
+the background. This article explores the core architecture of RCU, how
+the Linux kernel executes reads and updates simultaneously without data
+corruption, and the primary subsystems—such as networking and the
+Virtual File System—that rely on RCU to achieve massive scalability on
+multi-core systems.</p>
+<h3 id="core-mechanics-of-rcu">Core Mechanics of RCU</h3>
+<p>RCU splits the synchronization problem into three distinct phases:
+read-side execution, update-side execution, and deferred
+reclamation.</p>
+<ol type="1">
+<li><strong>Read-Side Operations:</strong> Readers mark the entry and
+exit of their critical sections using <code>rcu_read_lock()</code> and
+<code>rcu_read_unlock()</code>. In non-preemptible kernels, these
+primitives have zero CPU overhead; in preemptible kernels, they merely
+track nesting levels without taking locks, disabling interrupts, or
+modifying shared cache lines. Reads proceed completely
+unobstructed.</li>
+<li><strong>Update Operations (Read-Copy):</strong> When a writer needs
+to modify a data structure, it does not alter the shared data directly.
+Instead, it creates a new copy of the object, applies changes to the
+copy, and then atomically swaps the global pointer to point to the new
+structure using primitives like <code>rcu_assign_pointer()</code>. New
+readers immediately observe the new version, while concurrent existing
+readers continue accessing the old version undisturbed.</li>
+<li><strong>Grace Period and Reclamation (Update):</strong> The old
+memory cannot be freed immediately because in-flight readers may still
+be traversing it. The kernel enforces a "grace period"—an interval
+during which every CPU passes through at least one quiescent state (such
+as a context switch, executing in user mode, or entering an idle state).
+Once the grace period completes, no readers hold references to the old
+data. The writer can then safely reclaim the old memory using
+<code>kfree_rcu()</code> or asynchronous callbacks scheduled via
+<code>call_rcu()</code>.</li>
+</ol>
+<h3 id="major-subsystems-utilizing-rcu">Major Subsystems Utilizing
+RCU</h3>
+<p>The Linux kernel deploys RCU across several core components where
+read operations exponentially outnumber modifications:</p>
+<ul>
+<li><strong>Virtual File System (VFS):</strong> The Directory Entry
+Cache (dcache) relies heavily on RCU-path walk. When processes resolve
+file paths (e.g., <code>/usr/bin/python</code>), the kernel traverses
+the dentry tree lock-free. Millions of path lookups per second occur
+across multiple cores without cache-line bouncing or lock
+contention.</li>
+<li><strong>Networking Subsystem:</strong> Network routing tables,
+firewall rules (Netfilter/nftables), and socket lookup tables utilize
+RCU. Ingress packet processing reads forwarding tables without acquiring
+spinlocks. When routes update, the kernel modifies the routing tree and
+defers memory reclamation, preventing packet drops and latency spikes
+during high-throughput networking.</li>
+<li><strong>Process and Security Credentials:</strong> Task structures,
+process IDs, and security attributes (such as POSIX credentials and
+SELinux contexts) are accessed frequently during permission checks.
+Updating a process credential generates a new credential structure,
+swaps the pointer on the <code>task_struct</code>, and retires the old
+credentials via RCU.</li>
+</ul>
+<h3 id="rcu-flavors-in-the-kernel">RCU Flavors in the Kernel</h3>
+<p>To accommodate diverse hardware profiles and latency requirements,
+the Linux kernel provides specialized implementations of RCU:</p>
+<ul>
+<li><strong>Tree RCU:</strong> The default implementation designed for
+medium-to-large symmetric multiprocessing (SMP) systems. It organizes
+CPUs into a hierarchical tree structure to aggregate quiescent states
+without creating a global bottleneck.</li>
+<li><strong>Tiny RCU:</strong> A lightweight alternative designed for
+single-CPU and resource-constrained embedded systems, drastically
+reducing kernel footprint by eliminating multi-core coordination
+overhead.</li>
+<li><strong>Sleepable RCU (SRCU):</strong> Standard RCU prohibits
+readers from blocking or sleeping inside read-side critical sections.
+SRCU provides distinct domains where readers are permitted to sleep,
+useful for tracing mechanisms, filesystem notifications, and device
+driver subsystems that require blocking calls during traversal.</li>
+</ul></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

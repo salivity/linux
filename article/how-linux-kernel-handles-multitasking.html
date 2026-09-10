@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How Linux Kernel Handles Multitasking - linux</title>
+    <meta name="description" content="The Linux operating system achieves multitasking at the kernel level through preemptive scheduling, abstract task representations, and efficient hardware resource management. By treating processes and threads uniformly, relying on precise hardware timer">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-linux-kernel-handles-multitasking">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How Linux Kernel Handles Multitasking - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-linux-kernel-handles-multitasking" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="The Linux operating system achieves multitasking at the kernel level through preemptive scheduling, abstract task representations, and efficient hardware resource management. By treating processes and threads uniformly, relying on precise hardware timer" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-linux-kernel-handles-multitasking">How Linux Kernel Handles
+Multitasking</h1>
+<p>The Linux operating system achieves multitasking at the kernel level
+through preemptive scheduling, abstract task representations, and
+efficient hardware resource management. By treating processes and
+threads uniformly, relying on precise hardware timer interrupts, and
+executing rapid context switches, the kernel rapidly alternates CPU
+execution among competing tasks. This architecture ensures balanced CPU
+distribution, system responsiveness, and fault isolation across
+multi-core and single-core environments.</p>
+<h3 id="the-task-representation-task_struct">The Task Representation:
+<code>task_struct</code></h3>
+<p>At the kernel level, Linux does not make a fundamental structural
+distinction between a process and an execution thread. Instead, both are
+instantiated as individual schedulable entities called tasks,
+represented internally by the <code>task_struct</code> data structure.
+This structure holds all critical metadata required to manage and
+execute the task, including:</p>
+<ul>
+<li><strong>Process state:</strong> Flags indicating whether the task is
+running (<code>TASK_RUNNING</code>), waiting for an event
+(<code>TASK_INTERRUPTIBLE</code> or <code>TASK_UNINTERRUPTIBLE</code>),
+stopped, or a zombie.</li>
+<li><strong>Virtual memory mappings:</strong> Pointer to the
+<code>mm_struct</code>, detailing the memory space, page tables, and
+execution code. Threads created within the same process share this
+memory descriptor, while distinct processes maintain independent
+ones.</li>
+<li><strong>CPU state:</strong> Stored CPU register values, stack
+pointers, and instruction counters.</li>
+<li><strong>Priority and scheduling entity:</strong> Execution metrics
+including nice values, virtual runtime, and policy flags used by
+scheduling algorithms.</li>
+</ul>
+<p>The kernel creates these tasks through system calls such as
+<code>fork()</code>, <code>vfork()</code>, and <code>clone()</code>, the
+latter being the core foundation used by threading libraries to
+establish shared or separate execution contexts.</p>
+<h3 id="preemption-and-hardware-timer-interrupts">Preemption and
+Hardware Timer Interrupts</h3>
+<p>Linux uses preemptive multitasking, meaning the operating system
+decides when a task must stop running rather than waiting for the task
+to voluntarily yield CPU control. This preemption relies on periodic
+hardware timer interrupts generated by the system clock (such as the
+Local APIC or HPET).</p>
+<p>When a timer interrupt fires:</p>
+<ol type="1">
+<li>The CPU transfers execution from user space to kernel space.</li>
+<li>The interrupt handler executes scheduler housekeeping tasks, such as
+tracking how long the currently running task has held the CPU.</li>
+<li>The kernel evaluates whether the current task's allocated time slice
+has expired or if a higher-priority task has entered a runnable
+state.</li>
+<li>If a preemption criteria is met, the kernel sets the
+<code>TIF_NEED_RESCHED</code> flag on the current task.</li>
+<li>The kernel invokes <code>schedule()</code> during the return path to
+user mode (or at defined preemption points within kernel mode),
+triggering a task swap.</li>
+</ol>
+<h3 id="the-kernel-schedulers">The Kernel Schedulers</h3>
+<p>The selection of the next task to run is managed by modular
+scheduling classes organized by priority.</p>
+<h4 id="1-real-time-schedulers-sched_fifo-and-sched_rr">1. Real-Time
+Schedulers (SCHED_FIFO and SCHED_RR)</h4>
+<p>Real-time tasks take precedence over standard system tasks.
+<code>SCHED_FIFO</code> (First-In, First-Out) tasks run indefinitely
+until they voluntarily yield or become blocked by an I/O operation.
+<code>SCHED_RR</code> (Round Robin) tasks execute similarly, but with a
+fixed maximum time slice, after which other real-time tasks of equal
+priority are executed.</p>
+<h4 id="2-normal-tasks-cfs-and-eevdf">2. Normal Tasks: CFS and
+EEVDF</h4>
+<p>For normal, non-real-time tasks, Linux historically relied on the
+Completely Fair Scheduler (CFS) and, in newer kernels (version 6.6+),
+the Earliest Eligible Virtual Deadline First (EEVDF) scheduler.</p>
+<ul>
+<li><strong>Completely Fair Scheduler (CFS):</strong> Models an "ideal
+multi-tasking CPU" where tasks share processing power proportionally
+according to their <code>nice</code> value (priority). CFS tracks
+execution using <code>vruntime</code> (virtual runtime). Tasks that have
+executed the least receive the lowest <code>vruntime</code> and are
+placed at the leftmost node of a red-black self-balancing binary search
+tree. The CPU always picks the leftmost task next.</li>
+<li><strong>EEVDF:</strong> Evolves CFS by introducing explicit
+deadlines. It balances fairness (eligibility based on virtual time) with
+low latency (scheduling the eligible task that has the earliest
+execution deadline).</li>
+</ul>
+<h3 id="the-context-switch">The Context Switch</h3>
+<p>Once the scheduler selects a new task, the kernel performs a context
+switch via the internal <code>context_switch()</code> function. This
+operation consists of two primary steps:</p>
+<ol type="1">
+<li><strong>Virtual Memory Switching (<code>switch_mm</code>):</strong>
+If the new task belongs to a different process, the kernel swaps the
+memory management context by loading the new task's page directory
+address into the CPU's memory management unit (e.g., the
+<code>CR3</code> control register on x86 architectures). This
+invalidates the Translation Lookaside Buffer (TLB), unless process
+context identifiers (PCID) are supported. If the new task is a thread
+sharing the previous address space or a kernel thread, this step is
+bypassed.</li>
+<li><strong>Processor State Switching (<code>switch_to</code>):</strong>
+The kernel saves the outgoing task's hardware state (instruction
+pointer, stack pointer, general-purpose registers, floating-point
+registers) into its kernel stack or <code>task_struct</code>. It then
+restores the incoming task’s saved registers and updates the CPU's stack
+pointer.</li>
+</ol>
+<p>When the CPU's instruction pointer resumes execution, the new task
+continues precisely where it was suspended, finalizing the multitask
+transition at the hardware boundary.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

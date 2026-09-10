@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How to Securely Delete Files with Shred in Linux - linux</title>
+    <meta name="description" content="When you delete a file using the standard rm command in Linux, the operating system merely unlinks the file pointer, leaving the underlying data intact on the storage drive until it is overwritten. This guide explains how to use the built-in shred utilit">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-to-securely-delete-files-with-shred-in-linux">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How to Securely Delete Files with Shred in Linux - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-to-securely-delete-files-with-shred-in-linux" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="When you delete a file using the standard rm command in Linux, the operating system merely unlinks the file pointer, leaving the underlying data intact on the storage drive until it is overwritten. This guide explains how to use the built-in shred utilit" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-to-securely-delete-files-with-shred-in-linux">How to
+Securely Delete Files with Shred in Linux</h1>
+<p>When you delete a file using the standard <code>rm</code> command in
+Linux, the operating system merely unlinks the file pointer, leaving the
+underlying data intact on the storage drive until it is overwritten.
+This guide explains how to use the built-in <code>shred</code> utility
+to permanently and securely overwrite files so they cannot be recovered
+using data recovery tools, covering essential syntax, commonly used
+command-line options, and practical examples.</p>
+<h3 id="understanding-the-shred-command">Understanding the shred
+Command</h3>
+<p>The <code>shred</code> command securely erases files by repeatedly
+overwriting their data blocks with patterns of random bits. By default,
+<code>shred</code> overwrites target data three times to ensure the
+original contents become unrecoverable.</p>
+<h3 id="basic-syntax-and-options">Basic Syntax and Options</h3>
+<p>The basic structure of the command is:</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">shred</span> <span class="pp">[</span><span class="ss">options</span><span class="pp">]</span> filename</span></code></pre></div>
+<p>The most common flags used with <code>shred</code> include:</p>
+<ul>
+<li><strong><code>-u</code> (or <code>--remove</code>)</strong>: Deletes
+the file after overwriting it. Without this flag, the file remains on
+the system with overwritten contents.</li>
+<li><strong><code>-z</code> (or <code>--zero</code>)</strong>: Performs
+a final overwrite with zeros to conceal the fact that the file was
+shredded.</li>
+<li><strong><code>-v</code> (or <code>--verbose</code>)</strong>:
+Displays real-time progress of the overwrite passes.</li>
+<li><strong><code>-n &lt;number&gt;</code> (or
+<code>--iterations=&lt;number&gt;</code>)</strong>: Specifies the number
+of overwrite cycles (default is 3).</li>
+</ul>
+<h3 id="recommended-usage-for-single-files">Recommended Usage for Single
+Files</h3>
+<p>To securely overwrite a file, hide the shredding process, show
+progress, and remove the file from the filesystem upon completion,
+run:</p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">shred</span> <span class="at">-uvz</span> <span class="at">-n</span> 3 secret_file.txt</span></code></pre></div>
+<p>In this command:</p>
+<ul>
+<li><code>-u</code> deletes the file after the operation finishes.</li>
+<li><code>-v</code> outputs the progress pass by pass.</li>
+<li><code>-z</code> writes all zeros in the final pass.</li>
+<li><code>-n 3</code> overwrites the file three times with random data
+before the zero pass.</li>
+</ul>
+<h3 id="deleting-multiple-files">Deleting Multiple Files</h3>
+<p>You can delete multiple specific files or target files using
+wildcards:</p>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">shred</span> <span class="at">-uvz</span> <span class="at">-n</span> 3 document1.pdf document2.pdf</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="fu">shred</span> <span class="at">-uvz</span> <span class="at">-n</span> 3 <span class="pp">*</span>.log</span></code></pre></div>
+<h3 id="wiping-an-entire-partition-or-drive">Wiping an Entire Partition
+or Drive</h3>
+<p>The <code>shred</code> command can also target raw block devices,
+such as an entire hard drive partition or a USB flash drive.</p>
+<p><em>Warning: Ensure the device path is correct, as this action is
+irreversible.</em></p>
+<div class="sourceCode" id="cb4"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> shred <span class="at">-vz</span> <span class="at">-n</span> 1 /dev/sdb1</span></code></pre></div>
+<p>Omit the <code>-u</code> flag when targeting block devices, as you
+cannot unlink a physical partition.</p>
+<h3 id="important-limitations">Important Limitations</h3>
+<p>The <code>shred</code> utility relies on the assumption that the
+filesystem overwrites data in place. It may be less effective on:</p>
+<ul>
+<li><strong>Log-structured or journaled filesystems</strong>:
+Filesystems like ext3 or ext4 operating in <code>data=journal</code>
+mode write metadata and data to a journal first.</li>
+<li><strong>Copy-on-Write (CoW) filesystems</strong>: Filesystems such
+as Btrfs and ZFS write changes to new sectors rather than overwriting
+existing blocks.</li>
+<li><strong>Solid-State Drives (SSDs)</strong>: Wear-leveling mechanisms
+on SSDs distribute writes across different physical blocks, meaning
+<code>shred</code> may write to alternate locations rather than the
+original physical cell. For SSDs, hardware-level secure erase (such as
+ATA Secure Erase) is recommended.</li>
+</ul></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How WSL2 Runs a Real Linux Kernel in a Lightweight VM - linux</title>
+    <meta name="description" content="Windows Subsystem for Linux 2 (WSL2) delivers native Linux functionality inside Windows by replacing the translation architecture of WSL1 with a highly optimized, lightweight virtual machine. By leveraging a stripped-down subset of Microsoft’s Hyper-V">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-wsl2-runs-a-real-linux-kernel-in-a-lightweight-vm">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How WSL2 Runs a Real Linux Kernel in a Lightweight VM - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-wsl2-runs-a-real-linux-kernel-in-a-lightweight-vm" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="Windows Subsystem for Linux 2 (WSL2) delivers native Linux functionality inside Windows by replacing the translation architecture of WSL1 with a highly optimized, lightweight virtual machine. By leveraging a stripped-down subset of Microsoft’s Hyper-V" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-wsl2-runs-a-real-linux-kernel-in-a-lightweight-vm">How WSL2
+Runs a Real Linux Kernel in a Lightweight VM</h1>
+<p>Windows Subsystem for Linux 2 (WSL2) delivers native Linux
+functionality inside Windows by replacing the translation architecture
+of WSL1 with a highly optimized, lightweight virtual machine. By
+leveraging a stripped-down subset of Microsoft’s Hyper-V hypervisor,
+WSL2 boots an authentic, custom-built Linux kernel in less than a
+second. This design grants complete system call compatibility, rapid
+file system performance, and dynamic hardware resource allocation while
+maintaining seamless integration with the host Windows desktop
+environment.</p>
+<h3 id="the-shift-from-translation-to-virtualization">The Shift from
+Translation to Virtualization</h3>
+<p>WSL1 functioned via an emulation layer that translated Linux system
+calls into Windows NT kernel system calls on the fly. While this avoided
+the overhead of traditional virtualization, it suffered from incomplete
+system call compatibility and slower file I/O operations.</p>
+<p>WSL2 fundamentally changes this model by discarding translation
+entirely. Instead of attempting to mimic Linux behaviors on top of the
+NT kernel, WSL2 runs actual Linux binaries directly against an authentic
+Linux kernel.</p>
+<h3 id="the-lightweight-utility-virtual-machine">The Lightweight Utility
+Virtual Machine</h3>
+<p>Traditional virtual machines introduce significant overhead: they
+require manual configuration, pre-allocate fixed amounts of RAM and CPU
+resources, take several seconds or minutes to boot, and run isolated
+from the host operating system. WSL2 bypasses these limitations using a
+"utility VM" built on the Hyper-V architecture:</p>
+<ul>
+<li><strong>Instantaneous Boot Times:</strong> The utility VM is
+stripped of standard PC platform emulation (such as emulated BIOS/UEFI
+firmware, legacy hardware devices, and virtualized PCI buses). Because
+it initializes only the bare essentials needed to run the kernel,
+execution begins almost instantaneously—typically in under one
+second.</li>
+<li><strong>Dynamic Memory Reclaiming:</strong> Rather than locking a
+static block of host RAM, WSL2 requests memory from Windows as the Linux
+environment demands it. When memory is freed inside Linux, a
+memory-ballooning driver returns the unused pages to the Windows host,
+preventing memory starvation.</li>
+<li><strong>Direct CPU Scheduling:</strong> The virtual processors
+inside the WSL2 VM map directly to the logical processors of the host
+CPU, allowing the Hyper-V hypervisor to schedule Linux threads alongside
+Windows threads with minimal latency.</li>
+</ul>
+<h3 id="the-tailored-linux-kernel">The Tailored Linux Kernel</h3>
+<p>At the core of WSL2 is a real, open-source Linux kernel based on
+stable kernel.org releases, customized and maintained directly by
+Microsoft.</p>
+<p>This kernel is specifically compiled to operate within the utility
+VM. Microsoft strips out unnecessary hardware drivers (such as physical
+Ethernet controllers, discrete sound cards, and storage controllers) and
+compiles in specific optimizations for virtualized environments. Because
+it is a real kernel rather than an emulation layer, it provides 100%
+system call compatibility. This allows developers to run software
+requiring deep kernel features—such as Docker containers, FUSE
+filesystems, and eBPF tracing tools—without modification. Microsoft
+delivers updates, security patches, and improvements to this kernel
+automatically via standard Windows Update mechanisms.</p>
+<h3 id="storage-and-cross-os-communication">Storage and Cross-OS
+Communication</h3>
+<p>To achieve high file input/output performance, WSL2 hosts the Linux
+root filesystem inside a virtual hard disk file
+(<code>ext4.vhdx</code>). Because the real Linux kernel manages this
+virtual disk formatted with a native ext4 filesystem, read and write
+operations inside the Linux environment match bare-metal
+performance.</p>
+<p>Interoperability between the two operating systems is handled through
+specialized protocols:</p>
+<ul>
+<li><strong>Windows Accessing Linux Files:</strong> Windows accesses
+files inside the Linux container via an internal Plan 9 network protocol
+(9P) file server running inside the VM, exposed through a standard
+network redirector.</li>
+<li><strong>Linux Accessing Windows Files:</strong> Linux accesses host
+drives (such as <code>/mnt/c</code>) using a custom file system driver
+that bridges the guest kernel to the host file system over virtual
+sockets (Hyper-V sockets or <code>vsock</code>).</li>
+<li><strong>Networking:</strong> The VM operates on a virtualized
+Network Address Translation (NAT) switch, allowing the Linux environment
+to seamlessly share network interfaces with the Windows host, with
+support for mirrored networking modes to bind localhost ports across
+both environments.</li>
+</ul></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

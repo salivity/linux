@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage ext4 Bad Sectors in Linux with badblocks - linux</title>
+    <meta name="description" content="This article provides an overview of how the Linux operating system identifies and handles damaged storage drive areas on ext4 filesystems using the badblocks utility. You will learn the mechanics of sector deterioration, the process of scanning partitio">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/manage-ext4-bad-sectors-in-linux-with-badblocks">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Manage ext4 Bad Sectors in Linux with badblocks - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/manage-ext4-bad-sectors-in-linux-with-badblocks" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="This article provides an overview of how the Linux operating system identifies and handles damaged storage drive areas on ext4 filesystems using the badblocks utility. You will learn the mechanics of sector deterioration, the process of scanning partitio" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="manage-ext4-bad-sectors-in-linux-with-badblocks">Manage ext4 Bad
+Sectors in Linux with badblocks</h1>
+<p>This article provides an overview of how the Linux operating system
+identifies and handles damaged storage drive areas on ext4 filesystems
+using the <code>badblocks</code> utility. You will learn the mechanics
+of sector deterioration, the process of scanning partitions for physical
+errors, and the methods used to integrate detected bad blocks into the
+ext4 filesystem's internal allocation tables to prevent data
+corruption.</p>
+<h3 id="understanding-bad-sectors-and-ext4">Understanding Bad Sectors
+and ext4</h3>
+<p>A bad sector is a storage block on a hard drive or solid-state drive
+that cannot be reliably read from or written to due to physical damage
+or magnetic degradation. While modern drives feature internal firmware
+that transparently remaps failing sectors using spare sectors, severe
+damage exhausts this pool. When hardware-level remapping fails, the
+operating system must intervene at the filesystem level.</p>
+<p>The ext4 filesystem manages storage via block groups and tracks
+unusable blocks using a dedicated, reserved data structure known as the
+bad block inode (inode 1). Once an ext4 filesystem marks a block as bad,
+the kernel's block allocator avoids assigning that specific block to any
+file, permanently isolating the damaged area from active use.</p>
+<h3 id="scanning-disks-with-badblocks">Scanning Disks with
+<code>badblocks</code></h3>
+<p>The <code>badblocks</code> command searches a device for damaged or
+unreadable blocks. It operates in two primary modes:</p>
+<ol type="1">
+<li><strong>Read-Only Mode:</strong> Performs a non-destructive scan
+that reads every block on the designated device.</li>
+<li><strong>Read-Write / Non-Destructive Write Mode:</strong> Writes
+patterns to each block and reads them back to verify data integrity. The
+non-destructive write mode (<code>-n</code>) preserves existing data,
+while the destructive write mode (<code>-w</code>) overwrites everything
+and should only be used on unformatted or backed-up drives.</li>
+</ol>
+<p>A typical read-only scan to output bad sectors to a text file is
+executed as follows:</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">badblocks</span> <span class="at">-v</span> /dev/sdX <span class="op">&gt;</span> bad_blocks.txt</span></code></pre></div>
+<h3 id="passing-bad-blocks-to-ext4">Passing Bad Blocks to ext4</h3>
+<p>Once <code>badblocks</code> identifies defective sectors, that list
+must be registered with the ext4 filesystem so the OS ceases allocating
+them. There are two primary workflows for doing this depending on
+whether the filesystem is new or existing.</p>
+<h4 id="method-1-scanning-an-existing-filesystem-via-e2fsck">Method 1:
+Scanning an Existing Filesystem via <code>e2fsck</code></h4>
+<p>For an existing filesystem that is currently unmounted, the
+<code>e2fsck</code> utility integrates directly with
+<code>badblocks</code>.</p>
+<p>To automatically run a read-only scan and append any discovered bad
+blocks to the ext4 bad block list:</p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="ex">e2fsck</span> <span class="at">-v</span> <span class="at">-c</span> /dev/sdX1</span></code></pre></div>
+<p>Using <code>-c</code> triggers a read-only test. Using
+<code>-cc</code> runs a non-destructive read-write test, which takes
+significantly longer but provides a more thorough assessment.</p>
+<p>Alternatively, if you already generated a list using the standalone
+<code>badblocks</code> command, apply it directly using the
+<code>-l</code> flag:</p>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="ex">e2fsck</span> <span class="at">-l</span> bad_blocks.txt /dev/sdX1</span></code></pre></div>
+<h4 id="method-2-marking-bad-blocks-during-filesystem-creation">Method
+2: Marking Bad Blocks During Filesystem Creation</h4>
+<p>If you are preparing a drive and want to check for surface errors
+before writing the ext4 filesystem, use the <code>-c</code> flag with
+<code>mke2fs</code> or <code>mkfs.ext4</code>:</p>
+<div class="sourceCode" id="cb4"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="ex">mkfs.ext4</span> <span class="at">-c</span> /dev/sdX1</span></code></pre></div>
+<p>This instruction commands <code>mkfs.ext4</code> to invoke
+<code>badblocks</code> in read-only mode before initializing the
+filesystem. Any blocks reported defective are pre-allocated to the bad
+block inode during filesystem creation. Passing <code>-c -c</code>
+executes a non-destructive read-write scan instead.</p>
+<h3 id="verifying-bad-block-allocations">Verifying Bad Block
+Allocations</h3>
+<p>To verify that the ext4 filesystem has successfully mapped the
+unusable blocks, use <code>dumpe2fs</code> to inspect the filesystem
+superblock:</p>
+<div class="sourceCode" id="cb5"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="ex">dumpe2fs</span> <span class="at">-b</span> /dev/sdX1</span></code></pre></div>
+<p>This prints the list of block numbers currently registered in the bad
+block inode. By actively tracking and bypassing these addresses, Linux
+ensures that the ext4 filesystem remains stable and protects incoming
+data from being written to physically unstable media.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

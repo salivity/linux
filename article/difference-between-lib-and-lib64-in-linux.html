@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Difference Between /lib and /lib64 in Linux - linux</title>
+    <meta name="description" content="In the Linux operating system, both /lib and /lib64 are system directories designated for storing critical shared libraries and kernel modules required for system booting and running commands in the root filesystem. The primary distinction between the tw">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/difference-between-lib-and-lib64-in-linux">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Difference Between /lib and /lib64 in Linux - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/difference-between-lib-and-lib64-in-linux" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="In the Linux operating system, both /lib and /lib64 are system directories designated for storing critical shared libraries and kernel modules required for system booting and running commands in the root filesystem. The primary distinction between the tw" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="difference-between-lib-and-lib64-in-linux">Difference Between
+/lib and /lib64 in Linux</h1>
+<p>In the Linux operating system, both <code>/lib</code> and
+<code>/lib64</code> are system directories designated for storing
+critical shared libraries and kernel modules required for system booting
+and running commands in the root filesystem. The primary distinction
+between the two lies in system processor architecture and how a
+distribution handles multilib (the capability to run both 32-bit and
+64-bit applications on the same operating system). While
+<code>/lib</code> historically housed 32-bit libraries,
+<code>/lib64</code> was introduced to house 64-bit libraries, though the
+exact implementation varies significantly across different Linux
+distributions.</p>
+<h3 id="processor-architecture-and-library-separation">Processor
+Architecture and Library Separation</h3>
+<p>Shared libraries are compiled machine code loaded by executables at
+runtime. Because a 64-bit executable cannot link against a 32-bit
+library and vice versa, systems capable of running both binary formats
+need distinct locations to store their respective libraries without
+naming collisions.</p>
+<ul>
+<li><strong>/lib:</strong> Historically, this directory held all
+essential shared libraries for 32-bit systems. On many 64-bit
+distributions that support multilib, <code>/lib</code> continues to host
+32-bit libraries to maintain backward compatibility.</li>
+<li><strong>/lib64:</strong> Introduced alongside 64-bit x86-64
+architectures, this directory holds essential 64-bit shared libraries,
+including the dynamic linker/loader
+(<code>ld-linux-x86-64.so</code>).</li>
+</ul>
+<h3 id="differences-across-linux-distributions">Differences Across Linux
+Distributions</h3>
+<p>The relationship between <code>/lib</code> and <code>/lib64</code>
+depends on how a specific Linux distribution implements the Filesystem
+Hierarchy Standard (FHS):</p>
+<h4 id="red-hat-fedora-centos-and-opensuse">Red Hat, Fedora, CentOS, and
+openSUSE</h4>
+<p>These distributions strictly follow the multilib separation
+paradigm:</p>
+<ul>
+<li><code>/lib</code> contains 32-bit shared object files
+(<code>.so</code>).</li>
+<li><code>/lib64</code> contains 64-bit shared object files.</li>
+</ul>
+<p>If you compile a 64-bit application on these distributions, the
+dynamic linker looks inside <code>/lib64</code> (and
+<code>/usr/lib64</code>) by default.</p>
+<h4 id="debian-and-ubuntu">Debian and Ubuntu</h4>
+<p>Debian and its derivatives use a "Multiarch" architecture
+specification rather than the multilib directory structure. Instead of
+splitting libraries into <code>/lib</code> and <code>/lib64</code>,
+Debian uses architecture-specific subdirectories under <code>/lib</code>
+and <code>/usr/lib</code>:</p>
+<ul>
+<li><code>/lib/x86_64-linux-gnu/</code> for 64-bit x86 libraries.</li>
+<li><code>/lib/i386-linux-gnu/</code> for 32-bit x86 libraries.</li>
+</ul>
+<p>On these systems, <code>/lib64</code> typically exists solely to
+maintain compatibility with the Linux Standard Base (LSB), often
+containing only the dynamic linker symlink pointing into
+<code>/lib</code>.</p>
+<h4 id="arch-linux-and-modern-systemd-distributions-merged-usr">Arch
+Linux and Modern Systemd Distributions (Merged <code>/usr</code>)</h4>
+<p>Modern distributions often implement the "UsrMerge" specification,
+where root system directories are merged into <code>/usr</code>:</p>
+<ul>
+<li><code>/lib</code> is a symbolic link pointing to
+<code>/usr/lib</code>.</li>
+<li><code>/lib64</code> is a symbolic link pointing to
+<code>/usr/lib64</code> (or directly to <code>/usr/lib</code> on pure
+64-bit setups).</li>
+</ul>
+<h3 id="the-dynamic-linker-and-configuration">The Dynamic Linker and
+Configuration</h3>
+<p>The operating system determines which library path to use when
+launching a binary via the dynamic linker (<code>ld.so</code>). The
+dynamic linker references paths listed in <code>/etc/ld.so.conf</code>
+and pre-indexed in the <code>/etc/ld.so.cache</code> binary
+database.</p>
+<p>You can inspect which directory your dynamic binaries use by
+inspecting the binary with the <code>ldd</code> command:</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ldd</span> /bin/ls</span></code></pre></div>
+<p>On a standard 64-bit multilib system, the output will reference
+libraries located in <code>/lib64</code> or <code>/usr/lib64</code>.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

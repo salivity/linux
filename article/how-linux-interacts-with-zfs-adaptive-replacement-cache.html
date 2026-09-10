@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How Linux Interacts with ZFS Adaptive Replacement Cache - linux</title>
+    <meta name="description" content="This article explores how the Linux operating system interacts with the ZFS Adaptive Replacement Cache (ARC). It details how OpenZFS manages its memory footprint independently of the standard Linux page cache, the mechanisms used by the Linux kernel to s">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-linux-interacts-with-zfs-adaptive-replacement-cache">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How Linux Interacts with ZFS Adaptive Replacement Cache - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-linux-interacts-with-zfs-adaptive-replacement-cache" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="This article explores how the Linux operating system interacts with the ZFS Adaptive Replacement Cache (ARC). It details how OpenZFS manages its memory footprint independently of the standard Linux page cache, the mechanisms used by the Linux kernel to s" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-linux-interacts-with-zfs-adaptive-replacement-cache">How
+Linux Interacts with ZFS Adaptive Replacement Cache</h1>
+<p>This article explores how the Linux operating system interacts with
+the ZFS Adaptive Replacement Cache (ARC). It details how OpenZFS manages
+its memory footprint independently of the standard Linux page cache, the
+mechanisms used by the Linux kernel to signal memory pressure to ZFS,
+and how system administrators can tune this interaction to prevent
+system instability and maximize storage throughput.</p>
+<h2 id="bypassing-the-linux-page-cache">Bypassing the Linux Page
+Cache</h2>
+<p>In a standard Linux setup, the kernel uses available system RAM for
+the Linux page cache, which buffers reads and writes for filesystems
+like ext4 and XFS. ZFS on Linux (OpenZFS) behaves fundamentally
+differently. It bypasses the native Linux page cache for file data,
+routing read and write operations through its own caching mechanism: the
+Adaptive Replacement Cache (ARC).</p>
+<p>The ARC is designed to balance both recency (Most Recently Used /
+MRU) and frequency (Most Frequently Used / MFU) of data access. Because
+the ARC exists as a separate layer originally designed for Solaris, ZFS
+uses the Solaris Porting Layer (SPL) within Linux to interface with the
+host kernel’s memory subsystems.</p>
+<h2 id="memory-allocation-via-the-linux-kernel">Memory Allocation via
+the Linux Kernel</h2>
+<p>The ARC allocates memory directly from the Linux kernel using
+standard internal allocators:</p>
+<ul>
+<li><strong>Slab/SLUB Allocators:</strong> ZFS requests kernel memory
+slabs to manage metadata and buffer headers.</li>
+<li><strong><code>vmalloc</code> and Virtual Memory Subsystems:</strong>
+Larger, contiguous memory allocations required for data blocks are
+handled via the kernel's virtual memory subsystem.</li>
+</ul>
+<p>Because the ARC consumes kernel memory rather than standard
+user-space buffers or page cache pages, tools like <code>free</code> or
+<code>top</code> historically report ARC usage as active kernel slab
+memory (<code>SUnreclaim</code> or <code>SReclaimable</code>) rather
+than "buff/cache." In modern OpenZFS releases, memory is marked to
+appear more accurately in reporting tools, but it remains strictly
+managed by ZFS rather than Linux's virtual filesystem (VFS) page cache
+layer.</p>
+<h2 id="memory-pressure-and-the-linux-kernel-shrinker">Memory Pressure
+and the Linux Kernel Shrinker</h2>
+<p>The most critical interaction between Linux and the ARC occurs when
+the system faces memory exhaustion. Because the Linux kernel cannot
+directly free ZFS ARC buffers on its own, it relies on a cooperative
+mechanism called a <strong>shrinker callback</strong>.</p>
+<ol type="1">
+<li><strong>Memory Contention Detection:</strong> When user-space
+applications request memory and free RAM drops below specific
+watermarks, the Linux virtual memory manager (<code>kswapd</code>)
+initiates memory reclamation.</li>
+<li><strong>Invoking the ZFS Shrinker:</strong> The Linux kernel invokes
+registered shrinker routines, including the one exposed by the OpenZFS
+module.</li>
+<li><strong>Releasing ARC Buffers:</strong> Upon receiving the shrinker
+event, the ARC dynamically prunes data—evicting first from the MRU or
+MFU lists based on internal eviction algorithms—and returns the freed
+memory pages directly to the Linux kernel.</li>
+<li><strong>Latency Challenges:</strong> While this process is
+automatic, asynchronous shrinker calls can occasionally lag behind
+sudden, massive memory allocation spikes by user applications, which can
+lead to Out-Of-Memory (OOM) killer invocations if the ARC cannot shrink
+quickly enough.</li>
+</ol>
+<h2 id="tuning-arc-limits-in-linux">Tuning ARC Limits in Linux</h2>
+<p>By default, OpenZFS on Linux configures the maximum ARC size
+(<code>zfs_arc_max</code>) to half of the total physical RAM on modern
+systems (or up to 75% on older releases). Administrators can control how
+aggressively ZFS consumes Linux memory by modifying OpenZFS module
+parameters at runtime or within
+<code>/etc/modprobe.d/zfs.conf</code>.</p>
+<ul>
+<li><strong><code>zfs_arc_max</code></strong>: Sets the upper ceiling
+for ARC memory consumption, preventing ZFS from starving
+memory-intensive applications such as databases or virtual
+machines.</li>
+<li><strong><code>zfs_arc_min</code></strong>: Establishes a floor below
+which the Linux shrinker cannot force the ARC to drop, preserving
+critical storage metadata performance.</li>
+<li><strong><code>arc_shrink_shift</code></strong>: Dictates the
+aggressiveness of the ARC eviction rate during memory reclamation
+cycles.</li>
+</ul>
+<p>Adjusting these settings allows the Linux kernel and the ZFS ARC to
+coexist predictably, balancing raw filesystem caching performance
+against the working memory needs of the rest of the operating
+system.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

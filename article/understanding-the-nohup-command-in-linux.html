@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Understanding the Nohup Command in Linux - linux</title>
+    <meta name="description" content="This article provides a concise guide to the nohup command in Linux, explaining its primary purpose, how it prevents process termination during remote sessions, and how to use it effectively. By reading this guide, you will learn how nohup handles termin">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/understanding-the-nohup-command-in-linux">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Understanding the Nohup Command in Linux - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/understanding-the-nohup-command-in-linux" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="This article provides a concise guide to the nohup command in Linux, explaining its primary purpose, how it prevents process termination during remote sessions, and how to use it effectively. By reading this guide, you will learn how nohup handles termin" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="understanding-the-nohup-command-in-linux">Understanding the
+Nohup Command in Linux</h1>
+<p>This article provides a concise guide to the <code>nohup</code>
+command in Linux, explaining its primary purpose, how it prevents
+process termination during remote sessions, and how to use it
+effectively. By reading this guide, you will learn how
+<code>nohup</code> handles terminal hangup signals, manages command
+output, and ensures that critical scripts continue executing seamlessly
+even after an SSH connection drops or closes.</p>
+<h2 id="the-purpose-of-nohup">The Purpose of Nohup</h2>
+<p>The term <code>nohup</code> stands for "no hangup." Its primary
+purpose is to allow processes and scripts to continue running in the
+background even after the user logs out, closes the terminal, or loses
+their network connection to a remote server.</p>
+<p>When you connect to a remote Linux server via SSH, the shell session
+acts as the parent process for any commands you run. When the SSH
+session closes, the operating system sends a <code>SIGHUP</code> (Signal
+Hangup, signal 1) to all child processes running in that session, which
+terminates them by default. Prefixing a command with <code>nohup</code>
+instructs the operating system to intercept and ignore the
+<code>SIGHUP</code> signal, ensuring the targeted process remains
+active.</p>
+<h2 id="how-nohup-works">How Nohup Works</h2>
+<p>Under standard execution, terminal-bound tasks rely directly on the
+active session's standard input (<code>stdin</code>), standard output
+(<code>stdout</code>), and standard error (<code>stderr</code>).</p>
+<p>When invoked, <code>nohup</code> modifies this behavior:</p>
+<ol type="1">
+<li><strong>Signal Immunity:</strong> It configures the process to
+ignore the <code>SIGHUP</code> signal entirely.</li>
+<li><strong>Output Redirection:</strong> Because the controlling
+terminal will eventually close, <code>nohup</code> automatically
+redirects <code>stdout</code> and <code>stderr</code> to a file named
+<code>nohup.out</code> in the current directory. If write permissions
+are lacking there, it attempts to write to
+<code>$HOME/nohup.out</code>.</li>
+<li><strong>Detachment:</strong> When combined with an ampersand
+(<code>&amp;</code>), it releases the command line prompt back to the
+user while keeping the script active in the background.</li>
+</ol>
+<h2 id="standard-usage">Standard Usage</h2>
+<p>To run a script that persists after disconnecting from an SSH
+session, use the following syntax:</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">nohup</span> /path/to/script.sh <span class="kw">&amp;</span></span></code></pre></div>
+<p>The <code>&amp;</code> operator places the command in the background,
+allowing you to continue using the terminal immediately.</p>
+<p>To specify a custom destination for the generated output rather than
+relying on <code>nohup.out</code>, redirect the streams manually:</p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">nohup</span> /path/to/script.sh <span class="op">&gt;</span> custom_output.log <span class="dv">2</span><span class="op">&gt;&amp;</span><span class="dv">1</span> <span class="kw">&amp;</span></span></code></pre></div>
+<p>In this command, <code>&gt; custom_output.log</code> sends standard
+output to the specified file, and <code>2&gt;&amp;1</code> redirects
+standard error to the same destination.</p>
+<h2 id="managing-nohup-processes">Managing Nohup Processes</h2>
+<p>Because a <code>nohup</code> process is decoupled from your terminal
+session, you cannot stop it using standard keyboard shortcuts like
+<code>Ctrl + C</code> once the terminal is closed.</p>
+<p>To manage or terminate a running <code>nohup</code> process:</p>
+<ol type="1">
+<li>Locate the process ID (PID) using <code>ps</code> or
+<code>pgrep</code>:
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ps</span> aux <span class="kw">|</span> <span class="fu">grep</span> script.sh</span></code></pre></div></li>
+<li>Terminate the process using the <code>kill</code> command followed
+by the PID:
+<div class="sourceCode" id="cb4"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="bu">kill</span> <span class="op">&lt;</span>PID<span class="op">&gt;</span></span></code></pre></div></li>
+</ol>
+<p>Using <code>nohup</code> is a standard, lightweight method for
+executing system maintenance, data backups, and long-running data
+processing tasks on remote servers without the risk of premature
+interruption caused by unstable network connections or closed SSH
+windows.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

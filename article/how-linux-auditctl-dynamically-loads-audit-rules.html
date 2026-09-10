@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How Linux auditctl Dynamically Loads Audit Rules - linux</title>
+    <meta name="description" content="The Linux Audit framework provides a robust tracking mechanism to log security-relevant events across the operating system. At the center of runtime configuration is the auditctl command, a user-space utility that controls the kernel’s audit subsystem.">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-linux-auditctl-dynamically-loads-audit-rules">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How Linux auditctl Dynamically Loads Audit Rules - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-linux-auditctl-dynamically-loads-audit-rules" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="The Linux Audit framework provides a robust tracking mechanism to log security-relevant events across the operating system. At the center of runtime configuration is the auditctl command, a user-space utility that controls the kernel’s audit subsystem." />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-linux-auditctl-dynamically-loads-audit-rules">How Linux
+auditctl Dynamically Loads Audit Rules</h1>
+<p>The Linux Audit framework provides a robust tracking mechanism to log
+security-relevant events across the operating system. At the center of
+runtime configuration is the <code>auditctl</code> command, a user-space
+utility that controls the kernel’s audit subsystem. This article
+explains how the Linux operating system uses <code>auditctl</code> to
+inject, modify, and delete auditing rules dynamically in kernel memory
+without interrupting system operations or requiring a reboot.</p>
+<h3 id="the-architecture-netlink-sockets-and-kernel-space">The
+Architecture: Netlink Sockets and Kernel Space</h3>
+<p>The Linux kernel maintains the audit subsystem
+(<code>kauditd</code>), which intercepts system calls, file operations,
+and security events. When an administrator or automation script executes
+<code>auditctl</code>, the utility communicates directly with the kernel
+using the Netlink protocol—specifically over the
+<code>NETLINK_AUDIT</code> socket family.</p>
+<p>Because this communication occurs through raw sockets directed at
+kernel memory, rule changes bypass persistent configuration files during
+execution. The kernel receives the rule structures, parses their
+validity, and inserts them into its internal rule evaluation lists
+instantaneously.</p>
+<h3 id="mechanics-of-dynamic-rule-insertion">Mechanics of Dynamic Rule
+Insertion</h3>
+<p>Dynamic rule loading allows administrators to adapt auditing on the
+fly to respond to active security incidents or targeted troubleshooting
+scenarios. <code>auditctl</code> categorizes rules primarily into file
+system watches and system call filters.</p>
+<h4 id="1-real-time-file-system-watches">1. Real-Time File System
+Watches</h4>
+<p>To dynamically monitor access to a critical file or directory,
+<code>auditctl</code> uses the <code>-w</code> flag. The kernel
+immediately attaches hooks to the target inode.</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">auditctl</span> <span class="at">-w</span> /etc/shadow <span class="at">-p</span> wa <span class="at">-k</span> shadow_access</span></code></pre></div>
+<ul>
+<li><code>-w /etc/shadow</code>: Targets the file for monitoring.</li>
+<li><code>-p wa</code>: Monitors for write (<code>w</code>) and
+attribute change (<code>a</code>) operations.</li>
+<li><code>-k shadow_access</code>: Appends a searchable identifier key
+to every generated log.</li>
+</ul>
+<h4 id="2-system-call-auditing">2. System Call Auditing</h4>
+<p>System call monitoring can be dynamically enabled by attaching rules
+to specific kernel evaluation lists, such as <code>exit</code>,
+<code>entry</code>, or <code>task</code>.</p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="ex">auditctl</span> <span class="at">-a</span> always,exit <span class="at">-F</span> arch=b64 <span class="at">-S</span> execve <span class="at">-k</span> process_exec</span></code></pre></div>
+<ul>
+<li><code>-a always,exit</code>: Informs the kernel to evaluate the rule
+upon exiting a system call and to always generate an event if
+matched.</li>
+<li><code>-F arch=b64</code>: Limits the rule to 64-bit
+architectures.</li>
+<li><code>-S execve</code>: Specifies the system call to intercept.</li>
+</ul>
+<h4 id="3-batch-loading-rules">3. Batch Loading Rules</h4>
+<p>Rather than loading rules individually, <code>auditctl</code> can
+dynamically inject an entire set of rules from a pre-defined file using
+the <code>-R</code> parameter:</p>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="ex">auditctl</span> <span class="at">-R</span> /etc/audit/rules.d/audit.rules</span></code></pre></div>
+<p>When this command runs, <code>auditctl</code> parses the target file
+line by line and pushes each entry across the Netlink socket into the
+kernel sequentially.</p>
+<h3 id="managing-and-clearing-live-rules">Managing and Clearing Live
+Rules</h3>
+<p>Dynamic rules take effect immediately, but they also require runtime
+management commands:</p>
+<ul>
+<li><strong>View active kernel rules:</strong> <code>auditctl -l</code>
+queries the kernel via the Netlink socket to retrieve the active rule
+set currently residing in memory.</li>
+<li><strong>Check audit subsystem status:</strong>
+<code>auditctl -s</code> reports the current operational state,
+including failure flags, rate limits, and buffer usage.</li>
+<li><strong>Flush the rule set:</strong> <code>auditctl -D</code> sends
+a flush signal to the kernel, immediately deleting all active rules from
+memory.</li>
+</ul>
+<h3 id="ephemeral-state-vs-persistence">Ephemeral State vs.
+Persistence</h3>
+<p>Because dynamic rule loading directly alters kernel memory, changes
+made solely via <code>auditctl</code> do not survive a system reboot.
+Once the system powers down, the in-memory rules list is lost.</p>
+<p>To make dynamic rules permanent:</p>
+<ol type="1">
+<li>Write the corresponding syntax into rule files located in
+<code>/etc/audit/rules.d/</code>.</li>
+<li>Run <code>augenrules --load</code> (or restart the
+<code>auditd</code> service), which compiles the configuration files
+into <code>/etc/audit/audit.rules</code> and uses <code>auditctl</code>
+internally to load them into the running kernel.</li>
+</ol></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

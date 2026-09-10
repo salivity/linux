@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linux SSH 2FA with Google Authenticator PAM - linux</title>
+    <meta name="description" content="This article explains how the Linux operating system implements two-factor authentication (2FA) for Secure Shell (SSH) access using the Google Authenticator Pluggable Authentication Module (PAM). It covers the underlying PAM architecture, how the OpenSSH">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/linux-ssh-2fa-with-google-authenticator-pam">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Linux SSH 2FA with Google Authenticator PAM - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/linux-ssh-2fa-with-google-authenticator-pam" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="This article explains how the Linux operating system implements two-factor authentication (2FA) for Secure Shell (SSH) access using the Google Authenticator Pluggable Authentication Module (PAM). It covers the underlying PAM architecture, how the OpenSSH" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="linux-ssh-2fa-with-google-authenticator-pam">Linux SSH 2FA with
+Google Authenticator PAM</h1>
+<p>This article explains how the Linux operating system implements
+two-factor authentication (2FA) for Secure Shell (SSH) access using the
+Google Authenticator Pluggable Authentication Module (PAM). It covers
+the underlying PAM architecture, how the OpenSSH daemon coordinates the
+authentication flow, how Time-based One-Time Passwords (TOTP) are
+generated and validated, and the configuration steps required to enforce
+secondary verification.</p>
+<h3 id="the-architecture-pam-and-openssh">The Architecture: PAM and
+OpenSSH</h3>
+<p>Linux delegates user authentication to Pluggable Authentication
+Modules (PAM). PAM provides a modular architecture that allows system
+services, such as the OpenSSH daemon (<code>sshd</code>), to
+authenticate users without needing to understand the underlying
+authentication mechanisms.</p>
+<p>When a user attempts an SSH login, <code>sshd</code> queries PAM to
+determine whether the user is authorized. By attaching the
+<code>pam_google_authenticator.so</code> module to the SSH
+authentication stack, the system inserts an additional layer of
+verification alongside traditional passwords or public keys.</p>
+<h3 id="how-the-totp-mechanism-works">How the TOTP Mechanism Works</h3>
+<p>The Google Authenticator PAM module relies on the Time-based One-Time
+Password (TOTP) algorithm defined in RFC 6238.</p>
+<ol type="1">
+<li><strong>Shared Secret:</strong> When the user initializes the
+authenticator utility on the server, a cryptographic shared secret is
+generated and saved in the user's home directory (typically
+<code>~/.google_authenticator</code>). This secret is also imported into
+the user's mobile authenticator app via a QR code or manual key
+entry.</li>
+<li><strong>Time Step Calculation:</strong> Both the server and the
+authenticator app use the current Unix epoch time divided into 30-second
+windows.</li>
+<li><strong>Hash Generation:</strong> The algorithm creates an HMAC-SHA1
+hash using the shared secret and the current time interval. The hash is
+truncated into a six-digit numerical code.</li>
+<li><strong>Validation:</strong> When prompted during login, the user
+enters the current six-digit code displayed on their app. The server
+independently calculates the expected code using its own system clock
+and the stored secret. If the submitted code matches the calculated code
+(within an acceptable drift window), PAM grants access.</li>
+</ol>
+<h3 id="configuration-workflow">Configuration Workflow</h3>
+<p>Implementing this mechanism requires changes across two main
+configuration components:</p>
+<h4 id="1-configuring-pam-etcpamdsshd">1. Configuring PAM
+(<code>/etc/pam.d/sshd</code>)</h4>
+<p>To require the second factor, the administrator appends the Google
+Authenticator shared library to the SSH PAM configuration:</p>
+<pre class="text"><code>auth required pam_google_authenticator.so</code></pre>
+<p>Setting the control flag to <code>required</code> ensures that
+authentication fails entirely if the one-time code is invalid or
+missing, regardless of whether the user provided a correct password.</p>
+<h4 id="2-configuring-the-openssh-daemon-etcsshsshd_config">2.
+Configuring the OpenSSH Daemon (<code>/etc/ssh/sshd_config</code>)</h4>
+<p>The SSH daemon must be instructed to support interactive
+challenge-response authentication to prompt the user for their TOTP
+token:</p>
+<pre class="text"><code>KbdInteractiveAuthentication yes
+UsePAM yes</code></pre>
+<p>To enforce both an SSH key (or password) and the TOTP token
+simultaneously, the <code>AuthenticationMethods</code> directive is
+defined:</p>
+<pre class="text"><code>AuthenticationMethods publickey,keyboard-interactive</code></pre>
+<p>This instruction forces <code>sshd</code> to validate the client's
+public SSH key first, followed immediately by the keyboard-interactive
+PAM stack where the one-time password prompt is presented.</p>
+<h3 id="handling-security-and-edge-cases">Handling Security and Edge
+Cases</h3>
+<p>The implementation includes specific safeguards to maintain security
+and reliability:</p>
+<ul>
+<li><strong>Replay Attack Prevention:</strong> Once a TOTP code is
+accepted, the PAM module writes it to the user's state file. The same
+code cannot be reused within the same time window.</li>
+<li><strong>Emergency Scratch Codes:</strong> During setup, single-use
+recovery codes are generated and stored in
+<code>~/.google_authenticator</code>. These allow access if the user
+loses their authenticator device.</li>
+<li><strong>Rate Limiting:</strong> The module can be configured to
+limit allowed login attempts over specific time windows to mitigate
+brute-force attacks against the six-digit tokens.</li>
+</ul></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

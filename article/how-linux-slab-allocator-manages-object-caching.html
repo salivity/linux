@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How Linux Slab Allocator Manages Object Caching - linux</title>
+    <meta name="description" content="The Linux slab allocator is a memory management mechanism designed to optimize kernel memory allocation by retaining pre-allocated, initialized object instances in dedicated caches. Rather than repeatedly allocating and freeing memory pages through the l">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-linux-slab-allocator-manages-object-caching">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How Linux Slab Allocator Manages Object Caching - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-linux-slab-allocator-manages-object-caching" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="The Linux slab allocator is a memory management mechanism designed to optimize kernel memory allocation by retaining pre-allocated, initialized object instances in dedicated caches. Rather than repeatedly allocating and freeing memory pages through the l" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-linux-slab-allocator-manages-object-caching">How Linux Slab
+Allocator Manages Object Caching</h1>
+<p>The Linux slab allocator is a memory management mechanism designed to
+optimize kernel memory allocation by retaining pre-allocated,
+initialized object instances in dedicated caches. Rather than repeatedly
+allocating and freeing memory pages through the lower-level buddy
+allocator—which introduces latency and internal fragmentation—the slab
+allocator maintains pools of commonly requested kernel structures, such
+as inodes, process descriptors, and network buffers. This overview
+explores the architectural structure of the slab allocator, the life
+cycle of cached objects, and the operational mechanics that allow Linux
+to achieve high-performance memory utilization.</p>
+<h3 id="the-purpose-of-object-caching">The Purpose of Object
+Caching</h3>
+<p>In an operating system kernel, specific data structures are created,
+used, and destroyed millions of times during system operation. Creating
+a complex kernel object typically involves two expensive operations:
+allocating memory space and initializing its member fields (such as
+locks, list pointers, and reference counters).</p>
+<p>The buddy allocator, which is Linux's primary page allocation system,
+operates on chunks of memory consisting of whole pages (typically 4 KB
+or larger). Using the buddy system to allocate small objects—such as a
+128-byte data structure—causes severe internal fragmentation and
+excessive page management overhead. The slab allocator sits between the
+buddy allocator and kernel requests, slicing full pages into fixed-size
+slots and keeping the underlying objects in a semi-constructed state to
+eliminate the need to re-initialize them on every allocation.</p>
+<h3 id="the-slab-allocator-hierarchy">The Slab Allocator Hierarchy</h3>
+<p>The slab caching architecture operates across three main structural
+tiers:</p>
+<ol type="1">
+<li><strong>Caches (<code>kmem_cache</code>):</strong> Each specific
+type of kernel object has its own dedicated cache (for example,
+<code>task_struct</code>, <code>mm_struct</code>, or
+<code>dentry</code>). There are also generic caches used by
+<code>kmalloc</code> to satisfy arbitrary byte-size requests. A cache
+tracks allocation metrics, object sizes, constructors, and pointers to
+slab lists.</li>
+<li><strong>Slabs:</strong> A slab consists of one or more physically
+contiguous memory pages obtained from the buddy system. These pages are
+divided into an array of equal-sized memory slots corresponding to the
+object type held by the cache.</li>
+<li><strong>Objects:</strong> These are the individual data structures
+residing inside a slab. They represent the actual memory addresses
+returned to kernel subsystems during an allocation call.</li>
+</ol>
+<h3 id="slab-states-and-tracking">Slab States and Tracking</h3>
+<p>To manage memory availability efficiently, slabs within a cache are
+organized into three primary states:</p>
+<ul>
+<li><strong>Full:</strong> Every object slot within the slab is
+currently allocated and in use.</li>
+<li><strong>Partial:</strong> The slab contains both allocated objects
+and available, free objects.</li>
+<li><strong>Empty:</strong> All object slots in the slab are free, and
+no active references exist.</li>
+</ul>
+<p>When a subsystem requests an object via
+<code>kmem_cache_alloc()</code>, the allocator searches the partial list
+first to satisfy the request without requesting new memory. If no
+partial slab exists, it uses an empty slab. If no empty slabs are
+available, the allocator queries the buddy system to allocate fresh
+physical pages and creates a new slab.</p>
+<h3 id="allocation-and-deallocation-mechanics">Allocation and
+Deallocation Mechanics</h3>
+<p>The primary optimization of the slab allocator lies in how it handles
+the lifecycle of an object:</p>
+<ul>
+<li><strong>Allocation (<code>kmem_cache_alloc</code>):</strong> When
+invoked, the allocator locates the first available object slot using an
+internal free-list pointer. Because the object is already associated
+with its cache metadata, minimal setup is required, and the pointer to
+the object is returned immediately.</li>
+<li><strong>Deallocation (<code>kmem_cache_free</code>):</strong> When
+the kernel releases an object, it is not returned to the system's global
+memory pool. Instead, the object is simply linked back into the free
+list of its parent slab. The internal invariants of the structure (like
+list heads and spinlocks) remain intact, bypassing the need to
+reconstruct the object when it is requested again.</li>
+</ul>
+<p>If freeing an object causes a slab to transition from full to
+partial, the slab is moved to the partial list. If all objects within a
+slab become free, the slab moves to the empty list.</p>
+<h3 id="memory-reclamation">Memory Reclamation</h3>
+<p>To prevent kernel caches from consuming excessive amounts of RAM, the
+slab allocator includes a reclamation interface integrated with the
+kernel's memory management subsystem. During periods of low memory
+pressure, empty slabs remain intact to handle future allocation bursts.
+Under significant memory pressure, kernel shrinkers trigger the release
+of empty slabs, returning the underlying physical pages back to the
+buddy allocator for use by user-space applications or other kernel
+components. Modern implementations (such as the default SLUB allocator)
+refine this model by using per-CPU slab queues to eliminate lock
+contention on multiprocessor systems.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

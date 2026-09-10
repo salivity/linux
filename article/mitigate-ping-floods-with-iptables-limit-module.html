@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mitigate Ping Floods with IPTables Limit Module - linux</title>
+    <meta name="description" content="This article explains how the Linux operating system uses the Netfilter framework and the iptables limit extension to defend against ICMP echo request (ping) flood attacks. You will learn the underlying mechanics of the token bucket algorithm that powers">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/mitigate-ping-floods-with-iptables-limit-module">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Mitigate Ping Floods with IPTables Limit Module - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/mitigate-ping-floods-with-iptables-limit-module" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="This article explains how the Linux operating system uses the Netfilter framework and the iptables limit extension to defend against ICMP echo request (ping) flood attacks. You will learn the underlying mechanics of the token bucket algorithm that powers" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="mitigate-ping-floods-with-iptables-limit-module">Mitigate Ping
+Floods with IPTables Limit Module</h1>
+<p>This article explains how the Linux operating system uses the
+Netfilter framework and the <code>iptables</code> <code>limit</code>
+extension to defend against ICMP echo request (ping) flood attacks. You
+will learn the underlying mechanics of the token bucket algorithm that
+powers the <code>limit</code> module, the specific rules required to
+throttle excessive ICMP traffic, and how these rules prevent
+denial-of-service (DoS) conditions while still allowing legitimate
+network diagnostics.</p>
+<h3 id="understanding-the-threat-ping-floods">Understanding the Threat:
+Ping Floods</h3>
+<p>A ping flood is a Denial of Service (DoS) attack where an adversary
+sends an overwhelming volume of ICMP Echo Request packets to a target
+system. Processing each packet consumes network bandwidth, interrupts
+the CPU, and requires the kernel to generate an ICMP Echo Reply. Without
+controls, this inbound volume saturates network interfaces and exhausts
+system resources, rendering the host unreachable.</p>
+<h3 id="how-the-limit-module-works-the-token-bucket-algorithm">How the
+Limit Module Works: The Token Bucket Algorithm</h3>
+<p>The Linux kernel implements rate-limiting in <code>iptables</code>
+through the <code>limit</code> match module (<code>-m limit</code>),
+which operates on a <strong>Token Bucket Filter</strong> algorithm.</p>
+<ol type="1">
+<li><strong>Token Allocation:</strong> The system maintains a virtual
+"bucket" that holds tokens.</li>
+<li><strong>Burst Limit (<code>--limit-burst</code>):</strong> This
+parameter sets the maximum number of tokens the bucket can hold at any
+given time. When traffic starts, each incoming packet consumes one
+token. If the bucket is full, the system can immediately process a burst
+of packets up to this number without restriction.</li>
+<li><strong>Refill Rate (<code>--limit</code>):</strong> Once tokens are
+consumed, the kernel replenishes them at a steady, predefined frequency
+(e.g., 1 per second, 5 per minute).</li>
+<li><strong>Packet Matching:</strong> As long as tokens are available in
+the bucket, incoming packets match the rule and trigger the specified
+target (such as <code>ACCEPT</code>). Once the bucket is empty,
+subsequent packets no longer match the rule and pass to following rules
+in the chain, where they can be dropped or rejected.</li>
+</ol>
+<h3 id="iptables-configuration-for-ping-flood-mitigation">IPTables
+Configuration for Ping Flood Mitigation</h3>
+<p>To mitigate a ping flood, you configure rules in the
+<code>INPUT</code> chain of the <code>filter</code> table to identify
+ICMP echo requests, rate-limit them, and discard excess packets.</p>
+<h4 id="1-allow-controlled-icmp-traffic">1. Allow Controlled ICMP
+Traffic</h4>
+<p>The first rule matches incoming ICMP Echo Requests and allows them
+through, provided tokens are available:</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">iptables</span> <span class="at">-A</span> INPUT <span class="at">-p</span> icmp <span class="at">--icmp-type</span> echo-request <span class="at">-m</span> limit <span class="at">--limit</span> 1/s <span class="at">--limit-burst</span> 4 <span class="at">-j</span> ACCEPT</span></code></pre></div>
+<ul>
+<li><code>-p icmp --icmp-type echo-request</code>: Targets only standard
+incoming ping requests, leaving other ICMP types (like Destination
+Unreachable or Time Exceeded) unaffected.</li>
+<li><code>-m limit</code>: Loads the rate-limiting match extension.</li>
+<li><code>--limit 1/s</code>: Enforces an average replenishment rate of
+one token per second.</li>
+<li><code>--limit-burst 4</code>: Allows a short burst of up to four
+packets before strict rate limiting begins.</li>
+<li><code>-j ACCEPT</code>: Accepts packets that fall within the
+threshold.</li>
+</ul>
+<h4 id="2-drop-excess-icmp-traffic">2. Drop Excess ICMP Traffic</h4>
+<p>Immediately following the acceptance rule, add a rule to discard any
+ping request that exceeded the allocated tokens:</p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="ex">iptables</span> <span class="at">-A</span> INPUT <span class="at">-p</span> icmp <span class="at">--icmp-type</span> echo-request <span class="at">-j</span> DROP</span></code></pre></div>
+<p>When an attacker sends high-frequency ping requests, the first four
+packets are accepted via the burst allowance. Subsequent packets arrive
+faster than the 1-per-second refill rate, fail the first rule's
+condition, traverse to the second rule, and are immediately discarded by
+the <code>DROP</code> target.</p>
+<h3 id="kernel-level-efficiency">Kernel-Level Efficiency</h3>
+<p>Because this filtering occurs directly within the Linux kernel via
+Netfilter hooks before socket allocation or user-space interaction takes
+place, CPU overhead remains minimal. Dropping packets at this stage
+ensures the operating system does not waste processing cycles generating
+ICMP Echo Reply packets, successfully insulating the host from resource
+exhaustion during an attack.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

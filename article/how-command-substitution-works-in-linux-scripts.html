@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How Command Substitution Works in Linux Scripts - linux</title>
+    <meta name="description" content="Command substitution is a fundamental Linux shell scripting feature that executes a specified command and replaces the command text itself with the standard output of that execution. This article explains how command substitution works under the hood, th">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-command-substitution-works-in-linux-scripts">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How Command Substitution Works in Linux Scripts - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-command-substitution-works-in-linux-scripts" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="Command substitution is a fundamental Linux shell scripting feature that executes a specified command and replaces the command text itself with the standard output of that execution. This article explains how command substitution works under the hood, th" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-command-substitution-works-in-linux-scripts">How Command
+Substitution Works in Linux Scripts</h1>
+<p>Command substitution is a fundamental Linux shell scripting feature
+that executes a specified command and replaces the command text itself
+with the standard output of that execution. This article explains how
+command substitution works under the hood, the two main syntax forms
+available, practical scripting examples, and critical behaviors such as
+subshell isolation and word splitting.</p>
+<h3 id="the-underlying-mechanism">The Underlying Mechanism</h3>
+<p>When a shell script encounters a command substitution, it performs
+the following steps:</p>
+<ol type="1">
+<li><strong>Subshell Creation:</strong> The shell spawns a subshell,
+which is an isolated child process of the current script.</li>
+<li><strong>Execution:</strong> The command inside the substitution
+syntax executes within this child subshell.</li>
+<li><strong>Capture:</strong> The standard output (<code>stdout</code>)
+of the executed command is captured, while standard error
+(<code>stderr</code>) is left untouched (and will print to the terminal
+unless redirected).</li>
+<li><strong>Stripping Trailing Newlines:</strong> The shell
+automatically trims any trailing newline characters from the captured
+output.</li>
+<li><strong>Replacement:</strong> The original command syntax in the
+script is replaced by the captured output string before the enclosing
+command runs.</li>
+</ol>
+<p>Because the command runs in a subshell, any variables set, directory
+changes made (via <code>cd</code>), or environmental shifts created
+within the substitution do not persist in the parent script.</p>
+<h3 id="syntax-options">Syntax Options</h3>
+<p>Linux supports two distinct syntaxes for command substitution:</p>
+<h4 id="1-the-modern-syntax-command">1. The Modern Syntax:
+<code>$(command)</code></h4>
+<p>This is the standard POSIX syntax and the recommended approach for
+modern shell scripts.</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="va">current_user</span><span class="op">=</span><span class="va">$(</span><span class="fu">whoami</span><span class="va">)</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="st">&quot;Current user is: </span><span class="va">$current_user</span><span class="st">&quot;</span></span></code></pre></div>
+<p>Advantages of <code>$(command)</code> include:</p>
+<ul>
+<li><strong>Easy Nesting:</strong> Commands can be nested without
+complex escaping.
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="va">parent_dir</span><span class="op">=</span><span class="va">$(</span><span class="fu">dirname</span> <span class="va">$(</span><span class="fu">which</span> bash<span class="va">))</span></span></code></pre></div></li>
+<li><strong>Visual Clarity:</strong> Parentheses are visually distinct
+and easy to read.</li>
+</ul>
+<h4 id="2-the-legacy-syntax-command-backticks">2. The Legacy Syntax:
+<code>`command`</code> (Backticks)</h4>
+<p>Backticks represent the traditional Unix/Bourne shell syntax.</p>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="va">current_user</span><span class="op">=</span><span class="kw">`</span><span class="fu">whoami</span><span class="kw">`</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="st">&quot;Current user is: </span><span class="va">$current_user</span><span class="st">&quot;</span></span></code></pre></div>
+<p>While still supported for backward compatibility, backticks are
+generally discouraged because nesting requires cumbersome backslash
+escaping:</p>
+<div class="sourceCode" id="cb4"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="va">parent_dir</span><span class="op">=</span><span class="kw">`</span><span class="fu">dirname</span> <span class="dt">\`</span>which bash<span class="dt">\`</span><span class="kw">`</span></span></code></pre></div>
+<h3 id="common-use-cases">Common Use Cases</h3>
+<ul>
+<li><strong>Variable Assignment:</strong> Capturing system data or
+calculations into script variables for later use.
+<div class="sourceCode" id="cb5"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="va">BACKUP_DATE</span><span class="op">=</span><span class="va">$(</span><span class="fu">date</span> +<span class="st">&quot;%Y-%m-%d&quot;</span><span class="va">)</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="va">BACKUP_FILE</span><span class="op">=</span><span class="st">&quot;backup_</span><span class="va">${BACKUP_DATE}</span><span class="st">.tar.gz&quot;</span></span></code></pre></div></li>
+<li><strong>Inline Output:</strong> Injecting the output of a command
+directly into another command's arguments.
+<div class="sourceCode" id="cb6"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="st">&quot;Total memory usage: </span><span class="va">$(</span><span class="fu">free</span> <span class="at">-m</span> <span class="kw">|</span> <span class="fu">awk</span> <span class="st">&#39;/Mem:/ {print $3}&#39;</span><span class="va">)</span><span class="st"> MB&quot;</span></span></code></pre></div></li>
+<li><strong>Conditional Logic:</strong> Directing output into
+evaluations.
+<div class="sourceCode" id="cb7"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> <span class="bu">[</span> <span class="st">&quot;</span><span class="va">$(</span><span class="fu">uname</span><span class="va">)</span><span class="st">&quot;</span> <span class="ot">=</span> <span class="st">&quot;Linux&quot;</span> <span class="bu">]</span><span class="kw">;</span> <span class="cf">then</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>    <span class="bu">echo</span> <span class="st">&quot;Running on Linux&quot;</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="cf">fi</span></span></code></pre></div></li>
+</ul>
+<h3 id="critical-best-practices">Critical Best Practices</h3>
+<ul>
+<li><strong>Always Quote Substitutions:</strong> Wrap substitutions in
+double quotes (<code>"$()"</code>) unless word splitting is explicitly
+required. Quoting preserves internal whitespace and newlines, preventing
+the shell from splitting the result into separate arguments.
+<div class="sourceCode" id="cb8"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Safer: preserves line breaks and spaces</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="va">files</span><span class="op">=</span><span class="st">&quot;</span><span class="va">$(</span><span class="fu">ls</span> <span class="at">-l</span><span class="va">)</span><span class="st">&quot;</span></span></code></pre></div></li>
+<li><strong>Handling Errors:</strong> By default, command substitution
+only captures <code>stdout</code>. If a command fails,
+<code>stderr</code> prints directly to the console. To capture both
+<code>stdout</code> and <code>stderr</code>, redirect the error stream
+within the substitution:
+<div class="sourceCode" id="cb9"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="va">result</span><span class="op">=</span><span class="va">$(</span><span class="ex">command_name</span> <span class="dv">2</span><span class="op">&gt;&amp;</span><span class="dv">1</span><span class="va">)</span></span></code></pre></div></li>
+<li><strong>Exit Status Verification:</strong> The exit code of the
+command substitution is preserved in the <code>$?</code> variable
+immediately after assignment, allowing you to check if the substituted
+command succeeded:
+<div class="sourceCode" id="cb10"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="va">output</span><span class="op">=</span><span class="va">$(</span><span class="fu">cat</span> non_existent_file.txt <span class="dv">2</span><span class="op">&gt;</span>/dev/null<span class="va">)</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> <span class="bu">[</span> <span class="va">$?</span> <span class="ot">-ne</span> 0 <span class="bu">]</span><span class="kw">;</span> <span class="cf">then</span></span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>    <span class="bu">echo</span> <span class="st">&quot;Command failed.&quot;</span></span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a><span class="cf">fi</span></span></code></pre></div></li>
+</ul></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>What Is Windows Subsystem for Linux (WSL)? - linux</title>
+    <meta name="description" content="The Windows Subsystem for Linux (WSL) is a feature of the Windows operating system that enables developers to run a native Linux environment directly on Windows without the overhead of a traditional virtual machine or a dual-boot setup. This article expl">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/what-is-windows-subsystem-for-linux-wsl">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="What Is Windows Subsystem for Linux (WSL)? - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/what-is-windows-subsystem-for-linux-wsl" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="The Windows Subsystem for Linux (WSL) is a feature of the Windows operating system that enables developers to run a native Linux environment directly on Windows without the overhead of a traditional virtual machine or a dual-boot setup. This article expl" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="what-is-windows-subsystem-for-linux-wsl">What Is Windows
+Subsystem for Linux (WSL)?</h1>
+<p>The Windows Subsystem for Linux (WSL) is a feature of the Windows
+operating system that enables developers to run a native Linux
+environment directly on Windows without the overhead of a traditional
+virtual machine or a dual-boot setup. This article explains the core
+architecture of WSL, highlights the differences between its primary
+versions, and details how it seamlessly integrates Linux command-line
+tools, utilities, and graphical applications into the Windows desktop
+experience.</p>
+<h2 id="understanding-wsl">Understanding WSL</h2>
+<p>Windows Subsystem for Linux is a compatibility layer developed by
+Microsoft in partnership with Canonical and other Linux distribution
+vendors. It allows users to install and run distributions such as
+Ubuntu, Debian, Fedora, and openSUSE directly inside Windows 10 and
+Windows 11. Through WSL, users can execute Bash scripts, use
+command-line utilities like <code>grep</code>, <code>sed</code>, and
+<code>awk</code>, run package managers like <code>apt</code> or
+<code>pacman</code>, and host server-side programming environments like
+Node.js, Python, Ruby, and Rust.</p>
+<h2 id="architectural-evolution-wsl-1-vs-wsl-2">Architectural Evolution:
+WSL 1 vs. WSL 2</h2>
+<p>To understand how WSL integrates Linux into Windows, it is necessary
+to examine how its architecture has evolved:</p>
+<ul>
+<li><strong>WSL 1:</strong> The original version implemented a
+translation layer that mapped Linux system calls (syscalls) into
+equivalent Windows NT kernel system calls. While it required fewer
+resources, it lacked full Linux kernel compatibility and suffered from
+slower file I/O operations when interacting with complex
+toolchains.</li>
+<li><strong>WSL 2:</strong> The modern implementation uses a
+lightweight, highly optimized virtual machine running on a subset of the
+Hyper-V architecture. It features a genuine, Microsoft-maintained Linux
+kernel. This design provides 100% system call compatibility—enabling
+technologies like Docker and systemd—alongside significantly faster file
+system performance.</li>
+</ul>
+<h2 id="how-linux-integrates-into-windows">How Linux Integrates into
+Windows</h2>
+<p>Rather than isolating the guest operating system like a standard
+virtual machine, WSL deeply integrates the Linux environment into
+Windows through several mechanisms:</p>
+<h3 id="1-cross-file-system-access">1. Cross-File System Access</h3>
+<p>WSL establishes bi-directional access between both operating
+systems:</p>
+<ul>
+<li><strong>Accessing Windows from Linux:</strong> Windows drives are
+automatically mounted inside the Linux environment under the
+<code>/mnt/</code> directory (for example, <code>C:\</code> is
+accessible at <code>/mnt/c/</code>).</li>
+<li><strong>Accessing Linux from Windows:</strong> Linux file systems
+are exposed to Windows through a custom Plan9 network protocol server.
+Users can browse Linux directory trees directly within Windows File
+Explorer using the path
+<code>\\wsl$\&lt;DistributionName&gt;</code>.</li>
+</ul>
+<h3 id="2-interoperability-of-commands-and-binaries">2. Interoperability
+of Commands and Binaries</h3>
+<p>WSL allows users to mix and match Windows and Linux executables
+within the same command pipeline:</p>
+<ul>
+<li>You can call Windows applications from a Linux shell (e.g., typing
+<code>notepad.exe file.txt</code> inside Bash).</li>
+<li>You can run Linux commands from the Windows Command Prompt or
+PowerShell (e.g., <code>wsl grep "pattern" data.txt</code>).</li>
+<li>Both environments share the Windows <code>PATH</code> environment
+variable by default, making tools installed on Windows immediately
+discoverable within the Linux terminal.</li>
+</ul>
+<h3 id="3-shared-networking-and-localhost">3. Shared Networking and
+Localhost</h3>
+<p>WSL 2 integrates with the Windows networking stack. Network
+applications running inside Linux—such as an Apache or Node.js web
+server—can be accessed on the Windows host using <code>localhost</code>
+and the associated port number. This setup eliminates the need to
+configure custom port forwarding or separate network adapters for
+typical development workflows.</p>
+<h3 id="4-hardware-and-graphical-integration-wslg">4. Hardware and
+Graphical Integration (WSLg)</h3>
+<p>Modern versions of WSL include WSLg (Windows Subsystem for Linux
+GUI), which allows users to launch native Linux desktop applications
+alongside standard Windows software. WSLg runs a companion system
+distribution containing Wayland, X server, and PulseAudio components. It
+leverages Remote Desktop Protocol (RDP) architecture behind the scenes
+to render Linux GUI windows, complete with GPU hardware acceleration,
+audio support, and clipboard sharing.</p>
+<h3 id="5-dynamic-resource-management">5. Dynamic Resource
+Management</h3>
+<p>Unlike traditional virtual machines that permanently reserve fixed
+amounts of CPU and RAM, the WSL 2 utility VM dynamically allocates
+memory and processor cores based on active workloads. When Linux
+processes complete their tasks, WSL automatically releases unused memory
+back to the Windows host.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

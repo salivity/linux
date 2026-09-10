@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How Linux Manages Persistent Memory (NVDIMM) - linux</title>
+    <meta name="description" content="This article explores how the Linux operating system integrates and manages Non-Volatile Dual In-line Memory Modules (NVDIMMs). It covers the core kernel architecture, specifically the libnvdimm subsystem, the Direct Access (DAX) mechanism that bypasses">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-linux-manages-persistent-memory-nvdimm">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How Linux Manages Persistent Memory (NVDIMM) - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-linux-manages-persistent-memory-nvdimm" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="This article explores how the Linux operating system integrates and manages Non-Volatile Dual In-line Memory Modules (NVDIMMs). It covers the core kernel architecture, specifically the libnvdimm subsystem, the Direct Access (DAX) mechanism that bypasses" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-linux-manages-persistent-memory-nvdimm">How Linux Manages
+Persistent Memory (NVDIMM)</h1>
+<p>This article explores how the Linux operating system integrates and
+manages Non-Volatile Dual In-line Memory Modules (NVDIMMs). It covers
+the core kernel architecture, specifically the <code>libnvdimm</code>
+subsystem, the Direct Access (DAX) mechanism that bypasses standard
+caching, the primary device operating modes, and the management tools
+used to configure persistent memory for high-performance enterprise
+workloads.</p>
+<h2 id="the-libnvdimm-subsystem">The <code>libnvdimm</code>
+Subsystem</h2>
+<p>Linux manages persistent memory primarily through the
+<code>libnvdimm</code> kernel subsystem. This framework discovers,
+configures, and controls NVDIMMs exposed by system firmware.</p>
+<p>During the boot process, the kernel queries the ACPI (Advanced
+Configuration and Power Interface) tables—specifically the NVDIMM
+Firmware Interface Table (NFIT). The NFIT outlines the physical
+topology, memory ranges, and capabilities of the installed modules. The
+<code>libnvdimm</code> driver processes this data to generate device
+abstractions, representing physical modules as regions that can be
+sliced into usable namespaces.</p>
+<h2 id="nvdimm-operating-modes-and-namespaces">NVDIMM Operating Modes
+and Namespaces</h2>
+<p>Linux allows administrators to allocate persistent memory into
+distinct namespaces depending on the performance requirements and safety
+guarantees of the target workload.</p>
+<ul>
+<li><strong>FSDAX (Filesystem Direct Access):</strong> The default and
+most common mode. It creates a block device capable of supporting direct
+memory access via modern filesystems (such as ext4 or XFS).</li>
+<li><strong>DEVDAX (Device Direct Access):</strong> Provides raw,
+character-device access to persistent memory. This mode bypasses both
+the filesystem and the page cache, allowing specialized applications to
+directly <code>mmap</code> ranges of persistent memory with zero kernel
+intervention.</li>
+<li><strong>Sector Mode:</strong> Designed for legacy applications and
+standard filesystems that expect traditional block-storage semantics. It
+utilizes the Block Translation Table (BTT) to provide atomic
+sector-update guarantees, preventing torn writes during unexpected power
+loss.</li>
+<li><strong>System RAM (<code>kmem</code>):</strong> Assigns persistent
+memory directly to the kernel's volatile memory management system. The
+kernel treats the NVDIMM as an additional, slower tier of regular system
+RAM rather than non-volatile storage.</li>
+</ul>
+<h2 id="direct-access-dax">Direct Access (DAX)</h2>
+<p>Traditional storage subsystems in Linux rely heavily on the page
+cache, copying data from a storage drive into DRAM before making it
+available to applications. Because NVDIMMs are directly accessible on
+the memory bus via standard CPU instructions (<code>load</code> and
+<code>store</code>), the page cache creates unnecessary latency and
+consumes redundant DRAM.</p>
+<p>The Linux Direct Access (DAX) mechanism removes this overhead. When
+an application reads or writes to a DAX-enabled filesystem, the kernel
+maps the physical persistent memory addresses directly into the
+process's virtual address space. This bypasses the I/O software stack
+entirely, delivering byte-addressability and nanosecond-level
+latency.</p>
+<h2 id="memory-flushing-and-data-durability">Memory Flushing and Data
+Durability</h2>
+<p>Operating at the memory bus level changes how data persistence is
+guaranteed. Standard dirty-page flushes (<code>fsync</code>) do not
+apply to direct memory writes. Instead, Linux relies on specific CPU
+instructions to flush data out of CPU caches and write-combining buffers
+down to the NVDIMM's non-volatile domain (Asynchronous DRAM Refresh, or
+ADR).</p>
+<p>Applications interacting with DAX devices use user-space
+cache-flushing instructions (such as <code>clwb</code> or
+<code>clflushopt</code> on x86-64) followed by a memory barrier
+(<code>sfence</code>). This guarantees that data is physically committed
+to non-volatile media before the application acknowledges the write as
+durable.</p>
+<h2 id="user-space-configuration-with-ndctl">User-Space Configuration
+with <code>ndctl</code></h2>
+<p>System administrators manage persistent memory resources in Linux
+using <code>ndctl</code>, the standard user-space utility for the
+<code>libnvdimm</code> subsystem. The tool enables users to:</p>
+<ol type="1">
+<li>Enumerate physical NVDIMM modules and health states.</li>
+<li>Aggregate physical modules into interleaved sets called
+regions.</li>
+<li>Carve regions into namespaces (e.g., configuring
+<code>/dev/pmem0</code> for FSDAX or <code>/dev/dax0.0</code> for
+DEVDAX).</li>
+<li>Monitor hardware wear levels, media errors, and lifecycle
+events.</li>
+</ol></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

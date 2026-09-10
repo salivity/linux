@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linux Cut Command: Extract Fields from a File - linux</title>
+    <meta name="description" content="The cut command is a standard command-line utility in the Linux operating system designed for parsing and filtering text streams. This article explains how the cut command extracts specific fields from structured data files, covering its primary syntax,">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/linux-cut-command-extract-fields-from-a-file">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Linux Cut Command: Extract Fields from a File - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/linux-cut-command-extract-fields-from-a-file" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="The cut command is a standard command-line utility in the Linux operating system designed for parsing and filtering text streams. This article explains how the cut command extracts specific fields from structured data files, covering its primary syntax," />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="linux-cut-command-extract-fields-from-a-file">Linux Cut Command:
+Extract Fields from a File</h1>
+<p>The <code>cut</code> command is a standard command-line utility in
+the Linux operating system designed for parsing and filtering text
+streams. This article explains how the <code>cut</code> command extracts
+specific fields from structured data files, covering its primary syntax,
+essential flags such as <code>-d</code> and <code>-f</code>, and
+practical examples for processing delimited formats like CSV and system
+configuration files.</p>
+<h2 id="the-role-of-the-cut-command-in-linux">The Role of the
+<code>cut</code> Command in Linux</h2>
+<p>In Linux text processing, the <code>cut</code> command functions as a
+column-based filter. Unlike commands that filter entire lines (such as
+<code>grep</code>), <code>cut</code> slices out vertical segments from
+each line of a file or standard input. It is particularly useful when
+working with tabular or delimited text, allowing administrators and
+developers to isolate specific columns of data without relying on
+heavier processing tools like <code>awk</code> or <code>sed</code>.</p>
+<h2 id="syntax-for-extracting-fields">Syntax for Extracting Fields</h2>
+<p>To extract fields using <code>cut</code>, two primary options are
+used together:</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cut</span> <span class="at">-d</span> <span class="st">&#39;&lt;delimiter&gt;&#39;</span> <span class="at">-f</span> <span class="op">&lt;</span>field_numbers<span class="op">&gt;</span> <span class="op">&lt;</span>filename<span class="op">&gt;</span></span></code></pre></div>
+<ul>
+<li><strong><code>-d</code> (Delimiter):</strong> Specifies the
+character that separates the fields. If omitted, <code>cut</code>
+defaults to using a standard Tab character as the delimiter.</li>
+<li><strong><code>-f</code> (Field):</strong> Specifies which field or
+fields to extract.</li>
+</ul>
+<h2 id="specifying-delimiters-with--d">Specifying Delimiters with
+<code>-d</code></h2>
+<p>Text files use various characters to separate data columns. The
+<code>-d</code> option defines which character acts as the boundary.</p>
+<ul>
+<li><p><strong>Colons:</strong> System files such as
+<code>/etc/passwd</code> use colons to separate data fields:</p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cut</span> <span class="at">-d</span> <span class="st">&#39;:&#39;</span> <span class="at">-f</span> 1 /etc/passwd</span></code></pre></div>
+<p>This command extracts only the first field (the username) from each
+line.</p></li>
+<li><p><strong>Commas:</strong> Standard CSV files use commas to
+separate values:</p>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cut</span> <span class="at">-d</span> <span class="st">&#39;,&#39;</span> <span class="at">-f</span> 2 data.csv</span></code></pre></div>
+<p>This extracts the second column from <code>data.csv</code>.</p></li>
+</ul>
+<p><em>Note: The standard <code>cut</code> utility only supports
+single-byte delimiters. It cannot use regular expressions or
+multi-character strings as delimiters.</em></p>
+<h2 id="selecting-fields-with--f">Selecting Fields with
+<code>-f</code></h2>
+<p>The <code>-f</code> option provides flexible ways to target single
+fields, lists of fields, or ranges:</p>
+<ul>
+<li><strong>Single field:</strong> <code>-f 2</code> extracts only field
+2.</li>
+<li><strong>Multiple distinct fields:</strong> <code>-f 1,3,5</code>
+extracts fields 1, 3, and 5.</li>
+<li><strong>Field range:</strong> <code>-f 1-3</code> extracts fields 1
+through 3.</li>
+<li><strong>Open-ended range:</strong> <code>-f 3-</code> extracts field
+3 through the end of the line.</li>
+<li><strong>From start to field:</strong> <code>-f -3</code> extracts
+from field 1 up to field 3.</li>
+</ul>
+<p>When extracting multiple fields, <code>cut</code> preserves their
+original order from the file and separates them in the output using the
+defined input delimiter (unless modified by
+<code>--output-delimiter</code>).</p>
+<h2 id="useful-modifiers-for-field-extraction">Useful Modifiers for
+Field Extraction</h2>
+<h3 id="complementing-selections---complement">Complementing Selections
+(<code>--complement</code>)</h3>
+<p>To display every field <em>except</em> the ones specified, use the
+<code>--complement</code> flag.</p>
+<div class="sourceCode" id="cb4"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cut</span> <span class="at">-d</span> <span class="st">&#39;,&#39;</span> <span class="at">-f</span> 2 <span class="at">--complement</span> data.csv</span></code></pre></div>
+<p>This prints all fields except the second field.</p>
+<h3 id="suppressing-lines-without-delimiters--s">Suppressing Lines
+Without Delimiters (<code>-s</code>)</h3>
+<p>By default, if a line in the input does not contain the specified
+delimiter, <code>cut</code> prints the entire line unchanged. Adding the
+<code>-s</code> (or <code>--only-delimited</code>) flag forces
+<code>cut</code> to skip any line that lacks the delimiter, preventing
+headers or commentary lines from polluting the output:</p>
+<div class="sourceCode" id="cb5"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cut</span> <span class="at">-d</span> <span class="st">&#39;:&#39;</span> <span class="at">-s</span> <span class="at">-f</span> 1 /etc/passwd</span></code></pre></div>
+<h3 id="changing-the-output-delimiter---output-delimiter">Changing the
+Output Delimiter (<code>--output-delimiter</code>)</h3>
+<p>You can transform data formatting during extraction by defining a
+different character for the output:</p>
+<div class="sourceCode" id="cb6"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cut</span> <span class="at">-d</span> <span class="st">&#39;:&#39;</span> <span class="at">-f</span> 1,7 <span class="at">--output-delimiter</span><span class="op">=</span><span class="st">&#39; -&gt; &#39;</span> /etc/passwd</span></code></pre></div>
+<p>This prints the username and default shell separated by
+<code>-&gt;</code> instead of a colon.</p>
+<h2 id="using-cut-in-shell-pipelines">Using <code>cut</code> in Shell
+Pipelines</h2>
+<p>The primary strength of <code>cut</code> lies in command pipelines.
+It accepts input directly from <code>stdin</code>, making it efficient
+for extracting data on the fly:</p>
+<div class="sourceCode" id="cb7"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span> /var/log/auth.log <span class="kw">|</span> <span class="fu">grep</span> <span class="st">&quot;Failed password&quot;</span> <span class="kw">|</span> <span class="fu">cut</span> <span class="at">-d</span> <span class="st">&#39; &#39;</span> <span class="at">-f</span> 1-3</span></code></pre></div>
+<p>By isolating exact fields quickly and with minimal CPU overhead, the
+<code>cut</code> command remains a fundamental utility for log analysis,
+CSV parsing, and shell script automation in Linux.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

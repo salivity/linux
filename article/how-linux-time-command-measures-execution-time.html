@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How Linux Time Command Measures Execution Time - linux</title>
+    <meta name="description" content="This article explains how the Linux time command calculates the runtime of scripts and programs by interfacing directly with the Linux kernel. It covers the difference between the shell built-in and external binary, how system calls capture process stati">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-linux-time-command-measures-execution-time">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How Linux Time Command Measures Execution Time - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-linux-time-command-measures-execution-time" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="This article explains how the Linux time command calculates the runtime of scripts and programs by interfacing directly with the Linux kernel. It covers the difference between the shell built-in and external binary, how system calls capture process stati" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-linux-time-command-measures-execution-time">How Linux Time
+Command Measures Execution Time</h1>
+<p>This article explains how the Linux <code>time</code> command
+calculates the runtime of scripts and programs by interfacing directly
+with the Linux kernel. It covers the difference between the shell
+built-in and external binary, how system calls capture process
+statistics, and the technical mechanics behind the real, user, and
+system time metrics reported in execution summaries.</p>
+<h2 id="the-built-in-vs-external-binary">The Built-in vs. External
+Binary</h2>
+<p>Linux environments generally provide two versions of the
+<code>time</code> utility: the shell built-in (standard in Bash, Zsh,
+and others) and the external GNU binary located at
+<code>/usr/bin/time</code>.</p>
+<p>While their output formatting differs—the GNU binary offers detailed
+resource profiling via the <code>-v</code> flag—both rely on the same
+fundamental kernel facilities to monitor process execution and gather
+performance metrics.</p>
+<h2 id="process-spawning-and-state-tracking">Process Spawning and State
+Tracking</h2>
+<p>When you execute a script using <code>time ./script.sh</code>, the
+command does not simply read a wall clock before and after execution.
+Instead, it acts as a parent process that monitors the target script
+through standard POSIX process-management workflows:</p>
+<ol type="1">
+<li><strong>Forking:</strong> The <code>time</code> command creates a
+child process using the <code>fork()</code> system call.</li>
+<li><strong>Execution:</strong> The child process replaces its address
+space with the target script or interpreter using the
+<code>execve()</code> system call.</li>
+<li><strong>Observation:</strong> The parent process pauses its own
+execution and waits for the child process to terminate using system
+calls such as <code>wait4()</code> or <code>waitid()</code>.</li>
+</ol>
+<h2 id="the-role-of-wait4-and-getrusage">The Role of
+<code>wait4()</code> and <code>getrusage()</code></h2>
+<p>The primary mechanism for measuring execution duration is the
+<code>wait4()</code> system call. This call suspends the calling process
+until the specified child process changes state (such as
+terminating).</p>
+<p>When the child process exits, <code>wait4()</code> collects its
+termination status along with a populated <code>rusage</code> (resource
+usage) structure. The Linux kernel continuously tracks the resource
+metrics of every task in its internal process control block
+(<code>task_struct</code>). When <code>wait4()</code> returns, this
+accumulated data is delivered directly to the <code>time</code> process,
+eliminating the overhead of external polling.</p>
+<h2 id="breaking-down-the-output-metrics">Breaking Down the Output
+Metrics</h2>
+<p>The <code>time</code> command aggregates and reports three primary
+temporal metrics:</p>
+<h3 id="1-real-time-wall-clock-time">1. Real Time (Wall-Clock Time)</h3>
+<p>Real time (often labeled <code>real</code> or <code>elapsed</code>)
+represents the total elapsed human time from the moment the command is
+launched until it exits.</p>
+<ul>
+<li><strong>Mechanism:</strong> The utility samples the system's
+high-resolution monotonic clock (via
+<code>clock_gettime(CLOCK_MONOTONIC)</code>) immediately before forking
+the child and immediately after <code>wait4()</code> returns.</li>
+<li><strong>Factors:</strong> This duration includes CPU execution, time
+spent waiting for storage or network I/O, and delays caused by system
+context switching or CPU throttling.</li>
+</ul>
+<h3 id="2-user-cpu-time">2. User CPU Time</h3>
+<p>User time (labeled <code>user</code>) reflects the exact duration the
+CPU spent executing the target program's instructions in user space.</p>
+<ul>
+<li><strong>Mechanism:</strong> The kernel tallies time spent running
+application code outside of kernel privileges. It excludes time spent
+waiting for file system operations, sleep calls, or kernel
+operations.</li>
+<li><strong>Accounting:</strong> Multi-threaded processes running across
+multiple cores will report aggregated user time, which can exceed the
+elapsed real time.</li>
+</ul>
+<h3 id="3-system-cpu-time">3. System CPU Time</h3>
+<p>System time (labeled <code>sys</code>) represents the amount of time
+the CPU spent executing code inside the Linux kernel on behalf of the
+process.</p>
+<ul>
+<li><strong>Mechanism:</strong> Whenever a script triggers a system call
+(such as allocating memory with <code>brk</code>/<code>mmap</code>,
+reading files via <code>read</code>, or writing to stdout via
+<code>write</code>), execution switches to kernel mode. The kernel
+charges these execution ticks to the process's system-time counter.</li>
+</ul>
+<h2 id="cpu-tick-accounting-and-high-resolution-timers">CPU Tick
+Accounting and High-Resolution Timers</h2>
+<p>Internally, the Linux kernel determines user and system times using
+CPU tick accounting or high-resolution timers:</p>
+<ul>
+<li><strong>Tick-Based Accounting:</strong> Traditionally, the kernel
+inspects the program counter at every periodic timer interrupt (jiffy).
+If the CPU was executing user code, the tick is added to the process's
+user counter; if executing a kernel routine, it is added to the system
+counter.</li>
+<li><strong>Tickless/Dynamic Ticks (<code>CONFIG_NO_HZ</code>):</strong>
+Modern Linux kernels use precise timestamp capture at context switches.
+When a thread yields, blocks, or transitions between user space and
+kernel space via interrupts or system calls, the kernel reads the CPU
+hardware time-stamp counter (TSC) to record exact nanosecond-level
+durations, yielding the high-precision results displayed by the
+<code>time</code> utility.</li>
+</ul></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

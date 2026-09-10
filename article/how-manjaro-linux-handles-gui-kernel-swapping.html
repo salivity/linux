@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How Manjaro Linux Handles GUI Kernel Swapping - linux</title>
+    <meta name="description" content="Manjaro Linux simplifies the typically complex process of updating and changing the Linux kernel through its graphical user interface (GUI) tool within the Manjaro Settings Manager. This article explains how the operating system detects available kernels">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-manjaro-linux-handles-gui-kernel-swapping">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How Manjaro Linux Handles GUI Kernel Swapping - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-manjaro-linux-handles-gui-kernel-swapping" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="Manjaro Linux simplifies the typically complex process of updating and changing the Linux kernel through its graphical user interface (GUI) tool within the Manjaro Settings Manager. This article explains how the operating system detects available kernels" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-manjaro-linux-handles-gui-kernel-swapping">How Manjaro Linux
+Handles GUI Kernel Swapping</h1>
+<p>Manjaro Linux simplifies the typically complex process of updating
+and changing the Linux kernel through its graphical user interface (GUI)
+tool within the Manjaro Settings Manager. This article explains how the
+operating system detects available kernels, automates the installation
+and dependency resolution process, configures the bootloader, and
+provides safety measures to allow users to switch between kernels
+seamlessly without using the command line.</p>
+<h3 id="the-manjaro-settings-manager-kernel-module">The Manjaro Settings
+Manager Kernel Module</h3>
+<p>At the center of Manjaro’s graphical kernel management is the
+"Kernels" module within the Manjaro Settings Manager (MSM). While
+underlying hardware detection is governed by the Manjaro Hardware
+Detection (MHWD) system, the Kernel GUI tool interfaces directly with
+Manjaro's official repositories and the Pacman package manager.</p>
+<p>When opened, the tool scans the system and remote repositories to
+present a clean, categorized list of all available Linux kernels. These
+are labeled clearly with designations such as:</p>
+<ul>
+<li><strong>Running / Installed:</strong> Highlights the kernel
+currently loaded into RAM and other installed versions.</li>
+<li><strong>LTS (Long Term Support):</strong> Recommended for daily
+stability.</li>
+<li><strong>Recommended:</strong> The primary kernel recommended by the
+distribution maintainers.</li>
+<li><strong>Real-Time (RT):</strong> Tuned for low-latency audio or
+specialized production workloads.</li>
+<li><strong>Experimental:</strong> The latest mainline release for
+testing modern hardware features.</li>
+</ul>
+<h3 id="automated-installation-and-module-rebuilding">Automated
+Installation and Module Rebuilding</h3>
+<p>When a user clicks "Install" next to a desired kernel version, the
+GUI triggers a sequence of automated scripts in the background:</p>
+<ol type="1">
+<li><strong>Dependency Resolution:</strong> The system fetches the core
+kernel image (<code>linuxXYZ</code>), along with its corresponding
+modules.</li>
+<li><strong>Driver Compatibility:</strong> If the user has proprietary
+drivers installed (such as Nvidia graphics drivers) or Dynamic Kernel
+Module Support (DKMS) packages, the tool automatically identifies and
+downloads the matching modules built for the target kernel version,
+preventing broken drivers on the next boot.</li>
+<li><strong>Initramfs Generation:</strong> The system executes
+<code>mkinitcpio</code> automatically to construct the initial ramdisk
+environment tailored to the new kernel and the user's specific storage
+configuration.</li>
+</ol>
+<h3 id="bootloader-integration">Bootloader Integration</h3>
+<p>Once the kernel files and modules are in place, the tool
+automatically updates the GRUB bootloader configuration. It runs
+<code>update-grub</code> in the background, adding the newly installed
+kernel to the system's boot menu.</p>
+<p>Manjaro preserves existing kernels during this process rather than
+overwriting them. This multi-kernel architecture ensures that if a newly
+installed kernel fails to boot due to hardware incompatibility, the user
+can simply reboot, open GRUB's "Advanced options for Manjaro Linux," and
+select the previously functional kernel.</p>
+<h3 id="safeguards-and-safe-removal">Safeguards and Safe Removal</h3>
+<p>The GUI prevents common user errors by implementing strict
+operational safeguards:</p>
+<ul>
+<li><strong>Active Kernel Protection:</strong> The tool grays out or
+disables the "Remove" button for the currently active kernel, preventing
+accidental deletion of the running environment.</li>
+<li><strong>Multiple Kernel Retention:</strong> Users are encouraged to
+keep at least two kernels (typically the latest stable version and an
+LTS fallback) installed simultaneously.</li>
+<li><strong>Clean Uninstallation:</strong> When an older kernel is
+marked for removal, the GUI completely removes the kernel image, extra
+module packages, and related initramfs files, subsequently refreshing
+GRUB to cleanly remove the entry from the boot menu.</li>
+</ul></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

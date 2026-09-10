@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How Linux Manages Nested Virtualization - linux</title>
+    <meta name="description" content="Nested virtualization in Linux allows a virtual machine (VM) to act as a hypervisor and run its own virtual machines. Managed primarily through the Kernel-based Virtual Machine (KVM) module, the Linux operating system achieves this by abstracting, multip">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-linux-manages-nested-virtualization">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How Linux Manages Nested Virtualization - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-linux-manages-nested-virtualization" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="Nested virtualization in Linux allows a virtual machine (VM) to act as a hypervisor and run its own virtual machines. Managed primarily through the Kernel-based Virtual Machine (KVM) module, the Linux operating system achieves this by abstracting, multip" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-linux-manages-nested-virtualization">How Linux Manages
+Nested Virtualization</h1>
+<p>Nested virtualization in Linux allows a virtual machine (VM) to act
+as a hypervisor and run its own virtual machines. Managed primarily
+through the Kernel-based Virtual Machine (KVM) module, the Linux
+operating system achieves this by abstracting, multiplexing, and
+translating hardware-assisted virtualization extensions across multiple
+software layers. This article explains the hierarchy of nested
+virtualization, how the Linux kernel handles CPU instruction trapping,
+the emulation of hardware control blocks, and multi-layered memory
+translation.</p>
+<h3 id="the-virtualization-hierarchy-l0-l1-and-l2">The Virtualization
+Hierarchy: L0, L1, and L2</h3>
+<p>To understand how Linux coordinates nested virtualization, it is
+necessary to define the three layers of execution:</p>
+<ul>
+<li><strong>L0 (Host):</strong> The physical hardware running the
+bare-metal Linux operating system with the KVM module loaded.</li>
+<li><strong>L1 (Guest Hypervisor):</strong> A virtual machine running on
+L0 that also runs its own Linux/KVM instance (or another
+hypervisor).</li>
+<li><strong>L2 (Nested Guest):</strong> The virtual machine running
+inside the L1 guest hypervisor.</li>
+</ul>
+<p>Physical CPU extensions—Intel VT-x (VMX) or AMD-V (SVM)—are designed
+natively to manage only a single hypervisor layer. Linux bridges this
+architectural gap by using L0 to intercept and emulate virtualization
+instructions issued by L1.</p>
+<h3 id="cpu-control-structures-and-shadowing">CPU Control Structures and
+Shadowing</h3>
+<p>Hardware virtualization relies on memory structures to store VM state
+and execution controls: the Virtual Machine Control Structure (VMCS) on
+Intel, or the Virtual Machine Control Block (VMCB) on AMD.</p>
+<ol type="1">
+<li><strong>Software Emulation:</strong> L1 believes it has direct
+access to the CPU's virtualization features and creates its own
+VMCS/VMCB for L2. Because L1 does not have direct access to physical CPU
+registers, L0 intercepts (traps) L1's attempts to read or write to this
+structure and emulates the operations in software.</li>
+<li><strong>Hardware VMCS Shadowing:</strong> Emulating every control
+structure access creates significant performance overhead due to
+frequent CPU context switches (VM-exits). Modern Intel CPUs feature
+"VMCS Shadowing." Linux leverages this feature to point L1 to a
+hardware-managed "shadow VMCS." L1 can then execute read and write
+operations (<code>VMREAD</code>/<code>VMWRITE</code>) directly on the
+shadow structure without triggering an exit to L0. L0 only intervenes
+when L1 executes the launch command
+(<code>VMLAUNCH</code>/<code>VMRESUME</code>) to run L2.</li>
+</ol>
+<h3 id="trapping-and-forwarding-vm-exits">Trapping and Forwarding
+VM-Exits</h3>
+<p>When L2 is running, any privileged instruction or hardware event
+causes a VM-exit. Because the physical CPU only knows about L0, control
+drops directly to the L0 Linux kernel:</p>
+<ol type="1">
+<li><strong>Exit Analysis:</strong> L0 inspects the exit reason.</li>
+<li><strong>Direct Handling:</strong> If the exit was caused by a
+host-level interrupt (such as physical network traffic or host timer
+interrupts), L0 handles the interrupt and immediately resumes L2
+execution without involving L1.</li>
+<li><strong>Reflective Exits (Forwarding):</strong> If the exit was
+caused by an event L1 configured to intercept (such as an L2 I/O
+operation or page fault), L0 emulates a hardware VM-exit inside L1. L0
+updates L1's virtual CPU state to reflect the exit condition, switches
+the execution context to L1, and lets L1's hypervisor logic handle the
+event.</li>
+</ol>
+<h3 id="memory-virtualization-and-nested-page-tables">Memory
+Virtualization and Nested Page Tables</h3>
+<p>Memory management in nested virtualization requires mapping memory
+addresses across three layers:</p>
+<ul>
+<li>L2 Guest Physical Address (L2 GPA)</li>
+<li>L1 Guest Physical Address (L1 GPA)</li>
+<li>Host Physical Address (HPA)</li>
+</ul>
+<p>CPUs use Extended Page Tables (EPT on Intel) or Nested Page Tables
+(NPT on AMD) for hardware-assisted address translation. Under nested
+conditions, translating an L2 address would normally require a
+computationally expensive two-dimensional page walk (translating L2 GPA
+to L1 GPA, then L1 GPA to HPA).</p>
+<p>To optimize this, the Linux KVM module constructs a consolidated page
+table, often referred to as shadow EPT/NPT. KVM merges the L1-to-L0
+mappings and the L2-to-L1 mappings into a single set of hardware page
+tables. The physical CPU uses this merged table to translate L2 memory
+access directly to physical host memory (HPA) in a single
+hardware-accelerated pass.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

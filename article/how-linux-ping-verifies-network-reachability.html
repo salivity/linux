@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How Linux Ping Verifies Network Reachability - linux</title>
+    <meta name="description" content="The ping utility verifies network reachability in the Linux operating system by transmitting Internet Control Message Protocol (ICMP) Echo Request packets to a target host and awaiting ICMP Echo Reply packets. This article breaks down the underlying mech">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-linux-ping-verifies-network-reachability">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How Linux Ping Verifies Network Reachability - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-linux-ping-verifies-network-reachability" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="The ping utility verifies network reachability in the Linux operating system by transmitting Internet Control Message Protocol (ICMP) Echo Request packets to a target host and awaiting ICMP Echo Reply packets. This article breaks down the underlying mech" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-linux-ping-verifies-network-reachability">How Linux Ping
+Verifies Network Reachability</h1>
+<p>The <code>ping</code> utility verifies network reachability in the
+Linux operating system by transmitting Internet Control Message Protocol
+(ICMP) Echo Request packets to a target host and awaiting ICMP Echo
+Reply packets. This article breaks down the underlying mechanisms of the
+Linux <code>ping</code> command, detailing how it constructs packets,
+interacts with the Linux networking stack, measures latency, and handles
+diagnostic responses to confirm whether a remote device is
+accessible.</p>
+<h3 id="1-protocol-foundation-icmp">1. Protocol Foundation: ICMP</h3>
+<p>The Linux <code>ping</code> utility operates on the Internet Control
+Message Protocol (ICMP), defined in RFC 792 for IPv4 and RFC 4443 for
+IPv6. ICMP functions at the Network Layer (Layer 3) of the OSI model
+alongside the Internet Protocol (IP). Unlike protocols like TCP or UDP,
+ICMP does not establish stateful connections or use port numbers.
+Instead, it relies on specific message types:</p>
+<ul>
+<li><strong>Echo Request (Type 8, Code 0):</strong> Sent by the local
+host to the destination.</li>
+<li><strong>Echo Reply (Type 0, Code 0):</strong> Returned by the remote
+host to acknowledge receipt.</li>
+</ul>
+<h3 id="2-the-transmission-process-in-linux">2. The Transmission Process
+in Linux</h3>
+<p>When you execute a <code>ping</code> command in Linux (such as
+<code>ping 8.8.8.8</code>):</p>
+<ol type="1">
+<li><strong>Socket Creation:</strong> Modern Linux systems open an ICMP
+datagram socket (<code>AF_INET</code>, <code>SOCK_DGRAM</code>,
+<code>IPPROTO_ICMP</code>) or a raw network socket
+(<code>SOCK_RAW</code>) requiring the <code>CAP_NET_RAW</code>
+capability to construct raw ICMP frames.</li>
+<li><strong>Packet Assembly:</strong> The utility creates an ICMP packet
+containing:
+<ul>
+<li>An identifier (often the process ID) to match incoming replies to
+the running process.</li>
+<li>A sequence number, incremented with each packet sent, to detect
+packet loss and out-of-order delivery.</li>
+<li>A timestamp payload, recording the exact moment of
+transmission.</li>
+</ul></li>
+<li><strong>IP Layer Encapsulation:</strong> The Linux kernel wraps the
+ICMP payload with an IP header, setting the source IP, destination IP,
+and a Time to Live (TTL) value.</li>
+<li><strong>Routing and Transmission:</strong> The kernel inspects the
+routing table, resolves the next-hop MAC address using ARP or Neighbor
+Discovery, and transmits the frame across the physical interface.</li>
+</ol>
+<h3 id="3-destination-processing">3. Destination Processing</h3>
+<p>When the packet arrives at the destination:</p>
+<ul>
+<li>The remote host's kernel reads the IP header and identifies the
+protocol as ICMP.</li>
+<li>Upon reading Type 8 (Echo Request), the kernel generates an ICMP
+Echo Reply (Type 0).</li>
+<li>The remote host copies the identifier, sequence number, and
+arbitrary data payload (including the timestamp) back into the reply
+packet and routes it back to the originating Linux system.</li>
+<li>Because this occurs at the kernel level, the target machine does not
+require an active application listening on a port to respond.</li>
+</ul>
+<h3 id="4-metrics-and-latency-calculation">4. Metrics and Latency
+Calculation</h3>
+<p>When the originating Linux system receives the ICMP Echo Reply:</p>
+<ul>
+<li><strong>Round-Trip Time (RTT):</strong> The <code>ping</code>
+command extracts the original timestamp embedded within the packet
+payload and subtracts it from the current system time. It tracks
+minimum, maximum, average, and standard deviation (mdev) latency across
+all received packets.</li>
+<li><strong>Time to Live (TTL):</strong> The reply reveals the remaining
+TTL. By comparing this to typical default starting values (such as 64,
+128, or 255), the sender can infer how many network hops the packet
+traversed.</li>
+<li><strong>Loss Tracking:</strong> Missing sequence numbers within a
+specified timeout indicate packet drops.</li>
+</ul>
+<h3 id="5-error-detection-and-unreachability">5. Error Detection and
+Unreachability</h3>
+<p>If the target cannot be reached, intermediate routers or the local
+stack return alternative ICMP messages instead of an Echo Reply:</p>
+<ul>
+<li><strong>Type 3 (Destination Unreachable):</strong> Generated when a
+router cannot route the packet, or when a firewall explicitly blocks it
+(e.g., Code 1 for Host Unreachable, Code 13 for Communication
+Administratively Prohibited).</li>
+<li><strong>Type 11 (Time Exceeded):</strong> Generated when the IP
+packet's TTL reaches zero before arriving at the target, indicating a
+routing loop or an overly low TTL limit.</li>
+<li><strong>Silent Drop:</strong> If a firewall silently discards the
+packet, <code>ping</code> will receive no response, eventually reporting
+100% packet loss due to socket timeouts.</li>
+</ul></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

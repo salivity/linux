@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Load Balancing with HAProxy on Linux Explained - linux</title>
+    <meta name="description" content="Load balancing is a foundational networking technique that distributes incoming application traffic across multiple backend servers to ensure high availability, fault tolerance, and optimal performance. This article explains the core concepts of load bal">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/load-balancing-with-haproxy-on-linux-explained">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Load Balancing with HAProxy on Linux Explained - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/load-balancing-with-haproxy-on-linux-explained" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="Load balancing is a foundational networking technique that distributes incoming application traffic across multiple backend servers to ensure high availability, fault tolerance, and optimal performance. This article explains the core concepts of load bal" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="load-balancing-with-haproxy-on-linux-explained">Load Balancing
+with HAProxy on Linux Explained</h1>
+<p>Load balancing is a foundational networking technique that
+distributes incoming application traffic across multiple backend servers
+to ensure high availability, fault tolerance, and optimal performance.
+This article explains the core concepts of load balancing, introduces
+HAProxy as an industry-standard solution on the Linux operating system,
+and provides a clear, step-by-step walk-through on how to configure and
+run HAProxy to balance traffic across your server infrastructure.</p>
+<hr />
+<h3 id="what-is-load-balancing">What Is Load Balancing?</h3>
+<p>Load balancing prevents any single server from becoming a single
+point of failure or performance bottleneck. When user requests arrive, a
+load balancer sits in front of the infrastructure, acting as a reverse
+proxy, and directs traffic to capable backend nodes based on predefined
+algorithms.</p>
+<p>Load balancing generally operates at two main layers of the OSI
+model:</p>
+<ul>
+<li><strong>Layer 4 (Transport Layer):</strong> Directs traffic based on
+network and transport protocols like IP addresses and TCP/UDP ports,
+without inspecting message contents.</li>
+<li><strong>Layer 7 (Application Layer):</strong> Directs traffic based
+on application-level data, such as HTTP headers, URLs, or cookies,
+enabling intelligent routing decisions.</li>
+</ul>
+<p>Common balancing algorithms include <strong>Round Robin</strong>
+(distributes requests sequentially), <strong>Least Connections</strong>
+(routes traffic to the server handling the fewest active sessions), and
+<strong>Source IP Hash</strong> (ties specific clients to specific
+servers based on their IP address).</p>
+<hr />
+<h3 id="what-is-haproxy">What Is HAProxy?</h3>
+<p>HAProxy (High Availability Proxy) is a free, open-source, and
+extremely fast TCP/HTTP load balancer and reverse proxy designed for
+Linux environments. Known for its efficiency, low memory footprint, and
+high reliability, it is widely used by high-traffic websites to handle
+concurrent connections, perform health checks, and manage SSL
+termination.</p>
+<hr />
+<h3 id="achieving-load-balancing-with-haproxy-on-linux">Achieving Load
+Balancing with HAProxy on Linux</h3>
+<p>Setting up HAProxy on a Linux distribution involves installation,
+configuration of frontends and backends, and enabling health checks.</p>
+<h4 id="1-install-haproxy">1. Install HAProxy</h4>
+<p>Update package repositories and install the package using your
+distribution's package manager.</p>
+<ul>
+<li><p><strong>On Ubuntu/Debian:</strong></p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> apt update</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> apt install haproxy <span class="at">-y</span></span></code></pre></div></li>
+<li><p><strong>On RHEL/CentOS/Rocky Linux:</strong></p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> dnf install haproxy <span class="at">-y</span></span></code></pre></div></li>
+</ul>
+<h4 id="2-configure-haproxy">2. Configure HAProxy</h4>
+<p>The primary configuration file is located at
+<code>/etc/haproxy/haproxy.cfg</code>. This file is divided into four
+main sections:</p>
+<ul>
+<li><code>global</code>: Defines system-level parameters, process
+owners, and logging.</li>
+<li><code>defaults</code>: Specifies default timeout settings and
+operation modes applied to proxies.</li>
+<li><code>frontend</code>: Defines the IP address and port that clients
+connect to.</li>
+<li><code>backend</code>: Defines the pool of servers that process the
+requests forwarded by the frontend.</li>
+</ul>
+<p>Open the configuration file in a text editor:</p>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> nano /etc/haproxy/haproxy.cfg</span></code></pre></div>
+<p>Add or modify the configuration to create an HTTP Layer 7 load
+balancer:</p>
+<pre class="haproxy"><code>global
+    log /dev/log local0
+    log /dev/log local1 notice
+    chroot /var/lib/haproxy
+    user haproxy
+    group haproxy
+    daemon
+
+defaults
+    log     global
+    mode    http
+    option  httplog
+    option  dontlognull
+    timeout connect 5000ms
+    timeout client  50000ms
+    timeout server  50000ms
+
+frontend http_front
+    bind *:80
+    default_backend web_servers
+
+backend web_servers
+    balance roundrobin
+    server web1 192.168.1.101:80 check
+    server web2 192.168.1.102:80 check</code></pre>
+<p>In this configuration:</p>
+<ul>
+<li><code>bind *:80</code> listens for inbound traffic on port 80 across
+all network interfaces.</li>
+<li><code>balance roundrobin</code> alternates incoming requests equally
+between backend servers.</li>
+<li><code>check</code> enables automatic health checks. If a server
+stops responding, HAProxy removes it from the pool until it
+recovers.</li>
+</ul>
+<h4 id="3-validate-and-start-the-service">3. Validate and Start the
+Service</h4>
+<p>Before restarting the service, verify that the configuration syntax
+is correct:</p>
+<div class="sourceCode" id="cb5"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="ex">haproxy</span> <span class="at">-c</span> <span class="at">-f</span> /etc/haproxy/haproxy.cfg</span></code></pre></div>
+<p>If the output confirms the configuration is valid, enable and restart
+the HAProxy service:</p>
+<div class="sourceCode" id="cb6"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> systemctl enable haproxy</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> systemctl restart haproxy</span></code></pre></div>
+<p>Check the runtime status to confirm it is operational:</p>
+<div class="sourceCode" id="cb7"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> systemctl status haproxy</span></code></pre></div>
+<h4 id="4-configure-firewall-rules">4. Configure Firewall Rules</h4>
+<p>Ensure that the Linux firewall permits inbound traffic on the load
+balancer's configured port:</p>
+<ul>
+<li><p><strong>Using UFW (Ubuntu/Debian):</strong></p>
+<div class="sourceCode" id="cb8"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> ufw allow 80/tcp</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> ufw reload</span></code></pre></div></li>
+<li><p><strong>Using Firewalld (RHEL/CentOS):</strong></p>
+<div class="sourceCode" id="cb9"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> firewall-cmd <span class="at">--permanent</span> <span class="at">--add-service</span><span class="op">=</span>http</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> firewall-cmd <span class="at">--reload</span></span></code></pre></div></li>
+</ul>
+<p>Once configured, client requests sent to the HAProxy server's IP
+address will be dynamically routed to the available backend web nodes,
+delivering reliable, balanced application delivery across your Linux
+environment.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

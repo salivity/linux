@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>POSIX vs flock on Network File Systems in Linux - linux</title>
+    <meta name="description" content="The Linux operating system manages file locking across networked file systems by translating local kernel primitives—specifically POSIX record locks (fcntl/lockf) and BSD-style locks (flock)—into network protocol operations. While POSIX locks nativel">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/posix-vs-flock-on-network-file-systems-in-linux">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="POSIX vs flock on Network File Systems in Linux - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/posix-vs-flock-on-network-file-systems-in-linux" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="The Linux operating system manages file locking across networked file systems by translating local kernel primitives—specifically POSIX record locks (fcntl/lockf) and BSD-style locks (flock)—into network protocol operations. While POSIX locks nativel" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="posix-vs-flock-on-network-file-systems-in-linux">POSIX vs flock
+on Network File Systems in Linux</h1>
+<p>The Linux operating system manages file locking across networked file
+systems by translating local kernel primitives—specifically POSIX record
+locks (<code>fcntl</code>/<code>lockf</code>) and BSD-style locks
+(<code>flock</code>)—into network protocol operations. While POSIX locks
+natively map to standard network lock protocols like NFS and SMB to
+provide cross-client synchronization, <code>flock</code> historically
+functioned only on local filesystems. Modern Linux kernels reconcile
+these differences by emulating <code>flock</code> as whole-file POSIX
+locks over network mounts, a mechanism that unifies distributed locking
+but introduces distinct semantic caveats and configuration
+dependencies.</p>
+<h3 id="fundamental-divergence-in-linux-locking-semantics">Fundamental
+Divergence in Linux Locking Semantics</h3>
+<p>Locally, Linux handles POSIX and <code>flock</code> locks using
+fundamentally different structures in the Virtual Filesystem (VFS)
+layer:</p>
+<ul>
+<li><strong>POSIX Locks (<code>fcntl</code>,
+<code>lockf</code>):</strong> Associated with a specific process
+(<code>pid</code>) and an <code>inode</code>. They support byte-range
+locking and are automatically released when the process closes
+<em>any</em> file descriptor pointing to that file.</li>
+<li><strong>BSD Locks (<code>flock</code>):</strong> Associated with the
+open file description (<code>struct file</code>), not the process. They
+apply exclusively to whole files, survive <code>fork()</code> calls, and
+remain active until explicitly unlocked or until the last duplicated
+descriptor is closed.</li>
+</ul>
+<p>Because network protocols like NFS were designed around POSIX-like,
+byte-range semantics, native support for BSD-style whole-file descriptor
+locks does not exist at the wire-protocol level.</p>
+<h3 id="posix-locks-over-the-network">POSIX Locks Over the Network</h3>
+<p>When an application calls <code>fcntl()</code> on a network-mounted
+file, the VFS invokes the filesystem driver’s <code>.lock()</code> hook
+rather than using the local VFS lock list:</p>
+<ul>
+<li><strong>NFSv3:</strong> Relies on the external Network Lock Manager
+(NLM) protocol. The Linux kernel uses <code>rpc.lockd</code> to
+negotiate locks with the server's lock manager, while
+<code>rpc.statd</code> tracks client and server reboot statuses through
+the Network Status Monitor (NSM) protocol to handle lock recovery.</li>
+<li><strong>NFSv4:</strong> Replaces NLM by integrating locking directly
+into the stateful NFSv4 protocol. Locks are associated with a
+server-side state ID and client-managed leases. If the client misses
+lease renewals due to network partitions, the server drops the locks,
+and the Linux client must recover them during a server grace
+period.</li>
+<li><strong>SMB/CIFS:</strong> Translates POSIX lock requests into
+native SMB byte-range lock packets. Depending on the mount parameters,
+Linux can map POSIX advisory locks into SMB mandatory locks, causing the
+server to reject unauthorized read/write operations from other
+nodes.</li>
+</ul>
+<h3 id="the-network-evolution-of-flock">The Network Evolution of
+<code>flock</code></h3>
+<p>Historically, <code>flock</code> calls on network mounts were purely
+client-local; a lock taken on Client A was invisible to Client B. Modern
+Linux kernels (since version 2.6.12) resolve this by delegating
+<code>flock</code> to the network file system:</p>
+<ol type="1">
+<li><strong>Protocol Emulation:</strong> The network filesystem driver
+implements a <code>.flock()</code> hook that translates an incoming
+<code>flock()</code> call into a whole-file POSIX byte-range lock
+(spanning byte 0 to the maximum possible offset).</li>
+<li><strong>Transmission:</strong> The lock is transmitted over the wire
+as an ordinary POSIX lock using NLM, NFSv4, or SMB.</li>
+<li><strong>Semantic Blurring:</strong> Locally, Linux treats
+<code>flock</code> and POSIX locks as independent namespaces that do not
+conflict with one another. However, on a network mount where
+<code>flock</code> is emulated as a POSIX lock, a local
+<code>flock</code> will conflict directly with a POSIX lock on the same
+node or across the cluster, altering local application behavior.</li>
+</ol>
+<h3 id="mount-options-and-behavioral-control">Mount Options and
+Behavioral Control</h3>
+<p>Because translating <code>flock</code> to POSIX network locks can
+cause performance overhead or break legacy applications, Linux provides
+mount options to alter locking behavior:</p>
+<ul>
+<li><strong><code>local_flock</code> (NFS):</strong> Disables
+over-the-wire lock requests for <code>flock()</code>. BSD locks are
+handled entirely inside the local client's VFS, providing legacy BSD
+semantics between processes on the same node while keeping them
+invisible to other cluster nodes.</li>
+<li><strong><code>flock</code> / <code>noflock</code>
+(SMB/CIFS):</strong> Determines whether the CIFS client attempts to pass
+whole-file locks to the remote server or falls back to internal
+emulation.</li>
+<li><strong><code>nordirplus</code> / <code>nolock</code>
+(NFS):</strong> Completely disables client-side over-the-wire locking,
+converting all POSIX and <code>flock</code> requests to purely local
+locks. This is common in single-client architectures to eliminate RPC
+latency.</li>
+</ul>
+<h3 id="state-recovery-and-partition-handling">State Recovery and
+Partition Handling</h3>
+<p>Distributed locking requires strict synchronization between the
+client VFS and remote state handlers. On network partitions or server
+crashes:</p>
+<ul>
+<li><strong>POSIX/NFSv4:</strong> The Linux kernel detects expired
+leases via state renewal errors. Once the connection is re-established,
+the kernel enters an internal recovery loop, attempting to reclaim
+previously held POSIX locks before processing new I/O requests.</li>
+<li><strong>Emulated <code>flock</code>:</strong> Because these locks
+are represented on the wire as POSIX states, they participate in the
+same recovery loops as standard <code>fcntl</code> locks, but failure to
+reclaim the lock invalidates the file handle and surfaces errors to the
+application layer.</li>
+</ul></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

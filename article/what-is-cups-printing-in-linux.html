@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>What Is CUPS Printing in Linux? - linux</title>
+    <meta name="description" content="The Common Unix Printing System (CUPS) is the standard open-source printing subsystem used by Linux and other Unix-like operating systems to manage print services. This article explains the primary purpose of CUPS, detailing how it handles print requests">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/what-is-cups-printing-in-linux">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="What Is CUPS Printing in Linux? - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/what-is-cups-printing-in-linux" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="The Common Unix Printing System (CUPS) is the standard open-source printing subsystem used by Linux and other Unix-like operating systems to manage print services. This article explains the primary purpose of CUPS, detailing how it handles print requests" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="what-is-cups-printing-in-linux">What Is CUPS Printing in
+Linux?</h1>
+<p>The Common Unix Printing System (CUPS) is the standard open-source
+printing subsystem used by Linux and other Unix-like operating systems
+to manage print services. This article explains the primary purpose of
+CUPS, detailing how it handles print requests, communicates with
+hardware, manages print queues, and provides a unified interface for
+both local and network printing tasks.</p>
+<p>At its core, CUPS acts as an intermediary between user applications
+and physical printing hardware. Because Linux does not interact directly
+with every unique printer model out of the box, CUPS provides a
+standardized layer that translates generic print commands into
+device-specific instructions. When an application generates a document
+to print, CUPS accepts the job, converts it into a compatible format,
+and routes it to the designated printer.</p>
+<p>CUPS relies on the Internet Printing Protocol (IPP) as its standard
+network protocol. This foundation allows CUPS to support both physically
+attached printers via USB and shared network printers seamlessly.
+Through IPP, CUPS can discover network devices automatically, manage
+authentication, and allow computers across a local network to share
+printing resources without requiring complex configuration on each
+client machine.</p>
+<p>Another key function of CUPS is print spooling and queue management.
+In environments where multiple users or applications submit print
+requests simultaneously, CUPS prevents system conflicts by placing print
+jobs into a queue. It tracks job priorities, allows administrators to
+cancel or pause jobs, and handles error reporting if a printer runs out
+of paper, experiences a paper jam, or goes offline.</p>
+<p>CUPS also includes a modular filtering system. When a document—often
+in PDF, PostScript, or plain text format—is submitted, CUPS passes the
+file through a series of filters. These filters render the text and
+graphics into a raster image, which is then translated by a printer
+driver or raster filter into the exact page description language the
+physical printer understands. Modern iterations of CUPS increasingly
+support "driverless" printing through technologies like IPP Everywhere
+and AirPrint, reducing the need for proprietary vendor drivers.</p>
+<p>For configuration and maintenance, CUPS provides both command-line
+utilities and a built-in web interface accessible via a browser at
+<code>http://localhost:631</code>. Through this interface, users and
+system administrators can add printers, configure default paper sizes,
+manage access controls, and monitor active and completed print jobs,
+making Linux printing reliable and straightforward to maintain.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linux mv Command Uses Beyond Moving Files - linux</title>
+    <meta name="description" content="While the Linux mv command is primarily known for relocating files and directories between paths, its most common secondary function is renaming them. Because the Linux filesystem treats renaming as moving an item to a new name within the same directory,">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/linux-mv-command-uses-beyond-moving-files">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Linux mv Command Uses Beyond Moving Files - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/linux-mv-command-uses-beyond-moving-files" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="While the Linux mv command is primarily known for relocating files and directories between paths, its most common secondary function is renaming them. Because the Linux filesystem treats renaming as moving an item to a new name within the same directory," />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="linux-mv-command-uses-beyond-moving-files">Linux mv Command Uses
+Beyond Moving Files</h1>
+<p>While the Linux <code>mv</code> command is primarily known for
+relocating files and directories between paths, its most common
+secondary function is renaming them. Because the Linux filesystem treats
+renaming as moving an item to a new name within the same directory,
+<code>mv</code> serves as the standard, built-in renaming utility.
+Beyond renaming, the command is also widely utilized for safely
+overwriting files, managing automated file backups during replacement,
+updating destination files based on modification timestamps, and
+executing bulk renaming operations via shell scripts.</p>
+<h3 id="renaming-files-and-directories">Renaming Files and
+Directories</h3>
+<p>Linux does not feature a standalone, dedicated <code>rename</code>
+command by default in all distributions, making <code>mv</code> the
+primary utility for changing names. When the source and destination
+paths reside in the same directory, <code>mv</code> simply re-links the
+file or directory metadata to the new name without transferring data
+blocks on the storage device.</p>
+<p>To rename a single file:</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">mv</span> old_filename.txt new_filename.txt</span></code></pre></div>
+<p>The exact same syntax applies to directories:</p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">mv</span> old_directory_name new_directory_name</span></code></pre></div>
+<h3 id="safely-replacing-existing-target-files">Safely Replacing
+Existing Target Files</h3>
+<p>When moving or renaming a file to a destination name that already
+exists, <code>mv</code> will overwrite the target by default. However,
+specific flags modify this behavior to manage how targets are
+replaced:</p>
+<ul>
+<li><strong>Preventing accidental overwrites (<code>-n</code>):</strong>
+The <code>--no-clobber</code> option prevents an existing file from
+being overwritten.
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">mv</span> <span class="at">-n</span> source.txt existing_file.txt</span></code></pre></div></li>
+<li><strong>Interactive prompting (<code>-i</code>):</strong> Forces
+<code>mv</code> to ask for user confirmation before overwriting an
+existing destination file.
+<div class="sourceCode" id="cb4"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">mv</span> <span class="at">-i</span> source.txt existing_file.txt</span></code></pre></div></li>
+</ul>
+<h3 id="automatic-backups-during-replacement">Automatic Backups During
+Replacement</h3>
+<p>The <code>mv</code> command can automatically generate backups of
+existing files before replacing them. By using the <code>-b</code> flag,
+the destination file is renamed with a tilde suffix (<code>~</code>)
+before the source file takes its place.</p>
+<div class="sourceCode" id="cb5"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">mv</span> <span class="at">-b</span> source.txt target.txt</span></code></pre></div>
+<p>You can also customize the backup suffix using the <code>-S</code>
+flag:</p>
+<div class="sourceCode" id="cb6"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">mv</span> <span class="at">-b</span> <span class="at">-S</span> .bak source.txt target.txt</span></code></pre></div>
+<h3 id="conditional-updates--u">Conditional Updates
+(<code>-u</code>)</h3>
+<p>The <code>mv</code> command functions as an update tool using the
+<code>-u</code> (or <code>--update</code>) option. When this flag is
+passed, the command only overwrites the target file if the source file
+is newer than the target, or if the target file does not yet exist.</p>
+<div class="sourceCode" id="cb7"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">mv</span> <span class="at">-u</span> source.txt target.txt</span></code></pre></div>
+<h3 id="batch-renaming-with-shell-loops">Batch Renaming with Shell
+Loops</h3>
+<p>Administrators frequently pair <code>mv</code> with Bash shell loops
+to perform batch renaming tasks, such as changing file extensions or
+adding prefixes.</p>
+<p>To change all <code>.jpeg</code> extensions to <code>.jpg</code> in
+the current directory:</p>
+<div class="sourceCode" id="cb8"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> file <span class="kw">in</span> <span class="pp">*</span>.jpeg<span class="kw">;</span> <span class="cf">do</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mv</span> <span class="st">&quot;</span><span class="va">$file</span><span class="st">&quot;</span> <span class="st">&quot;</span><span class="va">${file</span><span class="op">%</span>.jpeg<span class="va">}</span><span class="st">.jpg&quot;</span></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a><span class="cf">done</span></span></code></pre></div></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

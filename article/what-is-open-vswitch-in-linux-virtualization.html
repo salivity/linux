@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>What Is Open vSwitch in Linux Virtualization? - linux</title>
+    <meta name="description" content="This article provides an overview of Open vSwitch (OVS) and its fundamental role within a virtualized Linux operating system environment. It examines how OVS functions as a multilayer virtual switch, enabling seamless network communication between virtua">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/what-is-open-vswitch-in-linux-virtualization">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="What Is Open vSwitch in Linux Virtualization? - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/what-is-open-vswitch-in-linux-virtualization" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="This article provides an overview of Open vSwitch (OVS) and its fundamental role within a virtualized Linux operating system environment. It examines how OVS functions as a multilayer virtual switch, enabling seamless network communication between virtua" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="what-is-open-vswitch-in-linux-virtualization">What Is Open
+vSwitch in Linux Virtualization?</h1>
+<p>This article provides an overview of Open vSwitch (OVS) and its
+fundamental role within a virtualized Linux operating system
+environment. It examines how OVS functions as a multilayer virtual
+switch, enabling seamless network communication between virtual
+machines, containers, and physical networks. Readers will learn about
+the core capabilities of OVS, including its integration with
+Software-Defined Networking (SDN), traffic isolation methods, and
+performance optimization through the Linux kernel.</p>
+<h3 id="the-role-of-open-vswitch-in-linux">The Role of Open vSwitch in
+Linux</h3>
+<p>Open vSwitch (OVS) is an open-source, production-quality multilayer
+virtual switch designed to operate within virtualized environments like
+KVM and Xen. In a Linux host, physical network cards connect the host to
+the external world, but virtual machines (VMs) and containers require
+virtual network interfaces to communicate. OVS acts as the intelligent
+network fabric inside the Linux kernel that connects these virtual
+endpoints to each other and to the physical network interfaces.</p>
+<p>Unlike traditional Linux bridging, Open vSwitch is built specifically
+to accommodate dynamic virtual environments where workloads are
+frequently created, destroyed, or migrated across physical hosts.</p>
+<h3 id="key-functions-of-open-vswitch">Key Functions of Open
+vSwitch</h3>
+<h4 id="1-advanced-packet-forwarding-and-flow-control">1. Advanced
+Packet Forwarding and Flow Control</h4>
+<p>At its core, OVS routes Ethernet frames between virtual network
+interfaces (TAP devices) and physical network interfaces. It uses a
+flow-based forwarding mechanism compatible with the OpenFlow protocol.
+Instead of relying solely on traditional MAC address learning, OVS can
+evaluate packets against customizable flow rules, matching parameters
+from Layer 2 up to Layer 4 (MAC addresses, IP addresses, TCP/UDP ports)
+to determine whether to forward, modify, or drop traffic.</p>
+<h4 id="2-network-virtualization-and-overlay-tunneling">2. Network
+Virtualization and Overlay Tunneling</h4>
+<p>OVS enables network isolation and multi-tenancy in cloud environments
+such as OpenStack. It supports standard VLAN tagging (802.1Q) as well as
+modern overlay tunneling protocols:</p>
+<ul>
+<li><strong>VXLAN (Virtual Extensible LAN):</strong> Encapsulates Layer
+2 frames in Layer 3 UDP packets, bypassing traditional 4,096 VLAN
+limits.</li>
+<li><strong>GRE (Generic Routing Encapsulation):</strong> Creates
+virtual point-to-point links across an IP network.</li>
+<li><strong>Geneve (Generic Network Virtualization
+Encapsulation):</strong> Provides flexible metadata header options for
+complex SDN control planes.</li>
+</ul>
+<p>These encapsulation protocols allow VMs on different physical Linux
+hosts to communicate over an underlying IP network as if they were on
+the same local Layer 2 broadcast domain.</p>
+<h4 id="3-traffic-visibility-and-monitoring">3. Traffic Visibility and
+Monitoring</h4>
+<p>Network administrators require insight into virtualized traffic that
+does not traverse physical switches. OVS includes built-in telemetry
+tools, supporting:</p>
+<ul>
+<li><strong>sFlow and NetFlow:</strong> Exporting traffic flow records
+for bandwidth monitoring and billing.</li>
+<li><strong>IPFIX (IP Flow Information Export):</strong> Standardized
+export of packet flow details.</li>
+<li><strong>Port Mirroring (SPAN/RSPAN):</strong> Mirroring virtual port
+traffic to an analysis VM running packet inspection software like
+Wireshark or an Intrusion Detection System (IDS).</li>
+</ul>
+<h4 id="4-quality-of-service-qos-and-traffic-shaping">4. Quality of
+Service (QoS) and Traffic Shaping</h4>
+<p>OVS can enforce bandwidth limits and queuing policies on individual
+virtual network interfaces. By utilizing Linux Traffic Control
+(<code>tc</code>) integration, OVS applies ingress policing to drop
+traffic that exceeds specified rates and egress shaping to ensure
+critical workloads receive prioritized network bandwidth.</p>
+<h3 id="architecture-in-the-linux-environment">Architecture in the Linux
+Environment</h3>
+<p>Open vSwitch operates using a split architecture divided between user
+space and kernel space to maximize performance:</p>
+<ul>
+<li><strong>Kernel Datapath (<code>openvswitch.ko</code>):</strong> A
+lightweight module running in Linux kernel space. It maintains a cache
+of flow decisions. When a packet matches a cached flow, the kernel
+handles forwarding directly without switching context to user space,
+ensuring near wire-speed throughput.</li>
+<li><strong>User Space Daemon (<code>ovs-vswitchd</code>):</strong> The
+core switching daemon that handles flow lookups when a packet does not
+match the kernel cache (a "cache miss"). It consults its flow tables,
+instructs the kernel datapath how to handle the packet, and caches the
+action for future packets.</li>
+<li><strong>Configuration Database (<code>ovsdb-server</code>):</strong>
+A database server that stores switch configurations, port mappings, and
+persistent states, queryable via the OVSDB management protocol.</li>
+</ul>
+<p>By offloading repetitive packet forwarding tasks to the Linux kernel
+while delegating policy decisions and SDN integration to user space,
+Open vSwitch delivers scalable, high-performance, and programmable
+networking for modern Linux virtualization.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

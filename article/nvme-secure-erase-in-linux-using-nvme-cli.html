@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NVMe Secure Erase in Linux Using nvme-cli - linux</title>
+    <meta name="description" content="This article provides an overview of how the Linux operating system handles NVMe secure erase operations using the native nvme-cli utility. It details the interaction between user-space commands, the Linux kernel, and the NVMe hardware controller. Reader">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/nvme-secure-erase-in-linux-using-nvme-cli">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="NVMe Secure Erase in Linux Using nvme-cli - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/nvme-secure-erase-in-linux-using-nvme-cli" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="This article provides an overview of how the Linux operating system handles NVMe secure erase operations using the native nvme-cli utility. It details the interaction between user-space commands, the Linux kernel, and the NVMe hardware controller. Reader" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="nvme-secure-erase-in-linux-using-nvme-cli">NVMe Secure Erase in
+Linux Using nvme-cli</h1>
+<p>This article provides an overview of how the Linux operating system
+handles NVMe secure erase operations using the native
+<code>nvme-cli</code> utility. It details the interaction between
+user-space commands, the Linux kernel, and the NVMe hardware controller.
+Readers will learn the core mechanisms behind NVMe formatting and
+sanitization, the distinction between cryptographic and user data
+erasures, and the practical steps required to safely execute these
+operations on Linux.</p>
+<h3 id="the-architecture-how-linux-interacts-with-nvme-hardware">The
+Architecture: How Linux Interacts with NVMe Hardware</h3>
+<p>When you manage an NVMe SSD in Linux, the operating system exposes
+the drive through character and block device nodes in
+<code>/dev/</code>:</p>
+<ul>
+<li><strong><code>/dev/nvmeX</code></strong>: The controller character
+device, used for administrative actions that affect the hardware
+controller.</li>
+<li><strong><code>/dev/nvmeXnY</code></strong>: The block device
+representing a specific namespace (storage partition space) on that
+controller.</li>
+</ul>
+<p>The <code>nvme-cli</code> package is a user-space management tool.
+When a command like format or sanitize is run, <code>nvme-cli</code>
+does not manually overwrite sectors one by one as legacy tools (like
+<code>dd</code>) do. Instead, it constructs standard NVMe specification
+commands and delivers them to the Linux NVMe kernel driver using the
+<code>ioctl()</code> system call (specifically via
+<code>NVME_IOCTL_ADMIN_CMD</code>).</p>
+<p>The kernel driver forwards these commands across the PCIe bus
+directly to the NVMe SSD's onboard controller. The SSD controller
+processes the operation at the firmware level, managing the underlying
+NAND flash cells independently of system CPU and RAM.</p>
+<hr />
+<h3 id="secure-erase-methods-in-nvme">Secure Erase Methods in NVMe</h3>
+<p>The NVMe specification provides two primary mechanisms for securely
+erasing data: <strong>Format NVM</strong> and
+<strong>Sanitize</strong>.</p>
+<h4 id="1-format-nvm-nvme-format">1. Format NVM
+(<code>nvme format</code>)</h4>
+<p>The Format command is typically executed per namespace or across all
+namespaces. It supports the Secure Erase Settings (<code>--ses</code>)
+parameter:</p>
+<ul>
+<li><strong>No Secure Erase (<code>--ses=0</code>)</strong>: Formats the
+media without performing a dedicated secure erase operation.</li>
+<li><strong>User Data Erase (<code>--ses=1</code>)</strong>: Erases all
+user data across the specified namespace. The SSD controller marks all
+physical blocks as invalid or resets the flash cells.</li>
+<li><strong>Cryptographic Erase (<code>--ses=2</code>)</strong>: Deletes
+or regenerates the internal encryption key used to protect data on
+self-encrypting drives (SEDs). This instantly renders all previously
+written ciphertext unrecoverable without needing to rewrite every flash
+cell.</li>
+</ul>
+<h4 id="2-sanitize-nvme-sanitize">2. Sanitize
+(<code>nvme sanitize</code>)</h4>
+<p>Sanitize is a controller-level operation designed for more stringent
+declassification standards. Unlike Format, Sanitize cannot be aborted,
+affects the entire drive (all namespaces), and persists even across
+system reboots or power cycles until the process finishes.</p>
+<p>Sanitize supports:</p>
+<ul>
+<li><strong>Block Erase (<code>-a 2</code> or
+<code>--action=start-block-erase</code>)</strong>: A low-level
+electrical wipe of all NAND blocks.</li>
+<li><strong>Crypto Erase (<code>-a 4</code> or
+<code>--action=start-crypto-erase</code>)</strong>: Destroys the drive's
+internal cryptographic keys.</li>
+<li><strong>Overwrite (<code>-a 3</code> or
+<code>--action=start-overwrite</code>)</strong>: Writes a user-defined
+pattern across the entire storage array.</li>
+</ul>
+<hr />
+<h3 id="executing-secure-erase-using-nvme-cli">Executing Secure Erase
+Using <code>nvme-cli</code></h3>
+<h4 id="step-1-identify-the-drive">Step 1: Identify the Drive</h4>
+<p>Before wiping data, verify the target drive and namespace:</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> nvme list</span></code></pre></div>
+<p>Inspect controller capabilities to see which erase actions are
+supported:</p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> nvme id-ctrl /dev/nvme0</span></code></pre></div>
+<p>Look for the <code>fna</code> (Format NVM Attributes) or
+<code>sanicap</code> (Sanitize Capabilities) fields in the output to
+determine support for cryptographic erase, block erase, and
+per-namespace operations.</p>
+<h4 id="step-2-unmount-filesystems">Step 2: Unmount Filesystems</h4>
+<p>The Linux kernel will encounter I/O errors or filesystem corruption
+if an active partition is wiped. Unmount all partitions and deactivate
+any LVM or software RAID configurations mapped to the drive:</p>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> umount /dev/nvme0n1p<span class="pp">*</span></span></code></pre></div>
+<h4 id="step-3-run-the-format-or-sanitize-command">Step 3: Run the
+Format or Sanitize Command</h4>
+<p><strong>Option A: Cryptographic Erase via Format</strong> To initiate
+a cryptographic erase across namespace 1:</p>
+<div class="sourceCode" id="cb4"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> nvme format /dev/nvme0n1 <span class="at">--ses</span><span class="op">=</span>2</span></code></pre></div>
+<p><strong>Option B: User Data Erase via Format</strong> To physically
+wipe user data blocks on namespace 1:</p>
+<div class="sourceCode" id="cb5"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> nvme format /dev/nvme0n1 <span class="at">--ses</span><span class="op">=</span>1</span></code></pre></div>
+<p><strong>Option C: Controller-Wide Block Sanitize</strong> To perform
+an irreversible block-level sanitize across the entire controller:</p>
+<div class="sourceCode" id="cb6"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> nvme sanitize /dev/nvme0 <span class="at">-a</span> start-block-erase</span></code></pre></div>
+<h4 id="step-4-monitor-progress-sanitize-only">Step 4: Monitor Progress
+(Sanitize Only)</h4>
+<p>Because Sanitize runs asynchronously in drive firmware, you must
+check its status:</p>
+<div class="sourceCode" id="cb7"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> nvme sanitize-log /dev/nvme0</span></code></pre></div>
+<p>The output indicates the progress percentage and whether the
+operation has successfully finished.</p>
+<hr />
+<h3 id="post-erase-kernel-handling">Post-Erase Kernel Handling</h3>
+<p>Once the SSD controller signals completion, the Linux kernel must
+refresh its view of the storage device. If the drive geometry or
+namespace layout was altered, inform the kernel by re-reading the
+partition table:</p>
+<div class="sourceCode" id="cb8"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> partprobe /dev/nvme0n1</span></code></pre></div>
+<p>Or trigger a hardware namespace rescan:</p>
+<div class="sourceCode" id="cb9"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> nvme ns-rescan /dev/nvme0</span></code></pre></div>
+<p>At this stage, the NVMe SSD is returned to a clean, factory-like
+state with all target data permanently unrecoverable.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

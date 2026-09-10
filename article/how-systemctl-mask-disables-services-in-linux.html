@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How systemctl mask Disables Services in Linux - linux</title>
+    <meta name="description" content="In Linux systems powered by systemd, the systemctl mask command renders a service completely unstartable—both automatically and manually—by linking its configuration file to /dev/null. While standard service management commands allow services to be t">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-systemctl-mask-disables-services-in-linux">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How systemctl mask Disables Services in Linux - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-systemctl-mask-disables-services-in-linux" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="In Linux systems powered by systemd, the systemctl mask command renders a service completely unstartable—both automatically and manually—by linking its configuration file to /dev/null. While standard service management commands allow services to be t" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-systemctl-mask-disables-services-in-linux">How systemctl
+mask Disables Services in Linux</h1>
+<p>In Linux systems powered by systemd, the <code>systemctl mask</code>
+command renders a service completely unstartable—both automatically and
+manually—by linking its configuration file to <code>/dev/null</code>.
+While standard service management commands allow services to be
+triggered by dependencies or explicit start calls, masking acts as an
+absolute administrative lock. This article breaks down how systemd
+handles the <code>mask</code> operation under the hood, how directory
+precedence enforces this behavior, and how it differs from simply
+disabling a service.</p>
+<h3 id="the-underlying-mechanism-the-devnull-symlink">The Underlying
+Mechanism: The <code>/dev/null</code> Symlink</h3>
+<p>When you execute <code>systemctl mask &lt;service_name&gt;</code>,
+systemd does not delete the original service unit file. Instead, it
+creates a symbolic link in the primary administrative unit directory
+pointing directly to <code>/dev/null</code>:</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">/etc/systemd/system/</span><span class="op">&lt;</span>service_name<span class="op">&gt;</span>.service <span class="at">-</span><span class="op">&gt;</span> /dev/null</span></code></pre></div>
+<p>Because <code>/dev/null</code> is a special file that discards all
+data written to it and yields no output when read, systemd recognizes
+this specific symlink target as a formal instruction that the unit is
+completely blocked.</p>
+<h3 id="how-systemd-evaluates-unit-precedence">How systemd Evaluates
+Unit Precedence</h3>
+<p>To understand why the <code>/dev/null</code> symlink works, it is
+essential to understand systemd's hierarchy of configuration
+directories. When loading units, systemd searches through directories in
+a strict order of priority:</p>
+<ol type="1">
+<li><strong>/etc/systemd/system/</strong>: System administrator
+overrides and custom units (Highest priority).</li>
+<li><strong>/run/systemd/system/</strong>: Runtime units created
+dynamically while the system is running.</li>
+<li><strong>/usr/lib/systemd/system/</strong> or
+<strong>/lib/systemd/system/</strong>: Default unit files provided by
+the OS distribution or package maintainers (Lowest priority).</li>
+</ol>
+<p>Under normal circumstances, an installed package places its
+<code>.service</code> file inside <code>/usr/lib/systemd/system/</code>.
+When <code>systemctl mask</code> is run, systemd places the dummy
+<code>/dev/null</code> symlink in <code>/etc/systemd/system/</code>.</p>
+<p>Because <code>/etc/systemd/system/</code> takes precedence over
+<code>/usr/lib/systemd/system/</code>, systemd loads the administrative
+symlink and ignores the real unit file provided by the package.</p>
+<h3 id="systemctl-mask-vs-systemctl-disable"><code>systemctl mask</code>
+vs. <code>systemctl disable</code></h3>
+<p>The key distinction between disabling and masking lies in how systemd
+treats activation triggers:</p>
+<ul>
+<li><strong>Disabling a service
+(<code>systemctl disable</code>):</strong> systemd removes the symlinks
+from <code>.wants</code> or <code>.requires</code> directories located
+inside <code>/etc/systemd/system/</code>. This stops the service from
+launching automatically during the boot process. However, the unit file
+itself remains accessible. If another running service requires it, if a
+socket activates it, or if a user runs
+<code>systemctl start &lt;service_name&gt;</code>, the service will
+still launch.</li>
+<li><strong>Masking a service (<code>systemctl mask</code>):</strong>
+Because the unit file itself is replaced by a link to
+<code>/dev/null</code>, systemd cannot parse any directives to run the
+service. Attempting to start the service manually produces an explicit
+error:
+<code>Failed to start &lt;service_name&gt;.service: Unit &lt;service_name&gt;.service is masked.</code>
+Masked units cannot be started by scripts, sockets, hardware events, or
+boot targets.</li>
+</ul>
+<h3 id="runtime-masking">Runtime Masking</h3>
+<p>Linux administrators can also apply temporary masks using the
+<code>--runtime</code> flag:</p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="ex">systemctl</span> mask <span class="at">--runtime</span> <span class="op">&lt;</span>service_name<span class="op">&gt;</span></span></code></pre></div>
+<p>When this flag is passed, systemd creates the <code>/dev/null</code>
+symlink in <code>/run/systemd/system/</code> rather than
+<code>/etc/systemd/system/</code>. Because the <code>/run/</code>
+directory resides in temporary memory (tmpfs), the mask remains active
+only for the duration of the current session and disappears
+automatically upon the next system reboot.</p>
+<h3 id="reversing-the-mask">Reversing the Mask</h3>
+<p>To restore a masked service to its original state, the administrator
+runs:</p>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="ex">systemctl</span> unmask <span class="op">&lt;</span>service_name<span class="op">&gt;</span></span></code></pre></div>
+<p>This command deletes the <code>/dev/null</code> symlink from
+<code>/etc/systemd/system/</code> (or
+<code>/run/systemd/system/</code>). With the override removed, systemd
+falls back to the default unit configuration located in
+<code>/usr/lib/systemd/system/</code>, returning the service to a
+normal, operational state.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

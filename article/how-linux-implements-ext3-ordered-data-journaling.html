@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How Linux Implements Ext3 Ordered Data Journaling - linux</title>
+    <meta name="description" content="The ext3 file system's data=ordered mode provides a balance between file system performance and data integrity by guaranteeing that file data is written to the main storage disk before its associated metadata is committed to the journal. This design prev">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-linux-implements-ext3-ordered-data-journaling">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How Linux Implements Ext3 Ordered Data Journaling - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-linux-implements-ext3-ordered-data-journaling" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="The ext3 file system's data=ordered mode provides a balance between file system performance and data integrity by guaranteeing that file data is written to the main storage disk before its associated metadata is committed to the journal. This design prev" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-linux-implements-ext3-ordered-data-journaling">How Linux
+Implements Ext3 Ordered Data Journaling</h1>
+<p>The ext3 file system's <code>data=ordered</code> mode provides a
+balance between file system performance and data integrity by
+guaranteeing that file data is written to the main storage disk before
+its associated metadata is committed to the journal. This design
+prevents a critical vulnerability present in writeback caching: pointers
+in newly committed metadata referencing unwritten, stale disk blocks
+after a system crash. In the Linux kernel, this mechanism is coordinated
+between the ext3 file system driver and the Journaling Block Device
+(JBD) subsystem using transaction lists and staged I/O flushes.</p>
+<h3 id="the-role-of-the-journaling-block-device-jbd">The Role of the
+Journaling Block Device (JBD)</h3>
+<p>The ext3 file system does not handle the raw mechanics of journaling
+internally. Instead, it delegates transaction management to the JBD
+layer. JBD organizes file system changes into discrete transactions. At
+any given time, JBD manages:</p>
+<ul>
+<li><strong>A Running Transaction:</strong> The active transaction
+gathering new file operations.</li>
+<li><strong>Committing Transactions:</strong> Transactions currently
+being flushed to the journal on disk.</li>
+<li><strong>Committed Transactions:</strong> Transactions whose metadata
+resides safely in the journal but has not yet been copied to its final
+on-disk location (checkpointing).</li>
+</ul>
+<p>In <code>data=ordered</code> mode, JBD handles the sequence in which
+data buffers and metadata buffers move through these transaction
+states.</p>
+<h3 id="associating-data-blocks-with-transactions">Associating Data
+Blocks with Transactions</h3>
+<p>When an application writes to a file in <code>data=ordered</code>
+mode:</p>
+<ol type="1">
+<li><strong>Allocating Blocks:</strong> The ext3 driver assigns logical
+blocks to physical blocks on the storage device.</li>
+<li><strong>Attaching Data to the Transaction:</strong> Ext3 calls
+<code>journal_dirty_data()</code> to link the dirty page-cache buffers
+containing the file's payload to the running transaction's private data
+list (<code>t_sync_datalist</code>).</li>
+<li><strong>Dirtying Metadata:</strong> The metadata modifying the
+inode, block allocation bitmaps, and indirect blocks is registered with
+the transaction using <code>journal_get_write_access()</code> and
+<code>journal_dirty_metadata()</code>.</li>
+</ol>
+<p>At this stage, the data is queued in system memory, explicitly
+tethered to the metadata that describes it.</p>
+<h3 id="the-commit-pipeline">The Commit Pipeline</h3>
+<p>A background kernel thread named <code>kjournald</code> is
+responsible for committing transactions to disk periodically (typically
+every 5 seconds) or when an explicit synchronization event occurs (such
+as an <code>fsync()</code> system call). The ordered implementation
+executes in strict sequential phases within the
+<code>journal_commit_transaction()</code> function:</p>
+<ol type="1">
+<li><strong>Phase 1: Flushing Ordered Data:</strong> Before any journal
+updates occur, <code>kjournald</code> traverses the transaction's
+<code>t_sync_datalist</code>. It initiates block I/O write requests for
+every data buffer attached to the transaction, writing the payload
+directly to its final destination on the file system.</li>
+<li><strong>Phase 2: Waiting for Data I/O Completion:</strong> The
+thread blocks until the storage controller confirms that all data blocks
+from Phase 1 have been physically written to non-volatile storage.</li>
+<li><strong>Phase 3: Writing Journal Descriptor and Metadata:</strong>
+Once the payload is safely on disk, JBD writes the transaction's
+metadata blocks to the journal area on the disk, preceded by a
+descriptor block that identifies the metadata.</li>
+<li><strong>Phase 4: Writing the Commit Record:</strong> Finally, a
+single commit block is written to the journal. The presence of the
+commit block marks the transaction as legally complete.</li>
+</ol>
+<h3 id="crash-recovery-guarantees">Crash Recovery Guarantees</h3>
+<p>If power fails or the operating system crashes during this process,
+the recovery semantics ensure file consistency:</p>
+<ul>
+<li><strong>Crash before the Commit Record:</strong> If the system
+crashes prior to Phase 4, the entire transaction is discarded during
+post-reboot recovery. Even if data blocks were partially or fully
+written to disk, the metadata pointing to them was never committed,
+preserving the previous consistent state.</li>
+<li><strong>Crash after the Commit Record:</strong> If the crash occurs
+after Phase 4, the JBD recovery process replays the committed metadata
+from the journal. Because Phases 1 and 2 guaranteed that the data blocks
+reached storage before the commit record was authorized, the replayed
+metadata will point directly to valid data rather than uninitialized
+blocks.</li>
+</ul></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

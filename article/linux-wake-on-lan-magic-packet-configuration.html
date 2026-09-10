@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linux Wake-on-LAN Magic Packet Configuration - linux</title>
+    <meta name="description" content="Wake-on-LAN (WoL) magic packet configuration allows network administrators to remotely power on dormant Linux systems by broadcasting a specialized network frame. This article explores the significance of the magic packet within the Linux operating syste">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/linux-wake-on-lan-magic-packet-configuration">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Linux Wake-on-LAN Magic Packet Configuration - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/linux-wake-on-lan-magic-packet-configuration" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="Wake-on-LAN (WoL) magic packet configuration allows network administrators to remotely power on dormant Linux systems by broadcasting a specialized network frame. This article explores the significance of the magic packet within the Linux operating syste" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="linux-wake-on-lan-magic-packet-configuration">Linux Wake-on-LAN
+Magic Packet Configuration</h1>
+<p>Wake-on-LAN (WoL) magic packet configuration allows network
+administrators to remotely power on dormant Linux systems by
+broadcasting a specialized network frame. This article explores the
+significance of the magic packet within the Linux operating system,
+detailing how it functions at the hardware and kernel levels, why it is
+critical for energy conservation and remote administration, and how
+Linux administrators configure and persist these settings.</p>
+<h3 id="what-is-the-wol-magic-packet">What is the WoL Magic Packet?</h3>
+<p>A Wake-on-LAN magic packet is a standard network broadcast frame
+containing a specific payload signature: six bytes of hexadecimal
+<code>FF</code> (255 in decimal), followed by sixteen uninterrupted
+repetitions of the target machine's 48-bit MAC address.</p>
+<p>When a Linux system is shut down or placed into a low-power sleep
+state (such as ACPI states S3, S4, or S5), the system's Network
+Interface Card (NIC) remains partially powered in auxiliary mode. The
+NIC listens to incoming layer-2 or layer-3 traffic. When it detects this
+102-byte sequence matching its physical address, it triggers a power-on
+signal to the motherboard via the PCI Express bus or legacy auxiliary
+lines.</p>
+<h3
+id="significance-of-magic-packet-configuration-in-linux">Significance of
+Magic Packet Configuration in Linux</h3>
+<p>Proper configuration of the WoL magic packet in Linux holds major
+technical and operational significance across enterprise and home-lab
+environments:</p>
+<ol type="1">
+<li><strong>Energy Efficiency and Operational Cost Reduction</strong>:
+In large data centers or workstation fleets, leaving machines running
+24/7 is inefficient. Magic packet support allows systems to remain fully
+powered off during off-peak hours and wake up instantly when needed for
+tasks such as backups, software deployments, or remote work
+sessions.</li>
+<li><strong>Remote Infrastructure Management</strong>: Headless Linux
+servers deployed in remote locations or co-location facilities often
+lack expensive Out-of-Band (OOB) hardware like IPMI, iLO, or DRAC.
+Configuring WoL provides an inexpensive, native mechanism to cycle power
+states over the local network.</li>
+<li><strong>Targeted Wake Signals</strong>: Unlike other WoL modes (such
+as waking on any broadcast frame, unicast frame, or ARP request), the
+"magic packet" mode (<code>g</code> flag) ensures the machine only wakes
+when explicitly commanded. This prevents unwanted power-ups caused by
+standard network chatter or broadcast storms.</li>
+</ol>
+<h3 id="configuring-magic-packet-in-linux">Configuring Magic Packet in
+Linux</h3>
+<p>For a Linux machine to respond to a magic packet, settings must align
+across the motherboard firmware (BIOS/UEFI), the Linux kernel driver,
+and user-space network managers.</p>
+<h4 id="biosuefi-prerequisites">BIOS/UEFI Prerequisites</h4>
+<p>Before Linux can manage WoL, the system firmware must support and
+permit wake events from PCI-E devices or explicitly enable Wake-on-LAN.
+Without this, the motherboard cuts power completely to the NIC upon
+shutdown.</p>
+<h4 id="inspecting-and-enabling-via-ethtool">Inspecting and Enabling via
+<code>ethtool</code></h4>
+<p>In Linux, the standard utility to inspect and modify NIC-level WoL
+settings is <code>ethtool</code>.</p>
+<p>To check the current WoL status of an interface (e.g.,
+<code>eth0</code>):</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> ethtool eth0</span></code></pre></div>
+<p>Look for two key output lines:</p>
+<ul>
+<li><strong>Supports Wake-on</strong>: Indicates what the NIC hardware
+and driver support. The letter <code>g</code> signifies MagicPacket
+support.</li>
+<li><strong>Wake-on</strong>: Indicates the current active setting. If
+it displays <code>d</code>, WoL is disabled.</li>
+</ul>
+<p>To enable magic packet detection:</p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> ethtool <span class="at">-s</span> eth0 wol g</span></code></pre></div>
+<h4 id="achieving-configuration-persistence">Achieving Configuration
+Persistence</h4>
+<p>By default, changes made with <code>ethtool</code> are volatile and
+reset after a reboot. Linux systems handle persistence through their
+respective network management subsystems:</p>
+<ul>
+<li><strong>Systemd-networkd</strong>: Administrators set
+<code>WakeOnLan=magic</code> in the <code>.network</code> configuration
+file.</li>
+<li><strong>NetworkManager</strong>: The connection configuration can be
+modified using
+<code>nmcli c modify &lt;connection-name&gt; 802-3-ethernet.wake-on-lan magic</code>.</li>
+<li><strong>Udev Rules</strong>: A persistent rule can be placed in
+<code>/etc/udev/rules.d/</code> to invoke <code>ethtool</code> whenever
+the network interface appears.</li>
+</ul>
+<p>Correctly configuring the magic packet in Linux ensures that
+low-power states remain dependable without sacrificing remote
+accessibility or risking unexpected system activations.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

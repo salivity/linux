@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How to Use knockd for Port Knocking on Linux - linux</title>
+    <meta name="description" content="Port knocking is a stealth-oriented defense technique that hides sensitive network services behind a closed firewall until a predefined sequence of connection attempts is detected. In the Linux operating system, this functionality is primarily driven by">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-to-use-knockd-for-port-knocking-on-linux">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How to Use knockd for Port Knocking on Linux - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-to-use-knockd-for-port-knocking-on-linux" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="Port knocking is a stealth-oriented defense technique that hides sensitive network services behind a closed firewall until a predefined sequence of connection attempts is detected. In the Linux operating system, this functionality is primarily driven by" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-to-use-knockd-for-port-knocking-on-linux">How to Use knockd
+for Port Knocking on Linux</h1>
+<p>Port knocking is a stealth-oriented defense technique that hides
+sensitive network services behind a closed firewall until a predefined
+sequence of connection attempts is detected. In the Linux operating
+system, this functionality is primarily driven by <code>knockd</code>, a
+lightweight packet-sniffing daemon. This article explains how
+<code>knockd</code> operates on Linux, how it interacts with the
+kernel's packet-filtering frameworks to dynamically modify firewall
+rules, and how it protects exposed entry points like SSH from
+reconnaissance and automated attacks.</p>
+<h3 id="the-concept-of-port-knocking">The Concept of Port Knocking</h3>
+<p>Standard firewall configurations leave public service ports, such as
+TCP port 22 for SSH, open to the internet. While access may be
+restricted by passwords or cryptographic keys, the open port remains
+visible to port scanners, leaving it vulnerable to zero-day exploits,
+denial-of-service attempts, and constant brute-force attacks.</p>
+<p>Port knocking resolves this by keeping the target port in a closed or
+filtered state by default. A client must "knock" on a prearranged
+sequence of closed ports (for example, TCP 7000, TCP 8000, and TCP
+9000). Once the sequence is validated, the firewall temporarily opens
+the protected port specifically for the client's IP address.</p>
+<h3 id="how-knockd-functions-in-linux">How knockd Functions in
+Linux</h3>
+<p>Unlike standard network services that bind to specific TCP or UDP
+sockets and respond to incoming traffic, <code>knockd</code> operates at
+a lower level using the <code>libpcap</code> library. This design
+enables the daemon to monitor network traffic passively:</p>
+<ol type="1">
+<li><strong>Passive Packet Sniffing:</strong> The daemon listens on a
+specified network interface (such as <code>eth0</code>), intercepting
+raw Ethernet frames. Because it does not bind to a listening socket,
+port scanners scanning the host see all knocked ports as completely
+closed or filtered.</li>
+<li><strong>State Tracking:</strong> When a packet hits a monitored
+port, <code>knockd</code> logs the client IP, the destination port, and
+the arrival timestamp. It maintains an internal state table to track
+whether incoming packets match configured knock sequences within an
+allowable time limit.</li>
+<li><strong>Triggering Firewall Rules:</strong> Upon verifying a
+successful sequence, <code>knockd</code> executes system-level shell
+commands defined in its configuration file. These commands typically
+interact directly with Linux packet-filtering frameworks—either legacy
+<code>iptables</code> or modern <code>nftables</code>.</li>
+</ol>
+<h3 id="the-knockd-configuration-model">The knockd Configuration
+Model</h3>
+<p>The daemon’s behavior is defined within the
+<code>/etc/knockd.conf</code> configuration file. The configuration is
+split into global directives and individual event triggers.</p>
+<p>A typical configuration file includes the following components:</p>
+<ul>
+<li><strong>Global Options:</strong> Defines the network interface to
+monitor and logging preferences through <code>syslog</code>.</li>
+<li><strong>Open Event (<code>[openSSH]</code>):</strong>
+<ul>
+<li><code>sequence</code>: A defined list of target ports and protocols
+(e.g., <code>7001:tcp,8002:tcp,9003:tcp</code>).</li>
+<li><code>seq_timeout</code>: The maximum window of time (in seconds)
+allowed for the client to complete the sequence.</li>
+<li><code>command</code>: The specific firewall command executed upon
+success, such as appending an allow rule targeting the knocking IP
+address via the <code>%IP%</code> variable.</li>
+<li><code>tcpflags</code>: Flags required for the packet to match
+(typically <code>syn</code> packets).</li>
+</ul></li>
+<li><strong>Close Event or Timeout (<code>[closeSSH]</code> or
+<code>cmd_timeout</code>):</strong>
+<ul>
+<li>Systems can use a secondary knock sequence to close the port
+manually, or define <code>cmd_timeout</code> within the open event to
+automatically run a tear-down command after a set number of
+seconds.</li>
+</ul></li>
+</ul>
+<p>When using an automatic timeout, <code>knockd</code> executes the
+opening rule, waits for the configured interval, and runs the closing
+rule. Because Linux firewalls can track connection states using
+<code>conntrack</code>, an established SSH session remains active even
+after the initial opening rule is removed and the port is closed to new
+connection attempts.</p>
+<h3 id="interaction-with-linux-packet-filters">Interaction with Linux
+Packet Filters</h3>
+<p><code>knockd</code> does not handle packet filtering itself; it
+relies entirely on the Linux kernel's netfilter subsystem. In an
+<code>iptables</code> setup, the firewall is configured to block
+incoming traffic to the protected port by default:</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">iptables</span> <span class="at">-A</span> INPUT <span class="at">-m</span> conntrack <span class="at">--ctstate</span> ESTABLISHED,RELATED <span class="at">-j</span> ACCEPT</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="ex">iptables</span> <span class="at">-A</span> INPUT <span class="at">-p</span> tcp <span class="at">--dport</span> 22 <span class="at">-j</span> DROP</span></code></pre></div>
+<p>When a correct knock is registered, <code>knockd</code> executes a
+rule insertion command:</p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="ex">iptables</span> <span class="at">-I</span> INPUT 2 <span class="at">-s</span> <span class="op">&lt;</span>client_ip<span class="op">&gt;</span> -p tcp <span class="at">--dport</span> 22 <span class="at">-j</span> ACCEPT</span></code></pre></div>
+<p>This inserts a temporary rule allowing the specific client IP to
+reach port 22. Once the client initiates the connection and establishes
+the session, the connection transitions to the <code>ESTABLISHED</code>
+state. When the temporary rule is removed, the established session
+persists, but no new connections from that IP or any other IP can be
+initiated without repeating the knock sequence.</p>
+<h3 id="security-limitations-and-best-practices">Security Limitations
+and Best Practices</h3>
+<p>While <code>knockd</code> provides effective obscurity, it is an
+access-control mechanism rather than an encryption protocol.
+Administrators should account for specific limitations:</p>
+<ul>
+<li><strong>Packet Sniffing and Replay Attacks:</strong> Traditional
+port knocks send plain TCP/UDP headers across the network. An adversary
+capable of monitoring traffic between the client and server can record
+the port sequence and replay it from the same IP, or spoof the source IP
+if firewall rules do not validate bidirectional state.</li>
+<li><strong>NAT Interference:</strong> If multiple clients sit behind a
+single Carrier-Grade NAT (CGNAT) or corporate gateway, opening a port
+for the gateway's public IP opens access to any client behind that
+gateway for the duration of the window.</li>
+<li><strong>Defense-in-Depth:</strong> Port knocking must never serve as
+the sole security boundary. Critical services must continue to enforce
+robust authentication, such as SSH public-key cryptography and disabled
+root logins.</li>
+</ul></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

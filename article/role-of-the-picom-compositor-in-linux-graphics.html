@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Role of the Picom Compositor in Linux Graphics - linux</title>
+    <meta name="description" content="The Picom compositor plays a crucial role in modern Linux graphics stacks by acting as an off-screen compositing manager for the X Window System (X11). This article examines how Picom intercepts application drawing calls, coordinates with the GPU via bac">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/role-of-the-picom-compositor-in-linux-graphics">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Role of the Picom Compositor in Linux Graphics - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/role-of-the-picom-compositor-in-linux-graphics" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="The Picom compositor plays a crucial role in modern Linux graphics stacks by acting as an off-screen compositing manager for the X Window System (X11). This article examines how Picom intercepts application drawing calls, coordinates with the GPU via bac" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="role-of-the-picom-compositor-in-linux-graphics">Role of the
+Picom Compositor in Linux Graphics</h1>
+<p>The Picom compositor plays a crucial role in modern Linux graphics
+stacks by acting as an off-screen compositing manager for the X Window
+System (X11). This article examines how Picom intercepts application
+drawing calls, coordinates with the GPU via backends like OpenGL,
+eliminates visual artifacts such as screen tearing, and applies modern
+aesthetic effects like transparency, blur, and shadows to lightweight
+desktop environments.</p>
+<h3 id="the-problem-with-traditional-x11-rendering">The Problem with
+Traditional X11 Rendering</h3>
+<p>In standard X11 environments, applications traditionally render
+directly to the screen buffer. Because the display server manages each
+window independently without native hardware-accelerated composition,
+windows often overwrite one another unpredictably during updates. This
+direct-rendering approach frequently leads to screen tearing—where parts
+of multiple frames appear on the monitor simultaneously—along with
+visual flickering and redraw lag when moving or resizing windows.</p>
+<h3 id="how-picom-functions-as-a-compositor">How Picom Functions as a
+Compositor</h3>
+<p>Picom resolves these visual issues by implementing an off-screen
+compositing model using the X Composite extension. Instead of allowing
+client applications to paint straight to the visible display, Picom
+redirects their rendering output into individual off-screen memory
+buffers.</p>
+<p>Once every window has updated its respective buffer, Picom combines
+(composites) these separate visual layers into a single, unified image
+representing the entire desktop. It then submits this finished frame
+directly to the display server or hardware buffer for presentation on
+the monitor.</p>
+<h3
+id="preventing-screen-tearing-via-vertical-synchronization-vsync">Preventing
+Screen Tearing via Vertical Synchronization (VSync)</h3>
+<p>One of Picom's primary technical tasks is managing Vertical
+Synchronization (VSync). By coordinating frame delivery with the
+monitor's refresh cycle, Picom ensures that completed frames are swapped
+only during the vertical blanking interval. This mechanism stops partial
+frame updates, entirely eliminating horizontal screen tearing during
+video playback, fast scrolling, and gaming.</p>
+<h3 id="hardware-acceleration-and-rendering-backends">Hardware
+Acceleration and Rendering Backends</h3>
+<p>Picom supports multiple rendering backends to balance performance and
+compatibility:</p>
+<ul>
+<li><strong>GLX (OpenGL):</strong> Offloads the compositing workload to
+the GPU. This backend offers the highest performance, lowest CPU usage,
+and supports advanced shader-based effects.</li>
+<li><strong>XRender:</strong> Uses CPU-based X11 rendering operations.
+While it consumes more processor cycles and offers fewer features, it
+serves as a reliable fallback for legacy hardware lacking robust OpenGL
+drivers.</li>
+<li><strong>EGL:</strong> A modern alternative interface between OpenGL
+and the underlying native platform window system, often used for better
+integration with modern graphics drivers.</li>
+</ul>
+<h3 id="window-effects-and-aesthetics">Window Effects and
+Aesthetics</h3>
+<p>Beyond structural frame management, Picom is widely used to introduce
+modern graphical effects to standalone window managers like i3, bspwm,
+Openbox, and AwesomeWM, which lack built-in compositors. Picom
+dynamically calculates and renders:</p>
+<ul>
+<li><strong>Alpha Blending:</strong> True window transparency and
+opacity adjustments based on window focus or client rules.</li>
+<li><strong>Drop Shadows:</strong> Real-time geometric shadows around
+windows to visually separate overlapping elements.</li>
+<li><strong>Background Blurring:</strong> Dual-Kawase and Gaussian blur
+algorithms applied behind translucent windows.</li>
+<li><strong>Fading and Animations:</strong> Smooth transitions during
+window creation, destruction, and workspace switching.</li>
+</ul>
+<p>By decoupling the layout management of window managers from the
+graphical presentation layer, Picom provides Linux users with a stable,
+tear-free, and visually modern computing environment without the
+overhead of full desktop environments like GNOME or KDE.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

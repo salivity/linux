@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linux QoS Management with HTB Queuing Discipline - linux</title>
+    <meta name="description" content="This article provides an overview of how the Linux kernel regulates network traffic using the Hierarchical Token Bucket (HTB) queuing discipline (qdisc). It explains the fundamental mechanics of the Traffic Control (tc) subsystem, details the relationshi">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/linux-qos-management-with-htb-queuing-discipline">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Linux QoS Management with HTB Queuing Discipline - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/linux-qos-management-with-htb-queuing-discipline" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="This article provides an overview of how the Linux kernel regulates network traffic using the Hierarchical Token Bucket (HTB) queuing discipline (qdisc). It explains the fundamental mechanics of the Traffic Control (tc) subsystem, details the relationshi" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="linux-qos-management-with-htb-queuing-discipline">Linux QoS
+Management with HTB Queuing Discipline</h1>
+<p>This article provides an overview of how the Linux kernel regulates
+network traffic using the Hierarchical Token Bucket (HTB) queuing
+discipline (qdisc). It explains the fundamental mechanics of the Traffic
+Control (<code>tc</code>) subsystem, details the relationship between
+classes, tokens, and filters, and explores how HTB enforces guaranteed
+bandwidth, manages bursts, and enables dynamic bandwidth sharing across
+a structured hierarchy.</p>
+<h3 id="the-linux-traffic-control-architecture">The Linux Traffic
+Control Architecture</h3>
+<p>Linux manages Quality of Service (QoS) through its Traffic Control
+(<code>tc</code>) subsystem. This framework sits between the network
+protocol stack and the network interface card (NIC). The subsystem is
+built on three core components:</p>
+<ul>
+<li><strong>Queuing Disciplines (qdiscs):</strong> Algorithms that
+schedule, delay, or drop outbound packets.</li>
+<li><strong>Classes:</strong> Logical partitions within a classful qdisc
+that define distinct traffic tiers and bandwidth allocations.</li>
+<li><strong>Filters (Classifiers):</strong> Rules (such as
+<code>u32</code> or firewall mark matches) that inspect packet headers
+and route traffic into specific classes.</li>
+</ul>
+<p>HTB is a classful qdisc, meaning it allows administrators to create
+complex parent-child tree structures to control bandwidth allocation
+across different services, users, or protocols.</p>
+<h3 id="the-token-bucket-mechanism">The Token Bucket Mechanism</h3>
+<p>At the heart of HTB is the token bucket algorithm. Bandwidth
+allocation is modeled by a virtual bucket that continuously collects
+tokens at a specified byte rate:</p>
+<ol type="1">
+<li><strong>Token Generation:</strong> The system adds tokens to a class
+bucket at a constant rate corresponding to the configured
+bandwidth.</li>
+<li><strong>Packet Transmission:</strong> When a packet arrives, the
+scheduler checks if the bucket contains enough tokens to match the
+packet's size in bytes.</li>
+<li><strong>Queueing vs. Transmission:</strong> If sufficient tokens
+exist, the tokens are deducted and the packet transmits immediately. If
+insufficient tokens exist, the packet waits in a queue until enough
+tokens accumulate, smoothing bursts into a sustained rate.</li>
+</ol>
+<h3 id="class-hierarchy-and-bandwidth-allocation-parameters">Class
+Hierarchy and Bandwidth Allocation Parameters</h3>
+<p>HTB organizes traffic into a tree where internal nodes distribute
+capacity and leaf nodes contain actual packet queues. Each class is
+configured with two primary bandwidth metrics:</p>
+<ul>
+<li><strong><code>rate</code> (Guaranteed Bandwidth):</strong> The
+minimum bandwidth guaranteed to the class at all times, even under full
+network saturation.</li>
+<li><strong><code>ceil</code> (Ceiling Bandwidth):</strong> The absolute
+maximum bandwidth the class is permitted to consume if excess capacity
+is available.</li>
+</ul>
+<h3 id="dynamic-bandwidth-sharing-and-borrowing">Dynamic Bandwidth
+Sharing and Borrowing</h3>
+<p>The primary advantage of HTB over older shapers is its ability to
+loan unused bandwidth. If a class does not fully utilize its guaranteed
+<code>rate</code>, its surplus tokens become available to sibling
+classes within the same parent node.</p>
+<p>When a leaf class experiences heavy traffic exceeding its
+<code>rate</code>, it requests tokens from its parent. The parent
+redistributes the idle bandwidth to the requesting child, allowing it to
+burst up to its configured <code>ceil</code>. Once the idle sibling
+requires its guaranteed bandwidth again, the borrowing class is
+throttled back down to its base <code>rate</code>.</p>
+<h3 id="packet-classification-and-priority">Packet Classification and
+Priority</h3>
+<p>To manage how excess capacity is divided among competing classes, HTB
+uses a priority system (<code>prio</code> parameter):</p>
+<ul>
+<li><strong>Classification:</strong> Network filters match traffic based
+on IP addresses, ports, or DSCP/ToS bits and assign each packet to a
+specific leaf class.</li>
+<li><strong>Prioritization During Congestion:</strong> When multiple
+classes compete to borrow spare bandwidth, HTB allocates tokens to the
+class with the lowest numerical priority value first. High-priority
+traffic (such as VoIP or SSH) obtains available borrowing capacity
+before bulk transfers (such as HTTP or backups).</li>
+</ul>
+<p>Through this combination of token rate limits, strict tree
+hierarchies, and priority-driven borrowing, HTB allows Linux to enforce
+precise rate limits while maximizing link utilization.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cold Plugging vs Hot Plugging in Linux Explained - linux</title>
+    <meta name="description" content="This article explores the fundamental differences between cold plugging and hot plugging devices within the Linux operating system. It details how the Linux kernel detects hardware, manages dynamic device states, and handles system resources when hardwar">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/cold-plugging-vs-hot-plugging-in-linux-explained">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Cold Plugging vs Hot Plugging in Linux Explained - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/cold-plugging-vs-hot-plugging-in-linux-explained" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="This article explores the fundamental differences between cold plugging and hot plugging devices within the Linux operating system. It details how the Linux kernel detects hardware, manages dynamic device states, and handles system resources when hardwar" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="cold-plugging-vs-hot-plugging-in-linux-explained">Cold Plugging
+vs Hot Plugging in Linux Explained</h1>
+<p>This article explores the fundamental differences between cold
+plugging and hot plugging devices within the Linux operating system. It
+details how the Linux kernel detects hardware, manages dynamic device
+states, and handles system resources when hardware is connected before
+system boot versus during active runtime. By understanding the roles of
+the Linux kernel, <code>sysfs</code>, and the <code>udev</code> device
+manager, system administrators and developers can better manage hardware
+connectivity and troubleshooting in a Linux environment.</p>
+<h2 id="what-is-cold-plugging">What is Cold Plugging?</h2>
+<p>Cold plugging refers to connecting hardware components to a computer
+while the system is powered off. When the machine powers on, the system
+firmware (BIOS or UEFI) initializes the base hardware and passes system
+configuration data to the Linux kernel via ACPI or Device Tree
+tables.</p>
+<p>During the boot process, the kernel enumerates all connected buses
+(such as PCI, SATA, and USB) to identify attached devices. Once
+identified, the kernel creates the corresponding device structures in
+the virtual filesystem <code>/sys</code> (<code>sysfs</code>). The
+system's device manager, typically <code>systemd-udevd</code>, then
+processes this static state, loads required kernel modules (drivers),
+and creates the corresponding device nodes under the <code>/dev</code>
+directory before user-space initialization completes.</p>
+<p>Typical cold-plugged devices include internal components that do not
+support runtime insertion, such as standard RAM modules, non-hot-swap
+CPUs, and conventional internal PCIe expansion cards.</p>
+<h2 id="what-is-hot-plugging">What is Hot Plugging?</h2>
+<p>Hot plugging is the process of adding or removing hardware components
+while the computer system is powered on and the Linux operating system
+is actively running, without requiring a reboot.</p>
+<p>When a hot-pluggable device is inserted (such as a USB drive,
+Thunderbolt peripheral, or hot-swappable NVMe drive):</p>
+<ol type="1">
+<li><strong>Hardware Interrupt:</strong> The underlying bus hardware
+detects electrical state changes and generates a hardware
+interrupt.</li>
+<li><strong>Kernel Event:</strong> The kernel driver for the bus handles
+the interrupt, identifies the new hardware, and generates a
+<code>uevent</code> message containing device metadata.</li>
+<li><strong>Netlink Transmission:</strong> The kernel broadcasts the
+<code>uevent</code> to user space over a Netlink socket.</li>
+<li><strong>Udev Handling:</strong> The <code>systemd-udevd</code>
+daemon listens for these events, reads matching configuration rules from
+<code>/etc/udev/rules.d/</code> and <code>/usr/lib/udev/rules.d/</code>,
+loads necessary kernel modules via <code>modprobe</code>, and
+dynamically creates device files in <code>/dev</code>.</li>
+</ol>
+<p>When a device is safely disconnected (unplugged), the inverse occurs:
+the kernel detects the removal, issues a removal <code>uevent</code>,
+and <code>udev</code> cleans up the associated device nodes.</p>
+<h2 id="key-differences">Key Differences</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Feature</th>
+<th style="text-align: left;">Cold Plugging</th>
+<th style="text-align: left;">Hot Plugging</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>System State</strong></td>
+<td style="text-align: left;">System is powered off during
+connection.</td>
+<td style="text-align: left;">System is running and active during
+connection.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Detection Method</strong></td>
+<td style="text-align: left;">Firmware scan followed by kernel boot-time
+hardware enumeration.</td>
+<td style="text-align: left;">Asynchronous hardware interrupts and
+dynamic bus scans.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>User-Space Event</strong></td>
+<td style="text-align: left;"><code>udev</code> processes a batch of
+pre-existing devices sequentially at boot.</td>
+<td style="text-align: left;"><code>udev</code> dynamically processes
+real-time <code>uevents</code> asynchronously.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Driver Loading</strong></td>
+<td style="text-align: left;">Drivers load during the system startup
+sequence.</td>
+<td style="text-align: left;">Drivers load on demand when the device
+insertion is detected.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Device Examples</strong></td>
+<td style="text-align: left;">Motherboards, standard RAM, internal GPUs,
+non-hot-swap power supplies.</td>
+<td style="text-align: left;">USB storage, Thunderbolt docks, external
+mice/keyboards, hot-swap SATA/SAS drives.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="the-linux-coldplug-subsystem">The Linux "Coldplug"
+Subsystem</h2>
+<p>To maintain consistency, modern Linux systems treat cold-plugged
+devices similarly to hot-plugged devices via a mechanism called the
+"coldplug trigger." During the boot sequence, <code>udev</code> triggers
+synthetic <code>uevents</code> for all hardware discovered by the kernel
+before <code>udev</code> was running. This ensures that a single
+configuration path handles driver loading, permission management, and
+device node generation regardless of when the physical hardware was
+connected.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

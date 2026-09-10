@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Taskset Command for CPU Affinity in Linux - linux</title>
+    <meta name="description" content="This article provides an overview of the Linux taskset command, detailing how it manages CPU affinity by binding processes to specific processor cores. It covers the core functionality of the command, the concept of processor affinity, practical command">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/taskset-command-for-cpu-affinity-in-linux">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Taskset Command for CPU Affinity in Linux - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/taskset-command-for-cpu-affinity-in-linux" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="This article provides an overview of the Linux taskset command, detailing how it manages CPU affinity by binding processes to specific processor cores. It covers the core functionality of the command, the concept of processor affinity, practical command" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="taskset-command-for-cpu-affinity-in-linux">Taskset Command for
+CPU Affinity in Linux</h1>
+<p>This article provides an overview of the Linux <code>taskset</code>
+command, detailing how it manages CPU affinity by binding processes to
+specific processor cores. It covers the core functionality of the
+command, the concept of processor affinity, practical command syntax for
+both running and new processes, and the performance benefits of
+controlling CPU scheduling.</p>
+<h3 id="understanding-cpu-affinity">Understanding CPU Affinity</h3>
+<p>CPU affinity, or processor affinity, is a scheduling feature that
+binds a process or thread to one or more designated CPU cores. By
+default, the Linux kernel scheduler dynamically assigns tasks to any
+available CPU core to balance the overall system workload. However,
+frequently moving a process between different cores can lead to
+performance overhead due to CPU cache invalidation. Setting CPU affinity
+ensures that a process runs exclusively on the assigned cores,
+preserving cache locality and reducing latency.</p>
+<h3 id="the-function-of-the-taskset-command">The Function of the taskset
+Command</h3>
+<p>The <code>taskset</code> command is a standard Linux utility (part of
+the <code>util-linux</code> package) used to retrieve and manipulate the
+CPU affinity of a process. It operates either by modifying the CPU mask
+of an already running process using its Process ID (PID) or by launching
+a new process with a predefined core assignment.</p>
+<p>CPU affinity can be specified in two formats:</p>
+<ul>
+<li><strong>Bitmask:</strong> A hexadecimal representation where each
+bit corresponds to a CPU core (e.g., <code>0x00000001</code> for CPU 0,
+<code>0x00000003</code> for CPUs 0 and 1).</li>
+<li><strong>CPU List:</strong> A comma-separated or hyphenated list of
+core numbers using the <code>-c</code> or <code>--cpu-list</code> flag
+(e.g., <code>0,2,3</code> or <code>0-3</code>), which is more
+human-readable.</li>
+</ul>
+<h3 id="common-usage-and-syntax">Common Usage and Syntax</h3>
+<h4 id="checking-the-current-affinity-of-a-process">Checking the Current
+Affinity of a Process</h4>
+<p>To view which cores are assigned to an active process:</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">taskset</span> <span class="at">-p</span> <span class="op">&lt;</span>PID<span class="op">&gt;</span></span></code></pre></div>
+<p>To display the affinity in a readable core list format:</p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="ex">taskset</span> <span class="at">-cp</span> <span class="op">&lt;</span>PID<span class="op">&gt;</span></span></code></pre></div>
+<h4 id="changing-the-affinity-of-a-running-process">Changing the
+Affinity of a Running Process</h4>
+<p>To reassign an existing process to specific cores (such as cores 1
+and 3):</p>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="ex">taskset</span> <span class="at">-cp</span> 1,3 <span class="op">&lt;</span>PID<span class="op">&gt;</span></span></code></pre></div>
+<h4 id="launching-a-process-with-specific-affinity">Launching a Process
+with Specific Affinity</h4>
+<p>To start an application bound strictly to designated cores (for
+example, cores 0 and 2):</p>
+<div class="sourceCode" id="cb4"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="ex">taskset</span> <span class="at">-c</span> 0,2 <span class="op">&lt;</span>command<span class="op">&gt;</span> <span class="op">&lt;</span>arguments<span class="op">&gt;</span></span></code></pre></div>
+<h3 id="key-use-cases-and-benefits">Key Use Cases and Benefits</h3>
+<ul>
+<li><strong>Cache Optimization:</strong> Keeping high-throughput tasks
+on specific cores maximizes L1 and L2 cache hits, significantly reducing
+memory access latency.</li>
+<li><strong>Workload Isolation:</strong> Critical services (such as
+databases or real-time trading engines) can be pinned to dedicated
+cores, isolating them from general system processes.</li>
+<li><strong>NUMA Architecture Tuning:</strong> On Non-Uniform Memory
+Access (NUMA) systems, <code>taskset</code> ensures that tasks run on
+cores directly attached to the local memory node they access most
+frequently, avoiding interconnect bottlenecks.</li>
+<li><strong>Benchmarking and Testing:</strong> Developers use
+<code>taskset</code> to eliminate scheduling variability when profiling
+code performance under consistent hardware conditions.</li>
+</ul></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

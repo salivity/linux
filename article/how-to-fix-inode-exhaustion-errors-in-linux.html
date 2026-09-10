@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How to Fix Inode Exhaustion Errors in Linux - linux</title>
+    <meta name="description" content="An inode exhaustion error occurs when a Linux filesystem runs out of available index nodes, preventing the creation of new files even if physical storage space remains available. This article explains what inodes are, how inode exhaustion causes the misl">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-to-fix-inode-exhaustion-errors-in-linux">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How to Fix Inode Exhaustion Errors in Linux - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-to-fix-inode-exhaustion-errors-in-linux" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="An inode exhaustion error occurs when a Linux filesystem runs out of available index nodes, preventing the creation of new files even if physical storage space remains available. This article explains what inodes are, how inode exhaustion causes the misl" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-to-fix-inode-exhaustion-errors-in-linux">How to Fix Inode
+Exhaustion Errors in Linux</h1>
+<p>An inode exhaustion error occurs when a Linux filesystem runs out of
+available index nodes, preventing the creation of new files even if
+physical storage space remains available. This article explains what
+inodes are, how inode exhaustion causes the misleading "No space left on
+device" error, how to diagnose the issue using Linux command-line
+utilities, and the exact steps required to locate and delete the excess
+files causing the problem.</p>
+<h2 id="what-is-an-inode-and-inode-exhaustion">What is an Inode and
+Inode Exhaustion?</h2>
+<p>An inode (index node) is a data structure on Unix-style filesystems
+that stores metadata about a file or directory, such as its size,
+ownership, permissions, and physical location on the disk, but not its
+content or filename.</p>
+<p>When a standard filesystem (such as ext4) is created, a predetermined
+number of inodes is allocated based on the total drive capacity. Every
+file, directory, symlink, or socket consumes exactly one inode. Inode
+exhaustion happens when thousands or millions of tiny files—such as
+cache entries, temporary files, or email queues—consume all available
+inodes. When the inode table reaches 100% capacity, the operating system
+throws a "No space left on device" error, halting write operations,
+services, and system updates, even if <code>df -h</code> shows plenty of
+gigabytes remaining.</p>
+<h2 id="how-to-diagnose-inode-exhaustion">How to Diagnose Inode
+Exhaustion</h2>
+<p>To confirm whether an inode shortage is causing system errors, check
+the inode usage across all mounted filesystems:</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">df</span> <span class="at">-i</span></span></code></pre></div>
+<p>Look at the <strong>IUse%</strong> column in the output:</p>
+<pre class="text"><code>Filesystem      Inodes   IUsed   IFree IUse% Mounted on
+/dev/sda1      3276800 3276800       0  100% /</code></pre>
+<p>If any filesystem displays an <code>IUse%</code> of 100%, that
+partition can no longer index new files.</p>
+<h2 id="how-to-find-directories-with-the-most-inodes">How to Find
+Directories with the Most Inodes</h2>
+<p>Once the affected filesystem is identified, locate the specific
+directories storing millions of small files. Run the following command
+from the root or the mounted path to count files inside each top-level
+directory:</p>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">find</span> / <span class="at">-xdev</span> <span class="at">-printf</span> <span class="st">&#39;%h\n&#39;</span> <span class="kw">|</span> <span class="fu">sort</span> <span class="kw">|</span> <span class="fu">uniq</span> <span class="at">-c</span> <span class="kw">|</span> <span class="fu">sort</span> <span class="at">-k</span> 1 <span class="at">-n</span></span></code></pre></div>
+<p>Alternatively, to scan directory-by-directory without heavy memory
+overhead, use:</p>
+<div class="sourceCode" id="cb4"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> d <span class="kw">in</span> /<span class="pp">*</span><span class="kw">;</span> <span class="cf">do</span> <span class="bu">echo</span> <span class="at">-n</span> <span class="st">&quot;</span><span class="va">$d</span><span class="st">: &quot;</span><span class="kw">;</span> <span class="fu">find</span> <span class="st">&quot;</span><span class="va">$d</span><span class="st">&quot;</span> <span class="at">-xdev</span> <span class="kw">|</span> <span class="fu">wc</span> <span class="at">-l</span><span class="kw">;</span> <span class="cf">done</span></span></code></pre></div>
+<p>Drill down into the directories reporting the highest counts. Typical
+culprits include:</p>
+<ul>
+<li><code>/var/spool/postfix/maildrop</code> or
+<code>/var/spool/clientmqueue</code> (undelivered mail)</li>
+<li><code>/var/lib/php/sessions</code> (abandoned web sessions)</li>
+<li><code>/tmp</code> and <code>/var/tmp</code> (stale temporary
+files)</li>
+<li><code>/var/log</code> (unrotated logs or millions of trace
+files)</li>
+<li>Node.js <code>node_modules</code> caches or application-specific
+file caches</li>
+</ul>
+<h2 id="resolving-inode-exhaustion">Resolving Inode Exhaustion</h2>
+<h3 id="1-safely-delete-the-excess-files">1. Safely Delete the Excess
+Files</h3>
+<p>When a single directory contains hundreds of thousands of files,
+standard wildcards like <code>rm -rf *</code> fail with an
+<code>Argument list too long</code> error. Use <code>find</code> with
+the <code>-delete</code> action or <code>xargs</code> to process files
+in batches.</p>
+<p>To delete older temporary session files:</p>
+<div class="sourceCode" id="cb5"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">find</span> /var/lib/php/sessions <span class="at">-type</span> f <span class="at">-name</span> <span class="st">&quot;sess_*&quot;</span> <span class="at">-delete</span></span></code></pre></div>
+<p>To delete files older than 7 days in a cache directory:</p>
+<div class="sourceCode" id="cb6"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">find</span> /path/to/cache <span class="at">-type</span> f <span class="at">-mtime</span> +7 <span class="at">-delete</span></span></code></pre></div>
+<h3 id="2-clear-unused-system-and-package-files">2. Clear Unused System
+and Package Files</h3>
+<p>On Debian/Ubuntu systems, old Linux kernels consume substantial inode
+allocations:</p>
+<div class="sourceCode" id="cb7"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> apt-get autoremove <span class="at">--purge</span></span></code></pre></div>
+<p>On RHEL/CentOS systems:</p>
+<div class="sourceCode" id="cb8"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> dnf autoremove</span></code></pre></div>
+<p>Clear package manager caches:</p>
+<div class="sourceCode" id="cb9"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> apt-get clean      <span class="co"># Debian/Ubuntu</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> dnf clean all      <span class="co"># RHEL/CentOS</span></span></code></pre></div>
+<h2 id="how-to-prevent-future-inode-exhaustion">How to Prevent Future
+Inode Exhaustion</h2>
+<ul>
+<li><strong>Configure Log Rotation:</strong> Ensure
+<code>/etc/logrotate.conf</code> is properly rotating and compressing
+logs, and that log files with excessive entries are cleaned up
+regularly.</li>
+<li><strong>Automate Housekeeping:</strong> Implement cron jobs or
+systemd timers to regularly purge application session files, mail
+spools, and temporary directories.</li>
+<li><strong>Choose Dynamic Filesystems:</strong> When provisioning new
+servers with workloads that generate high file counts, consider
+filesystems like <strong>XFS</strong> or <strong>Btrfs</strong>, which
+allocate inodes dynamically as needed rather than relying on a fixed
+static table.</li>
+<li><strong>Tune Ext4 at Creation Time:</strong> If using ext4 for an
+application handling millions of small files, increase the inode density
+during formatting using the <code>-i</code> or <code>-N</code> flag
+(e.g., <code>mkfs.ext4 -i 4096 /dev/sdb1</code>).</li>
+</ul></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

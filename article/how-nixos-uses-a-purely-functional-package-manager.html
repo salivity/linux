@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How NixOS Uses a Purely Functional Package Manager - linux</title>
+    <meta name="description" content="NixOS redefines Linux system administration by using the Nix package manager to treat the operating system as the output of a pure function. Instead of mutating files in standard directories, NixOS builds system components in isolated environments and ma">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-nixos-uses-a-purely-functional-package-manager">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How NixOS Uses a Purely Functional Package Manager - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-nixos-uses-a-purely-functional-package-manager" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="NixOS redefines Linux system administration by using the Nix package manager to treat the operating system as the output of a pure function. Instead of mutating files in standard directories, NixOS builds system components in isolated environments and ma" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-nixos-uses-a-purely-functional-package-manager">How NixOS
+Uses a Purely Functional Package Manager</h1>
+<p>NixOS redefines Linux system administration by using the Nix package
+manager to treat the operating system as the output of a pure function.
+Instead of mutating files in standard directories, NixOS builds system
+components in isolated environments and manages them declaratively
+through a single configuration file. This approach eliminates dependency
+conflicts, allows reproducible system builds, and provides atomic
+upgrades alongside instant rollbacks.</p>
+<h3 id="the-foundation-pure-functions-and-immutability">The Foundation:
+Pure Functions and Immutability</h3>
+<p>In computer science, a pure function always produces the exact same
+output given the same inputs and causes no side effects. The Nix package
+manager applies this principle to software deployment. A package build
+recipe—written in the Nix expression language—declares every dependency,
+source file, compiler flag, and configuration option as an explicit
+input.</p>
+<p>When Nix builds software, it performs the compilation in an isolated
+chroot environment with no network access and no access to undeclared
+system libraries. The resulting binaries are stored in the
+<code>/nix/store</code> directory using a unique cryptographic hash
+derived from all build inputs (for example,
+<code>/nix/store/b685...-nginx-1.24.0/</code>). Because the path depends
+on the exact inputs, packages are completely immutable. Once written to
+the store, they are never modified in place.</p>
+<h3 id="the-global-store-and-symlink-trees">The Global Store and Symlink
+Trees</h3>
+<p>Traditional Linux distributions place binaries in <code>/bin</code>,
+<code>/usr/bin</code>, and libraries in <code>/lib</code>, creating a
+shared, mutable environment where package updates can overwrite
+dependencies required by other software. NixOS eliminates standard file
+hierarchy mutations.</p>
+<p>Every application, configuration file, and kernel module exists in
+its own isolated directory inside <code>/nix/store</code>. NixOS
+constructs the running system state by assembling a tree of symbolic
+links pointing back to these store paths. A binary that requires a
+specific version of OpenSSL links directly to that version's unique path
+in <code>/nix/store</code>, allowing multiple conflicting versions of
+the same library to coexist seamlessly on the same machine.</p>
+<h3 id="declarative-system-configuration">Declarative System
+Configuration</h3>
+<p>NixOS extends the functional paradigm from isolated applications to
+the entire operating system. The user describes the target state of the
+entire system inside a centralized configuration file, typically
+<code>configuration.nix</code>.</p>
+<p>This file declares:</p>
+<ul>
+<li>Installed packages and system utilities</li>
+<li>System services and their runtime configurations</li>
+<li>User accounts and security privileges</li>
+<li>Kernel modules, file systems, and bootloader settings</li>
+</ul>
+<p>When the administrator applies changes using the command
+<code>nixos-rebuild switch</code>, Nix evaluates the configuration,
+builds or downloads the necessary store paths, creates a new system
+closure, and updates symlinks to make the new configuration active.</p>
+<h3 id="atomic-upgrades-and-generations">Atomic Upgrades and
+Generations</h3>
+<p>Because changes in NixOS do not overwrite existing files, upgrades
+are atomic. A new system generation is fully assembled in
+<code>/nix/store</code> before the system switches to it. If the build
+or download process fails halfway through, the currently running system
+remains untouched and functional.</p>
+<p>Each successful rebuild produces a new system "generation." NixOS
+preserves previous generations until the administrator explicitly runs a
+garbage collection command. If an update introduces an unstable kernel
+or broken package, the administrator can roll back to the previous
+generation instantly by running <code>nixos-rebuild --rollback</code> or
+by selecting an earlier generation directly from the GRUB or
+systemd-boot menu at startup.</p>
+<h3 id="absolute-reproducibility">Absolute Reproducibility</h3>
+<p>By combining pure evaluations with locked dependency inputs, NixOS
+achieves environmental reproducibility. An entire workstation or server
+fleet can be cloned to an identical state across different hardware
+targets simply by sharing the configuration code. By tracking
+dependencies mathematically rather than imperatively, NixOS provides a
+resilient, predictable Linux platform.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

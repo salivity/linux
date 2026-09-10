@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How Linux Handles the Virsh Command for KVM - linux</title>
+    <meta name="description" content="The virsh command-line utility serves as the primary management interface for Kernel-based Virtual Machine (KVM) guests on Linux, operating through an abstraction layer rather than interacting directly with the Linux kernel. This article explores the arc">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-linux-handles-the-virsh-command-for-kvm">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How Linux Handles the Virsh Command for KVM - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-linux-handles-the-virsh-command-for-kvm" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="The virsh command-line utility serves as the primary management interface for Kernel-based Virtual Machine (KVM) guests on Linux, operating through an abstraction layer rather than interacting directly with the Linux kernel. This article explores the arc" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-linux-handles-the-virsh-command-for-kvm">How Linux Handles
+the Virsh Command for KVM</h1>
+<p>The <code>virsh</code> command-line utility serves as the primary
+management interface for Kernel-based Virtual Machine (KVM) guests on
+Linux, operating through an abstraction layer rather than interacting
+directly with the Linux kernel. This article explores the architecture
+behind <code>virsh</code>, detailing how commands travel from the user
+shell through the <code>libvirt</code> framework, interface with QEMU
+and the Linux kernel, and manage the complete lifecycle of virtual
+machines.</p>
+<h3 id="the-architectural-stack">The Architectural Stack</h3>
+<p>Linux handles the <code>virsh</code> command through a decoupled,
+multi-tiered architecture:</p>
+<ol type="1">
+<li><strong>User Space (Client):</strong> The <code>virsh</code> binary
+itself.</li>
+<li><strong>Management Daemon:</strong> The <code>libvirtd</code>
+service (or modular daemons such as <code>virtqemud</code>).</li>
+<li><strong>Hypervisor Driver &amp; Emulation:</strong> The QEMU
+process.</li>
+<li><strong>Kernel Space:</strong> The KVM kernel modules
+(<code>kvm.ko</code> and <code>kvm-intel.ko</code> or
+<code>kvm-amd.ko</code>).</li>
+</ol>
+<p>When you invoke a <code>virsh</code> command, such as
+<code>virsh start &lt;vm-name&gt;</code>, the tool does not configure
+hardware or create system processes directly. Instead, it acts as a
+lightweight client to the <code>libvirt</code> API.</p>
+<h3 id="communication-via-unix-sockets">Communication via UNIX
+Sockets</h3>
+<p>When executed, <code>virsh</code> identifies the target hypervisor
+URI (defaulting locally to <code>qemu:///system</code> or
+<code>qemu:///session</code>). It establishes a Remote Procedure Call
+(RPC) connection to the local <code>libvirtd</code> daemon using UNIX
+domain sockets located in <code>/run/libvirt/</code>.</p>
+<p>Linux manages this communication using standard Inter-Process
+Communication (IPC) mechanisms:</p>
+<ul>
+<li><strong>Access Control:</strong> System-level commands require
+read/write access to <code>/run/libvirt/libvirt-sock</code>, typically
+governed by Polkit or the <code>libvirt</code> user group.</li>
+<li><strong>Serialization:</strong> Commands and domain configurations
+are encoded into remote protocol packets and sent to the daemon.</li>
+</ul>
+<h3 id="processing-via-the-libvirt-daemon">Processing via the Libvirt
+Daemon</h3>
+<p>Upon receiving a request, <code>libvirtd</code> acts as the
+coordinator. It reads the domain's state and configuration, which are
+stored internally as structured XML schemas.</p>
+<p>For lifecycle operations (such as creating, pausing, or destroying
+guests), <code>libvirtd</code> translates the <code>virsh</code> command
+into precise calls to the QEMU driver. For instance, during guest
+startup, the daemon:</p>
+<ul>
+<li>Allocates network tap devices and attaches them to existing Linux
+bridges or Open vSwitch interfaces.</li>
+<li>Prepares storage volumes (files, LVM logical volumes, or network
+storage).</li>
+<li>Sets security labels dynamically using SELinux or AppArmor (via
+<code>svirt</code>).</li>
+<li>Spawns a dedicated QEMU process to represent the virtual
+machine.</li>
+</ul>
+<h3 id="interaction-with-the-kvm-kernel-module">Interaction with the KVM
+Kernel Module</h3>
+<p>The Linux kernel turns into a Type-1 hypervisor via the KVM kernel
+module. The QEMU process created by <code>libvirtd</code> opens the
+device node <code>/dev/kvm</code> using the standard <code>open()</code>
+system call and configures it through <code>ioctl()</code> calls.</p>
+<ul>
+<li><strong>Process Mapping:</strong> Linux treats each virtual machine
+as a regular user-space QEMU process. Each virtual CPU (vCPU) is
+scheduled as a standard POSIX thread (pthread).</li>
+<li><strong>Hardware Virtualization:</strong> Through
+<code>/dev/kvm</code>, the kernel sets up hardware virtualization
+extensions (Intel VT-x or AMD-V). When <code>virsh</code> requests state
+changes, such as CPU pinning or memory adjustments, the kernel
+coordinates execution contexts between the guest code and host
+processor.</li>
+</ul>
+<h3 id="resource-isolation-and-os-level-enforcement">Resource Isolation
+and OS-Level Enforcement</h3>
+<p>Linux enforces resource controls on guests managed by
+<code>virsh</code> via native Linux subsystems:</p>
+<ul>
+<li><strong>Control Groups (cgroups):</strong> <code>libvirtd</code>
+assigns each VM to specific <code>cgroup</code> hierarchies. When you
+set resource constraints using <code>virsh memtune</code> or
+<code>virsh schedinfo</code>, Linux adjusts memory limits, CPU shares,
+and block I/O throttles in the corresponding
+<code>/sys/fs/cgroup/</code> controllers.</li>
+<li><strong>QEMU Guest Agent:</strong> For commands that inspect or
+modify internal guest states (such as <code>virsh guestinfo</code>), the
+host communicates through a virtio serial channel connected to an agent
+running inside the guest operating system.</li>
+</ul>
+<p>By decoupling the command interface from hardware execution, the
+Linux operating system ensures that <code>virsh</code> provides a
+reliable, secure, and scriptable administrative layer over the complex
+mechanics of KVM and QEMU.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

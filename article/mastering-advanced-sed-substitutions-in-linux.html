@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mastering Advanced sed Substitutions in Linux - linux</title>
+    <meta name="description" content="The Linux operating system manages complex string transformations primarily through sed (stream editor), a non-interactive utility that parses and transforms text streams line by line. This article explores how sed processes advanced substitutions, detai">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/mastering-advanced-sed-substitutions-in-linux">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Mastering Advanced sed Substitutions in Linux - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/mastering-advanced-sed-substitutions-in-linux" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="The Linux operating system manages complex string transformations primarily through sed (stream editor), a non-interactive utility that parses and transforms text streams line by line. This article explores how sed processes advanced substitutions, detai" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="mastering-advanced-sed-substitutions-in-linux">Mastering
+Advanced sed Substitutions in Linux</h1>
+<p>The Linux operating system manages complex string transformations
+primarily through <code>sed</code> (stream editor), a non-interactive
+utility that parses and transforms text streams line by line. This
+article explores how <code>sed</code> processes advanced substitutions,
+detailing the mechanics of backreferences, custom delimiters, case
+conversion switches, address-restricted matching, and pattern space
+manipulation to execute precise, high-performance text transformations
+directly from the command line.</p>
+<h3 id="core-substitution-syntax-and-delimiters">Core Substitution
+Syntax and Delimiters</h3>
+<p>The standard syntax for text replacement in <code>sed</code> is
+<code>s/regexp/replacement/flags</code>. When the stream editor reads a
+line into its active working memory—known as the pattern space—it
+evaluates the regular expression and applies the transformation.</p>
+<p>By default, forward slashes (<code>/</code>) delimit the command.
+However, when transforming paths or URLs, escaping slashes leads to
+unreadable patterns. In Linux, <code>sed</code> allows any single
+character following the <code>s</code> to act as an alternate
+delimiter:</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sed</span> <span class="st">&#39;s|/usr/local/bin|/usr/bin|g&#39;</span> input.txt</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">sed</span> <span class="st">&#39;s#/var/log#/opt/logs#g&#39;</span> input.txt</span></code></pre></div>
+<p>Common flags appended to the end of the substitution include:</p>
+<ul>
+<li><code>g</code>: Global replacement across the entire line.</li>
+<li><code>p</code>: Prints the pattern space if a successful
+substitution occurred (often paired with the <code>-n</code> silence
+flag).</li>
+<li><code>I</code> or <code>i</code>: Enables case-insensitive
+matching.</li>
+<li><code>2</code> (or any integer <em>n</em>): Replaces only the
+<em>n</em>-th occurrence of the match on each line.</li>
+</ul>
+<h3 id="backreferences-and-pattern-reordering">Backreferences and
+Pattern Reordering</h3>
+<p>Advanced transformations frequently require reordering strings or
+injecting captured data into new templates. In POSIX basic regular
+expressions (BRE), parentheses must be escaped (<code>\(</code> and
+<code>\)</code>), while extended regular expressions (ERE, enabled via
+<code>sed -E</code>) permit unescaped parentheses.</p>
+<p>Captured patterns are mapped sequentially to variables
+<code>\1</code> through <code>\9</code>:</p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Swapping key-value pairs (Extended Regex)</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="fu">sed</span> <span class="at">-E</span> <span class="st">&#39;s/([a-zA-Z_]+)=([0-9]+)/\2=\1/&#39;</span> config.env</span></code></pre></div>
+<p>The ampersand (<code>&amp;</code>) represents the entire matched
+pattern, preventing redundant typing when wrapping or appending
+text:</p>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Surrounding any 4-digit number with square brackets</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="fu">sed</span> <span class="at">-E</span> <span class="st">&#39;s/[0-9]{4}/[&amp;]/g&#39;</span> report.txt</span></code></pre></div>
+<h3 id="in-place-case-conversions">In-Place Case Conversions</h3>
+<p>GNU <code>sed</code> natively supports escape sequences within the
+replacement field to manipulate character casing dynamically:</p>
+<ul>
+<li><code>\U</code>: Converts subsequent replacement characters to
+uppercase until <code>\E</code> is encountered.</li>
+<li><code>\L</code>: Converts subsequent replacement characters to
+lowercase until <code>\E</code> is encountered.</li>
+<li><code>\u</code>: Capitalizes only the immediately following
+character.</li>
+<li><code>\l</code>: Lowercases only the immediately following
+character.</li>
+</ul>
+<p>This functionality enables rapid data normalization:</p>
+<div class="sourceCode" id="cb4"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Capitalizing the first letter of each word</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="fu">sed</span> <span class="at">-E</span> <span class="st">&#39;s/\b([a-z])/\u\1/g&#39;</span> names.txt</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Uppercasing only the domain component of an email address</span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="fu">sed</span> <span class="at">-E</span> <span class="st">&#39;s/@([a-z0-9.-]+)/@\U\1\E/g&#39;</span> users.csv</span></code></pre></div>
+<h3 id="targeted-transformations-using-addresses">Targeted
+Transformations Using Addresses</h3>
+<p>Rather than applying substitutions globally, <code>sed</code> can
+restrict string changes to specific lines using line numbers, regex
+contexts, or address ranges.</p>
+<div class="sourceCode" id="cb5"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Apply substitution only to line 42</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="fu">sed</span> <span class="st">&#39;42 s/DEBUG/INFO/&#39;</span> app.log</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Apply substitution between a start tag and an end tag</span></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a><span class="fu">sed</span> <span class="st">&#39;/&lt;config&gt;/, /&lt;\/config&gt;/ s/enabled=false/enabled=true/&#39;</span> settings.xml</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Invert execution: replace text on all lines EXCEPT those matching a pattern</span></span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a><span class="fu">sed</span> <span class="st">&#39;/^#/! s/localhost/127.0.0.1/&#39;</span> hosts.txt</span></code></pre></div>
+<h3
+id="multi-line-transformations-via-pattern-and-hold-spaces">Multi-Line
+Transformations via Pattern and Hold Spaces</h3>
+<p>For operations spanning multiple lines, <code>sed</code> utilizes two
+storage buffers: the <strong>pattern space</strong> (temporary working
+buffer) and the <strong>hold space</strong> (persistent staging
+buffer).</p>
+<p>Commands like <code>N</code> append the next line of input to the
+current pattern space, separated by an embedded newline
+(<code>\n</code>), allowing cross-line substitutions that single-pass
+tools cannot handle natively:</p>
+<div class="sourceCode" id="cb6"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Join lines where a trailing backslash exists and remove the backslash</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="fu">sed</span> <span class="at">-E</span> <span class="st">&#39;:loop; /\\$/ { N; s/\\\n//; b loop }&#39;</span> script.sh</span></code></pre></div>
+<p>In this command, a label (<code>:loop</code>) is declared. If a
+backslash is found at the end of a line (<code>/\\$/</code>),
+<code>N</code> pulls the subsequent line into the pattern space, the
+substitution removes the backslash and newline, and <code>b loop</code>
+branches back to check for further contiguous continuations.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

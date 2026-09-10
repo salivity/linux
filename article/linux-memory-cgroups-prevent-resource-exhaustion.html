@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linux Memory Cgroups: Prevent Resource Exhaustion - linux</title>
+    <meta name="description" content="The memory control group (cgroup) controller is a core Linux kernel feature designed to isolate, monitor, and restrict memory consumption across arbitrary collections of processes. By imposing fine-grained accounting and upper bounds on user-space memory">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/linux-memory-cgroups-prevent-resource-exhaustion">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Linux Memory Cgroups: Prevent Resource Exhaustion - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/linux-memory-cgroups-prevent-resource-exhaustion" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="The memory control group (cgroup) controller is a core Linux kernel feature designed to isolate, monitor, and restrict memory consumption across arbitrary collections of processes. By imposing fine-grained accounting and upper bounds on user-space memory" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="linux-memory-cgroups-prevent-resource-exhaustion">Linux Memory
+Cgroups: Prevent Resource Exhaustion</h1>
+<p>The memory control group (cgroup) controller is a core Linux kernel
+feature designed to isolate, monitor, and restrict memory consumption
+across arbitrary collections of processes. By imposing fine-grained
+accounting and upper bounds on user-space memory, swap space, and kernel
+data structures, the memory cgroup prevents any single application or
+container from monopolizing host memory. This article explains how the
+memory cgroup controller functions, how it enforces allocation limits,
+and how it mitigates system-wide crashes caused by resource
+exhaustion.</p>
+<h3 id="accounting-and-allocation-tracking">Accounting and Allocation
+Tracking</h3>
+<p>The memory cgroup controller tracks every memory page allocated by
+processes assigned to a specific group. Unlike traditional per-process
+limits (such as <code>setrlimit</code>), memory cgroups monitor the
+collective usage of an entire tree of processes. The controller accounts
+for several types of memory:</p>
+<ul>
+<li><strong>Anonymous Memory:</strong> Memory used by heaps, stacks, and
+private memory mappings of running applications.</li>
+<li><strong>Page Cache:</strong> File-backed memory cached in RAM to
+accelerate disk read and write operations.</li>
+<li><strong>Swap Space:</strong> Memory pages evicted from RAM and
+written to disk storage.</li>
+<li><strong>Kernel Memory:</strong> System-level structures associated
+with the group, such as socket buffers, dentries, and inode caches.</li>
+</ul>
+<p>By aggregating these metrics across all threads and child processes
+within the group, the kernel maintains an accurate, real-time total of
+the group's true footprint.</p>
+<h3 id="proactive-reclamation-and-hierarchical-limits">Proactive
+Reclamation and Hierarchical Limits</h3>
+<p>Rather than waiting for total physical RAM depletion, the memory
+cgroup controller enforces thresholds defined by the administrator
+(commonly using <code>cgroup v2</code> interfaces):</p>
+<ul>
+<li><strong>Soft Limits / Throttling
+(<code>memory.high</code>):</strong> When usage exceeds this threshold,
+the kernel proactively slows down allocations from processes within that
+cgroup and aggressively reclaims cached pages. This serves as an early
+warning system, attempting to stabilize usage without terminating
+processes.</li>
+<li><strong>Hard Limits (<code>memory.max</code>):</strong> This is the
+absolute upper boundary of memory the group can consume. Once reached,
+the kernel refuses new allocations until existing pages are reclaimed or
+freed.</li>
+</ul>
+<p>These limits can be organized hierarchically. Parent cgroups can
+establish overarching limits, while nested child cgroups divide that
+allocation among specific sub-services, preventing any single branch
+from exceeding its assigned share.</p>
+<h3 id="localizing-the-out-of-memory-oom-killer">Localizing the
+Out-Of-Memory (OOM) Killer</h3>
+<p>When a traditional Linux system runs out of physical memory and swap,
+the global Out-Of-Memory (OOM) killer is invoked. Without cgroups, the
+OOM killer scans all system processes using heuristics to select and
+terminate a target. This mechanism risks killing essential system
+daemons, administrative shells, or unrelated workloads.</p>
+<p>The memory cgroup controller alters this behavior by scoping the OOM
+killer strictly to the offending control group. If a cgroup exceeds its
+hard limit (<code>memory.max</code>) and memory reclamation fails to
+free sufficient space, the kernel triggers an isolated OOM event. Only
+processes inside that specific cgroup are evaluated and terminated. The
+rest of the operating system, including mission-critical services and
+other independent workloads, continues running unaffected.</p>
+<h3 id="protecting-against-cascading-failures">Protecting Against
+Cascading Failures</h3>
+<p>Beyond preventing standard application memory leaks, the memory
+cgroup controller prevents complex denial-of-service scenarios:</p>
+<ol type="1">
+<li><strong>Fork Bombs and Spawning Loops:</strong> Processes that spawn
+rapidly consume process table entries and memory. A memory cgroup limit
+quickly halts the expansion by denying further memory allocations to the
+runaway hierarchy.</li>
+<li><strong>Kernel Memory Exhaustion:</strong> Misconfigured or
+malicious code can consume kernel space through endless socket creation
+or file descriptors. Modern cgroups account for kernel memory alongside
+user memory, preventing kernel-level panic.</li>
+<li><strong>Swap Thrashing:</strong> Unchecked applications can flood
+swap space, driving disk I/O to 100% saturation and freezing system
+responsiveness. The <code>memory.swap.max</code> controller caps swap
+consumption per group, preserving disk bandwidth for the rest of the
+OS.</li>
+</ol>
+<p>Through hierarchical accounting, proactive reclamation, and localized
+OOM handling, the memory cgroup controller serves as the primary barrier
+against memory exhaustion, ensuring stability and performance isolation
+in modern multi-tenant and containerized Linux environments.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

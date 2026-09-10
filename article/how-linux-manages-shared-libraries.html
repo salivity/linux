@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How Linux Manages Shared Libraries - linux</title>
+    <meta name="description" content="The Linux operating system manages shared libraries through a dynamic linking subsystem that enables multiple applications to share reusable code modules at runtime. Instead of embedding full copies of common code into every executable, Linux resolves de">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-linux-manages-shared-libraries">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How Linux Manages Shared Libraries - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-linux-manages-shared-libraries" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="The Linux operating system manages shared libraries through a dynamic linking subsystem that enables multiple applications to share reusable code modules at runtime. Instead of embedding full copies of common code into every executable, Linux resolves de" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-linux-manages-shared-libraries">How Linux Manages Shared
+Libraries</h1>
+<p>The Linux operating system manages shared libraries through a dynamic
+linking subsystem that enables multiple applications to share reusable
+code modules at runtime. Instead of embedding full copies of common code
+into every executable, Linux resolves dependencies dynamically using the
+dynamic linker, the Executable and Linkable Format (ELF), filesystem
+caches, and soname versioning. This modular architecture minimizes disk
+space usage, reduces physical memory consumption via shared virtual
+memory pages, and streamlines system-wide software updates.</p>
+<h3 id="dynamic-linking-and-the-elf-format">Dynamic Linking and the ELF
+Format</h3>
+<p>Compiled Linux binaries and libraries use the ELF (Executable and
+Linkable Format) standard. When a program is built using dynamic
+linking, the compiler does not include library code directly inside the
+application binary. Instead, it embeds a list of required library names
+inside the binary's ELF header under the <code>DT_NEEDED</code>
+tags.</p>
+<p>These shared objects typically have a <code>.so</code> (Shared
+Object) extension. The executable contains only reference symbols and
+stubs, deferring the actual resolution of memory addresses and functions
+until the program is executed.</p>
+<h3 id="the-dynamic-linker-ldso">The Dynamic Linker
+(<code>ld.so</code>)</h3>
+<p>When a user executes a dynamically linked program, the Linux kernel
+reads the binary's ELF header and identifies the program interpreter.
+For standard Linux systems, this interpreter is the dynamic
+linker/loader, usually named <code>ld.so</code> or
+<code>ld-linux.so.&lt;version&gt;</code>.</p>
+<p>The dynamic linker performs several essential tasks before handing
+control over to the application's main entry point:</p>
+<ol type="1">
+<li>It reads the application’s <code>DT_NEEDED</code> tags to identify
+required libraries.</li>
+<li>It recursively locates and loads each shared library into the
+process's address space.</li>
+<li>It relocates code and resolves unresolved function and variable
+references to their actual addresses in memory.</li>
+<li>It initializes the libraries by running their respective constructor
+functions.</li>
+</ol>
+<h3 id="how-linux-locates-shared-libraries">How Linux Locates Shared
+Libraries</h3>
+<p>To locate <code>.so</code> files, the dynamic linker searches
+directories in a strict hierarchical order:</p>
+<ol type="1">
+<li><strong>DT_RPATH / DT_RUNPATH:</strong> Hardcoded paths embedded
+directly within the application's ELF header during compilation.</li>
+<li><strong><code>LD_LIBRARY_PATH</code>:</strong> An environment
+variable containing a colon-separated list of directories. This is
+typically used for development or application-specific overrides.</li>
+<li><strong><code>/etc/ld.so.cache</code>:</strong> A binary cache file
+containing an indexed list of system libraries and their absolute
+paths.</li>
+<li><strong>Default System Paths:</strong> Standard directories such as
+<code>/lib</code>, <code>/usr/lib</code>, <code>/lib64</code>, and
+<code>/usr/lib64</code>.</li>
+</ol>
+<p>Because traversing filesystems sequentially would cause performance
+bottlenecks when launching applications, Linux relies heavily on
+<code>/etc/ld.so.cache</code>. The system administrator utility
+<code>ldconfig</code> reads configuration files located in
+<code>/etc/ld.so.conf</code> and <code>/etc/ld.so.conf.d/</code>, scans
+designated library directories, and updates the cache.</p>
+<h3 id="sonames-and-abi-versioning">Sonames and ABI Versioning</h3>
+<p>To prevent conflicts when libraries are updated, Linux uses a
+convention known as <strong>sonames</strong> (Shared Object names) to
+maintain Application Binary Interface (ABI) compatibility. A library
+generally exists on disk under three related names linked via filesystem
+symlinks:</p>
+<ul>
+<li><strong>Real Name (<code>libexample.so.1.2.3</code>):</strong> The
+actual compiled library file containing the implementation code and
+minor/patch version identifiers.</li>
+<li><strong>Soname (<code>libexample.so.1</code>):</strong> A symbolic
+link pointing to the real name. It specifies the major ABI version. If
+an update introduces breaking changes, the major version increments
+(e.g., <code>libexample.so.2</code>).</li>
+<li><strong>Linker Name (<code>libexample.so</code>):</strong> A
+symbolic link pointing to the soname, used exclusively by the compiler
+at build time.</li>
+</ul>
+<p>Applications embed the soname—not the real name—in their
+<code>DT_NEEDED</code> fields. This allows the system to receive bug
+fixes and minor patches (e.g., upgrading
+<code>libexample.so.1.2.3</code> to <code>libexample.so.1.2.4</code>)
+without recompiling existing software, as long as the soname remains
+unchanged.</p>
+<h3 id="memory-optimization-with-copy-on-write">Memory Optimization with
+Copy-on-Write</h3>
+<p>Linux optimizes the execution of shared libraries using its virtual
+memory management system. When multiple running processes require the
+same shared library, the kernel loads the library’s executable code
+segment (<code>.text</code>) into physical memory only once. Each
+process maps that same physical memory region into its own virtual
+address space as read-only.</p>
+<p>Data segments that require write access (<code>.data</code> and
+<code>.bss</code>) use Copy-on-Write (CoW). The kernel shares the memory
+pages among processes until a specific process writes to a variable, at
+which point the kernel duplicates only that modified page for the
+writing process. This mechanism ensures safety and independence while
+keeping total memory overhead as low as possible.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

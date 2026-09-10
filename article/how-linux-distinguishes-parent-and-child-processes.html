@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How Linux Distinguishes Parent and Child Processes - linux</title>
+    <meta name="description" content="In the Linux operating system, processes exist in a strict hierarchical tree where every process (except the initial systemd or init process) is spawned by a parent. Linux differentiates between a parent and a child process primarily through the return v">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-linux-distinguishes-parent-and-child-processes">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How Linux Distinguishes Parent and Child Processes - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-linux-distinguishes-parent-and-child-processes" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="In the Linux operating system, processes exist in a strict hierarchical tree where every process (except the initial systemd or init process) is spawned by a parent. Linux differentiates between a parent and a child process primarily through the return v" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-linux-distinguishes-parent-and-child-processes">How Linux
+Distinguishes Parent and Child Processes</h1>
+<p>In the Linux operating system, processes exist in a strict
+hierarchical tree where every process (except the initial
+<code>systemd</code> or <code>init</code> process) is spawned by a
+parent. Linux differentiates between a parent and a child process
+primarily through the return value of the <code>fork()</code> system
+call, distinct Process Identifiers (PIDs and PPIDs), and internal
+tracking within the kernel’s process control block. This article breaks
+down the exact mechanisms the kernel and user space use to tell parent
+and child processes apart.</p>
+<h3 id="1-the-fork-system-call-return-value">1. The <code>fork()</code>
+System Call Return Value</h3>
+<p>The primary programmatic distinction occurs at the exact moment of
+creation. When an existing process calls the <code>fork()</code> system
+call, the kernel creates an almost identical duplicate of the calling
+process.</p>
+<p>Both processes continue execution at the instruction immediately
+following the <code>fork()</code> call, but the operating system
+delivers different return values to each:</p>
+<ul>
+<li><strong>To the parent process:</strong> <code>fork()</code> returns
+the <strong>Process ID (PID) of the newly created child
+process</strong>. This enables the parent to keep track of, monitor, or
+manage the child.</li>
+<li><strong>To the child process:</strong> <code>fork()</code> returns
+<strong><code>0</code></strong>. This signifies to the child process
+that it is the newly created entity.</li>
+<li><strong>On failure:</strong> If the system cannot allocate resources
+for the new process, <code>fork()</code> returns
+<strong><code>-1</code></strong> to the parent, and no child is
+created.</li>
+</ul>
+<p>Programmers use a simple conditional block (<code>if/else</code>)
+evaluating this return value to define different behaviors for the
+parent and the child.</p>
+<h3 id="2-pid-and-ppid-process-identifiers">2. PID and PPID (Process
+Identifiers)</h3>
+<p>At the user and administrative levels, Linux distinguishes between
+processes using numerical identifiers:</p>
+<ul>
+<li><strong>PID (Process ID):</strong> Every process running on Linux
+has a unique numerical identifier assigned by the kernel. The child
+receives its own new, distinct PID upon creation.</li>
+<li><strong>PPID (Parent Process ID):</strong> The child process
+explicitly stores the PID of the process that spawned it in its
+attributes.</li>
+</ul>
+<p>You can observe this directly in user space using commands such as
+<code>ps -ef</code> or <code>pstree</code>, or by checking the
+<code>/proc</code> filesystem (e.g., inspecting the <code>PPid</code>
+field in <code>/proc/[PID]/status</code>). Inside C code, a process can
+find its own identity using <code>getpid()</code> and its parent's
+identity using <code>getppid()</code>.</p>
+<h3 id="3-kernel-tracking-via-task_struct">3. Kernel Tracking via
+<code>task_struct</code></h3>
+<p>Internally, the Linux kernel represents every process as an instance
+of the <code>struct task_struct</code> structure (the process control
+block). The kernel maintains the parent-child relationship using
+dedicated pointer fields within this structure:</p>
+<ul>
+<li><strong><code>real_parent</code> / <code>parent</code>:</strong>
+Pointers within the child's <code>task_struct</code> that point directly
+to the memory address of the parent process’s
+<code>task_struct</code>.</li>
+<li><strong><code>children</code>:</strong> A doubly-linked list head
+inside the parent's <code>task_struct</code> that tracks all active
+children it has spawned.</li>
+<li><strong><code>sibling</code>:</strong> A linked-list node used to
+link a child process to other children spawned by the same parent.</li>
+</ul>
+<p>These pointers enable the kernel to manage lifecycle events, such as
+passing exit status codes when a child terminates (via
+<code>wait()</code> or <code>waitpid()</code>) or re-parenting orphaned
+children to <code>init</code> (PID 1) if the parent process dies before
+the child.</p>
+<h3 id="4-resource-allocation-and-copy-on-write-cow">4. Resource
+Allocation and Copy-on-Write (COW)</h3>
+<p>While a child process inherits file descriptors, environment
+variables, and memory mappings from its parent, the kernel isolates
+their execution using virtual memory management.</p>
+<p>Linux employs a technique called <strong>Copy-on-Write
+(COW)</strong>:</p>
+<ul>
+<li>Initially, parent and child share the same physical memory pages
+marked as read-only.</li>
+<li>The moment either the parent or the child attempts to modify a
+memory page, the kernel generates an interrupt, duplicates that specific
+page, and assigns the unique copy to the modifying process.</li>
+</ul>
+<p>This ensures that while the child starts as a duplicate, the
+operating system maintains complete memory separation, allowing both
+processes to run independently without corrupting each other's
+state.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

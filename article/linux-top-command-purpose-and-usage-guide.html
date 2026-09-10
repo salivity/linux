@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linux Top Command: Purpose and Usage Guide - linux</title>
+    <meta name="description" content="The top command in Linux is an essential real-time diagnostic utility used to monitor system performance, resource allocation, and active processes. This article outlines the primary purpose of the top command, details the critical system metrics it disp">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/linux-top-command-purpose-and-usage-guide">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Linux Top Command: Purpose and Usage Guide - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/linux-top-command-purpose-and-usage-guide" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="The top command in Linux is an essential real-time diagnostic utility used to monitor system performance, resource allocation, and active processes. This article outlines the primary purpose of the top command, details the critical system metrics it disp" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="linux-top-command-purpose-and-usage-guide">Linux Top Command:
+Purpose and Usage Guide</h1>
+<p>The <code>top</code> command in Linux is an essential real-time
+diagnostic utility used to monitor system performance, resource
+allocation, and active processes. This article outlines the primary
+purpose of the <code>top</code> command, details the critical system
+metrics it displays—such as CPU utilization, memory distribution, and
+load averages—and explains how administrators use its interactive
+features to detect bottlenecks and manage system stability.</p>
+<h3 id="the-core-purpose-of-the-top-command">The Core Purpose of the
+<code>top</code> Command</h3>
+<p>The primary purpose of the <code>top</code> (table of processes)
+command is to provide a dynamic, real-time view of a running Linux
+system. Unlike static tools such as <code>ps</code>, which take a
+snapshot of processes at a single moment, <code>top</code> continuously
+refreshes its display—typically every three seconds—to reflect current
+resource utilization. System administrators and developers rely on it to
+identify performance degradations, track resource-heavy applications,
+and maintain overall operating system health.</p>
+<h3 id="key-metrics-monitored-by-top">Key Metrics Monitored by
+<code>top</code></h3>
+<p>When executed in the terminal, <code>top</code> splits its output
+into two primary sections: the system summary area at the top and the
+process list below it.</p>
+<h4 id="1-system-summary-area">1. System Summary Area</h4>
+<ul>
+<li><strong>System Uptime and Load Averages:</strong> Displays how long
+the system has been running, the number of logged-in users, and the
+system load average over 1-, 5-, and 15-minute intervals. A load average
+higher than the number of available CPU cores indicates potential
+queueing and performance slowdowns.</li>
+<li><strong>Task/Process States:</strong> Shows the total count of
+processes and categorizes them by state: running, sleeping, stopped, or
+zombie.</li>
+<li><strong>CPU States:</strong> Breaks down processor time percentages
+across several categories, including user space (<code>us</code>),
+system/kernel space (<code>sy</code>), idle time (<code>id</code>), and
+input/output wait (<code>wa</code>). High I/O wait often indicates a
+storage bottleneck rather than a CPU limitation.</li>
+<li><strong>Memory and Swap Usage:</strong> Details physical RAM and
+virtual swap memory, showing total capacity, free space, used space, and
+memory held in buffers and cache.</li>
+</ul>
+<h4 id="2-process-list">2. Process List</h4>
+<p>The lower section displays active processes sorted by default
+according to CPU consumption. Key columns include:</p>
+<ul>
+<li><strong>PID:</strong> The unique Process ID.</li>
+<li><strong>USER:</strong> The user account executing the process.</li>
+<li><strong>PR and NI:</strong> The scheduling priority and "niceness"
+level assigned to the task.</li>
+<li><strong>VIRT, RES, and SHR:</strong> Memory usage metrics, where
+<code>RES</code> (Resident Size) reflects the actual non-swapped
+physical memory the process consumes.</li>
+<li><strong>%CPU and %MEM:</strong> The percentage of processor time and
+physical memory allocated to the task.</li>
+<li><strong>TIME+:</strong> Total CPU time accumulated by the process
+since its start.</li>
+<li><strong>COMMAND:</strong> The executable file or command name
+associated with the process.</li>
+</ul>
+<h3 id="interactive-management-features">Interactive Management
+Features</h3>
+<p>Beyond passive monitoring, <code>top</code> functions as an
+administrative management interface through keyboard shortcuts while
+running:</p>
+<ul>
+<li><strong>Sorting:</strong> Pressing <code>M</code> sorts tasks by
+memory usage, while <code>P</code> sorts tasks by CPU usage.</li>
+<li><strong>Terminating Processes:</strong> Pressing <code>k</code>
+prompts for a process ID (PID) to send a kill signal directly from the
+interface, stopping runaway or hung applications.</li>
+<li><strong>Adjusting Priority:</strong> Pressing <code>r</code>
+initiates the renice function, altering a process's priority level
+without terminating it.</li>
+<li><strong>Display Customization:</strong> Pressing <code>1</code>
+toggles individual CPU core views, and <code>c</code> reveals the
+absolute command path with arguments.</li>
+</ul>
+<h3 id="why-top-is-essential-for-linux-administration">Why
+<code>top</code> Is Essential for Linux Administration</h3>
+<p>Because the <code>top</code> command is native to the
+<code>procps-ng</code> package, it comes pre-installed on virtually all
+Linux distributions. It requires no external dependencies or graphical
+environment, making it the fastest, most reliable tool for diagnosing
+system lockups, out-of-memory errors, and runaway background jobs
+directly through an SSH terminal session.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

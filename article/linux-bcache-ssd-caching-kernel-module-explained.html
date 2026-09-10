@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linux bcache: SSD Caching Kernel Module Explained - linux</title>
+    <meta name="description" content="The bcache kernel module in the Linux operating system is a block-layer caching mechanism designed to improve storage performance by using fast solid-state drives (SSDs) or NVMe drives as a cache for slower, high-capacity mechanical hard drives (HDDs) or">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/linux-bcache-ssd-caching-kernel-module-explained">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Linux bcache: SSD Caching Kernel Module Explained - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/linux-bcache-ssd-caching-kernel-module-explained" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="The bcache kernel module in the Linux operating system is a block-layer caching mechanism designed to improve storage performance by using fast solid-state drives (SSDs) or NVMe drives as a cache for slower, high-capacity mechanical hard drives (HDDs) or" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="linux-bcache-ssd-caching-kernel-module-explained">Linux bcache:
+SSD Caching Kernel Module Explained</h1>
+<p>The <code>bcache</code> kernel module in the Linux operating system
+is a block-layer caching mechanism designed to improve storage
+performance by using fast solid-state drives (SSDs) or NVMe drives as a
+cache for slower, high-capacity mechanical hard drives (HDDs) or network
+storage. This article explains the primary functions of
+<code>bcache</code>, its operating principles at the block device layer,
+its available caching modes, and how it optimizes I/O throughput while
+extending the lifespan of solid-state hardware.</p>
+<h3 id="core-function-of-bcache">Core Function of bcache</h3>
+<p>Integrated into the mainline Linux kernel since version 3.10,
+<code>bcache</code> operates at the block layer, situated directly
+between physical storage devices and the filesystem. This design makes
+<code>bcache</code> filesystem-agnostic; it functions seamlessly beneath
+ext4, XFS, Btrfs, or any other Linux-supported filesystem.</p>
+<p>In a standard <code>bcache</code> architecture, devices are
+designated into two categories:</p>
+<ul>
+<li><strong>Backing Devices:</strong> Slower, high-capacity storage
+drives (typically mechanical hard drives) that hold the primary
+data.</li>
+<li><strong>Caching Devices:</strong> High-speed, lower-capacity drives
+(typically SSDs or NVMe drives) used to temporarily store frequently
+accessed data.</li>
+</ul>
+<p>When configured, <code>bcache</code> presents a virtual block device
+(e.g., <code>/dev/bcache0</code>) to the operating system. Read and
+write operations directed to this virtual device are intercepted and
+managed by the module, which routes requests dynamically to maximize
+input/output operations per second (IOPS) and minimize latency.</p>
+<h3 id="caching-modes">Caching Modes</h3>
+<p>The module provides several operational modes that balance
+performance against data integrity:</p>
+<ul>
+<li><strong>Writethrough:</strong> Writes are committed to both the
+caching device and the backing device simultaneously before
+acknowledging completion to the operating system. This mode guarantees
+data safety in the event of an SSD failure, though write performance is
+constrained by the speed of the slower backing drive.</li>
+<li><strong>Writeback:</strong> Writes are written directly to the SSD
+cache and acknowledged immediately. The cached data is flushed to the
+backing storage asynchronously in the background. This mode provides the
+highest write throughput and lowest latency, though it introduces a risk
+of data loss if an SSD fails before dirty blocks are flushed to the
+backing disk.</li>
+<li><strong>Writearound:</strong> Writes bypass the SSD entirely and
+write directly to the backing storage. Data is only copied into the SSD
+cache upon subsequent reads. This mode prevents short-lived or
+single-use write operations from polluting the cache.</li>
+<li><strong>None:</strong> Caching is temporarily disabled, routing all
+read and write traffic directly to the backing device without altering
+the underlying storage configuration.</li>
+</ul>
+<h3 id="performance-optimizations-and-flash-protection">Performance
+Optimizations and Flash Protection</h3>
+<p>In addition to routing I/O, <code>bcache</code> implements algorithms
+designed specifically to mitigate the wear and structural constraints of
+solid-state storage:</p>
+<ul>
+<li><strong>Sequential I/O Detection:</strong> Large sequential reads
+and writes, which traditional HDDs handle efficiently, are detected and
+bypassed around the SSD cache. This preserves cache capacity and write
+endurance for random I/O, where SSDs offer the greatest performance
+advantage.</li>
+<li><strong>Write Coalescing:</strong> The module buffers random write
+operations and writes them sequentially to the SSD in chunks that match
+the SSD’s native erase block size. This reduces write amplification and
+prolongs drive longevity.</li>
+<li><strong>Congestion and Write Throttling:</strong> If the SSD becomes
+heavily saturated or approaches maximum capacity, <code>bcache</code>
+automatically throttles incoming write traffic and prioritizes flushing
+dirty data back to the primary storage pool.</li>
+</ul></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

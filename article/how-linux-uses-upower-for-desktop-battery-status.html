@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How Linux Uses UPower for Desktop Battery Status - linux</title>
+    <meta name="description" content="The Linux operating system relies on an abstraction layer called UPower to read, translate, and deliver hardware power metrics from the kernel directly to graphical user interfaces. By functioning as an intermediary service, the UPower daemon reads hardw">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-linux-uses-upower-for-desktop-battery-status">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How Linux Uses UPower for Desktop Battery Status - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-linux-uses-upower-for-desktop-battery-status" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="The Linux operating system relies on an abstraction layer called UPower to read, translate, and deliver hardware power metrics from the kernel directly to graphical user interfaces. By functioning as an intermediary service, the UPower daemon reads hardw" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-linux-uses-upower-for-desktop-battery-status">How Linux Uses
+UPower for Desktop Battery Status</h1>
+<p>The Linux operating system relies on an abstraction layer called
+UPower to read, translate, and deliver hardware power metrics from the
+kernel directly to graphical user interfaces. By functioning as an
+intermediary service, the UPower daemon reads hardware attributes
+exposed by the Linux kernel, standardizes the raw energy data, and
+broadcasts updates over the D-Bus system bus. Desktop environments—such
+as GNOME, KDE Plasma, and Xfce—listen to these messages to update
+battery tray icons, estimate remaining battery life, and trigger
+automated power-saving actions.</p>
+<h3 id="1-kernel-telemetry-and-the-sysfs-interface">1. Kernel Telemetry
+and the sysfs Interface</h3>
+<p>The battery reporting pipeline begins within the Linux kernel. Device
+drivers interact directly with the system's Advanced Configuration and
+Power Interface (ACPI) or device tree to gather electrical
+characteristics from the physical battery controller.</p>
+<p>The kernel exposes these raw hardware metrics through the virtual
+filesystem at <code>/sys/class/power_supply/</code>. For each connected
+battery (typically labeled <code>BAT0</code> or <code>BAT1</code>), the
+kernel creates a directory containing attributes such as:</p>
+<ul>
+<li><code>status</code>: The current state (Charging, Discharging,
+Full).</li>
+<li><code>capacity</code>: The remaining battery capacity as an integer
+percentage.</li>
+<li><code>energy_now</code> or <code>charge_now</code>: The current
+power stored in the cell.</li>
+<li><code>energy_full</code> or <code>charge_full</code>: The maximum
+capacity of the battery at full charge.</li>
+<li><code>voltage_now</code>: The current voltage output.</li>
+</ul>
+<h3 id="2-the-upower-daemon-upowerd">2. The UPower Daemon
+(<code>upowerd</code>)</h3>
+<p>Directly reading raw <code>sysfs</code> files from user-space desktop
+applications is inefficient, requires elevated permissions, and leads to
+inconsistent interpretations across different applications. To solve
+this, the UPower daemon (<code>upowerd</code>) runs continuously as a
+root-level system background service.</p>
+<p>UPower performs several critical functions:</p>
+<ul>
+<li><strong>Kernel Event Monitoring:</strong> UPower monitors
+<code>udev</code> events. When a charger is plugged in or disconnected,
+the kernel fires an interrupt that notifies UPower immediately, avoiding
+the need for continuous, aggressive polling.</li>
+<li><strong>Data Aggregation and Calculation:</strong> Raw hardware
+counters often provide volatile, noisy readings. UPower smooths this
+data and calculates derived statistics, including discharge rates,
+estimated time remaining until empty, and battery health degradation
+(comparing design capacity versus full capacity).</li>
+<li><strong>Peripheral Management:</strong> Beyond primary system
+batteries, UPower enumerates external wireless peripherals, such as
+Bluetooth mice, keyboards, and headsets, applying the same reporting
+structure.</li>
+</ul>
+<h3 id="3-ipc-communication-via-d-bus">3. IPC Communication via
+D-Bus</h3>
+<p>Once the power metrics are structured, UPower exposes them to the
+operating system using D-Bus, the standard Inter-Process Communication
+(IPC) system on Linux.</p>
+<p>UPower registers the service <code>org.freedesktop.UPower</code> on
+the system D-Bus. Inside this service, it creates objects representing
+the power state:</p>
+<ul>
+<li><code>/org/freedesktop/UPower</code>: The core manager interface
+indicating overall power state, system lid status, and AC presence.</li>
+<li><code>/org/freedesktop/UPower/devices/*</code>: Individual endpoints
+for each monitored power source (e.g.,
+<code>device/battery_BAT0</code>).</li>
+</ul>
+<p>When power values change, UPower emits D-Bus signals (such as
+<code>PropertiesChanged</code>). This event-driven mechanism ensures
+client applications receive immediate notifications without having to
+manually query the system.</p>
+<h3 id="4-desktop-environment-consumption">4. Desktop Environment
+Consumption</h3>
+<p>Desktop environments integrate background power managers and
+graphical shell components that consume UPower's D-Bus interface. For
+example:</p>
+<ul>
+<li><strong>GNOME:</strong> <code>gnome-settings-daemon</code> and GNOME
+Shell subscribe to <code>org.freedesktop.UPower</code> signals.</li>
+<li><strong>KDE Plasma:</strong> The <code>PowerDevil</code> daemon
+interacts with UPower to manage power profiles and battery alerts.</li>
+<li><strong>Xfce:</strong> The <code>xfce4-power-manager</code> tracks
+UPower objects to draw panel plugins and manage screen dimming.</li>
+</ul>
+<p>These desktop components translate the D-Bus signals into visual
+elements. The desktop shell maps the battery percentage and charging
+state to the appropriate battery icon in the system tray, updates the
+tooltip with the remaining runtime, and triggers notifications when the
+battery falls below critical thresholds. When the battery reaches an
+emergency depletion state, the desktop environment issues system calls
+to initiate sleep, hibernation, or a safe shutdown.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

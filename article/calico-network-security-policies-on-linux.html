@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calico Network Security Policies on Linux - linux</title>
+    <meta name="description" content="This article examines the role and significance of Project Calico in securing container networking across Linux environments. Calico functions as a robust Container Network Interface (CNI) and network security provider that leverages the core capabilitie">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/calico-network-security-policies-on-linux">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Calico Network Security Policies on Linux - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/calico-network-security-policies-on-linux" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="This article examines the role and significance of Project Calico in securing container networking across Linux environments. Calico functions as a robust Container Network Interface (CNI) and network security provider that leverages the core capabilitie" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="calico-network-security-policies-on-linux">Calico Network
+Security Policies on Linux</h1>
+<p>This article examines the role and significance of Project Calico in
+securing container networking across Linux environments. Calico
+functions as a robust Container Network Interface (CNI) and network
+security provider that leverages the core capabilities of the Linux
+kernel to enforce granular, high-performance security policies. By
+understanding how Calico integrates with native Linux subsystems like
+eBPF and iptables, operators can better design, implement, and maintain
+zero-trust security postures within Kubernetes and other container
+orchestration platforms.</p>
+<h3 id="native-linux-integration-and-performance">Native Linux
+Integration and Performance</h3>
+<p>Calico distinguishes itself by utilizing standard Linux networking
+components rather than relying on heavy overlay networks. By default, it
+uses standard Layer 3 IP routing to forward packets directly between
+hosts, eliminating the CPU overhead associated with packet encapsulation
+(such as VXLAN or Geneve), although encapsulation options remain
+available if needed.</p>
+<p>For policy enforcement, Calico integrates directly with the Linux
+kernel through two primary dataplane implementations:</p>
+<ul>
+<li><strong>Linux eBPF Dataplane:</strong> Calico can bypass traditional
+networking layers by running bytecode programs directly in the Linux
+kernel via extended Berkeley Packet Filter (eBPF). This enables
+line-rate packet filtering, preserves client source IP addresses, and
+substantially reduces latency and resource consumption.</li>
+<li><strong>iptables Dataplane:</strong> In environments where eBPF is
+not deployed, Calico relies on standard Linux <code>iptables</code> and
+<code>ipset</code>. It dynamically writes and manages thousands of rules
+efficiently, organizing IP addresses into sets to prevent rule-traversal
+bottlenecks.</li>
+</ul>
+<h3 id="advanced-security-beyond-standard-kubernetes-policies">Advanced
+Security Beyond Standard Kubernetes Policies</h3>
+<p>While Kubernetes provides a native <code>NetworkPolicy</code>
+resource, its functionality is limited to basic ingress and egress
+filtering across namespaces and label selectors. Calico significantly
+expands on this framework by introducing custom resource definitions
+(CRDs) that extend security capabilities:</p>
+<ul>
+<li><strong>Global Network Policies:</strong> Unlike native Kubernetes
+policies that are bound to specific namespaces, Calico provides
+<code>GlobalNetworkPolicy</code> resources that apply cluster-wide. This
+allows administrators to set baseline compliance rules, such as blocking
+all incoming traffic by default or restricting communication between
+system components.</li>
+<li><strong>Host Endpoint Protection:</strong> Calico can protect the
+underlying Linux host nodes, not just the pods. Through Host Endpoints
+(HEPs), administrators can secure host-level services, control
+communication between nodes, and enforce uniform firewalling across
+physical or virtual machines.</li>
+<li><strong>Layer 3 to Layer 7 Security Rules:</strong> Calico supports
+fine-grained traffic rules that encompass IP CIDRs, ports, protocols,
+and HTTP-level attributes when integrated with service meshes like
+Istio. It also supports domain-name-based egress filtering (DNS
+policies), restricting containers to specific external endpoints (e.g.,
+specific cloud APIs).</li>
+</ul>
+<h3 id="microsegmentation-and-zero-trust-architecture">Microsegmentation
+and Zero-Trust Architecture</h3>
+<p>The primary significance of Calico in modern infrastructure is its
+ability to operationalize zero-trust microsegmentation. Containers in a
+cluster often run in dynamic environments where IP addresses churn
+rapidly. Calico abstracts IP management by anchoring policies to
+workload identities (labels).</p>
+<p>When a new container starts, Calico translates its declared metadata
+into real-time kernel-level rules. This guarantees that workloads can
+only communicate with explicitly approved peers. If a single container
+is compromised, Calico's policy enforcement confines the attacker to
+that individual node or workload, eliminating the lateral movement paths
+often exploited in Linux-based attacks.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

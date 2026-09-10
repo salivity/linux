@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How Telegraf Collects System Metrics in Linux - linux</title>
+    <meta name="description" content="This article provides an overview of how the Linux operating system implements and executes the Telegraf agent to monitor core system performance. It explores Telegraf's operational lifecycle as a system daemon, details how its input plugins query Linux">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-telegraf-collects-system-metrics-in-linux">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How Telegraf Collects System Metrics in Linux - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-telegraf-collects-system-metrics-in-linux" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="This article provides an overview of how the Linux operating system implements and executes the Telegraf agent to monitor core system performance. It explores Telegraf's operational lifecycle as a system daemon, details how its input plugins query Linux" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-telegraf-collects-system-metrics-in-linux">How Telegraf
+Collects System Metrics in Linux</h1>
+<p>This article provides an overview of how the Linux operating system
+implements and executes the Telegraf agent to monitor core system
+performance. It explores Telegraf's operational lifecycle as a system
+daemon, details how its input plugins query Linux kernel interfaces and
+virtual file systems—such as <code>/proc</code> and
+<code>/sys</code>—and explains how collected metrics are structured,
+buffered, and transmitted to storage backends.</p>
+<hr />
+<h3 id="daemon-architecture-and-execution">Daemon Architecture and
+Execution</h3>
+<p>Telegraf is a lightweight, plugin-driven agent written in Go,
+compiled as a single static binary. On Linux distributions, it is
+typically installed via package managers (<code>apt</code>,
+<code>yum</code>, or <code>dnf</code>) and registered as a background
+service managed by <code>systemd</code>.</p>
+<p>Upon boot or service start, <code>systemd</code> invokes Telegraf
+under a dedicated, unprivileged service account (usually
+<code>telegraf</code>). The service configuration, found at
+<code>/lib/systemd/system/telegraf.service</code>, handles automated
+restarts, resource limits (cgroups), and process isolation. Because
+Telegraf operates in user space without requiring root privileges for
+standard operations, it accesses system health metrics exclusively
+through standardized Linux kernel interfaces and POSIX APIs.</p>
+<h3 id="metric-gathering-via-pseudo-filesystems">Metric Gathering via
+Pseudo-Filesystems</h3>
+<p>Linux exposes kernel state and hardware statistics to user space
+through pseudo-filesystems generated dynamically in RAM. Telegraf uses
+Go libraries (such as <code>gopsutil</code>) to read and parse these
+text-based files at defined intervals.</p>
+<ul>
+<li><strong>CPU Metrics (<code>inputs.cpu</code>):</strong> Telegraf
+parses <code>/proc/stat</code> to track the aggregate amount of time the
+CPU spends in various states (user, system, idle, iowait, irq, softirq,
+steal). By computing the delta between consecutive polling cycles, it
+derives real-time usage percentages.</li>
+<li><strong>Memory Metrics (<code>inputs.mem</code>):</strong> Telegraf
+reads <code>/proc/meminfo</code> to gather values such as
+<code>MemTotal</code>, <code>MemFree</code>, <code>MemAvailable</code>,
+<code>Buffers</code>, and <code>Cached</code>. This provides an accurate
+breakdown of memory allocation without invoking heavy kernel system
+calls.</li>
+<li><strong>Disk I/O Metrics (<code>inputs.diskio</code>):</strong>
+Input plugins read <code>/proc/diskstats</code> and files under
+<code>/sys/block/</code> to determine read/write operations completed,
+sectors read/written, and time spent doing I/O.</li>
+<li><strong>Filesystem Metrics (<code>inputs.disk</code>):</strong>
+Telegraf issues the <code>statvfs</code> system call via the C standard
+library/POSIX interface across all mounted filesystems listed in
+<code>/proc/mounts</code> to calculate total, free, and used disk
+space.</li>
+<li><strong>Network Metrics (<code>inputs.net</code>):</strong> Network
+interface traffic (bytes sent/received, packets, errors, drops) is
+parsed directly from <code>/proc/net/dev</code>.</li>
+<li><strong>System Load (<code>inputs.system</code>):</strong> Average
+system load over 1, 5, and 15 minutes is collected from
+<code>/proc/loadavg</code>, while system uptime is derived from
+<code>/proc/uptime</code>.</li>
+</ul>
+<h3 id="configuration-and-collection-lifecycle">Configuration and
+Collection Lifecycle</h3>
+<p>Telegraf is controlled via a TOML configuration file located at
+<code>/etc/telegraf/telegraf.conf</code>, along with drop-in
+configuration snippets placed in
+<code>/etc/telegraf/telegraf.d/</code>.</p>
+<p>The execution cycle operates on a synchronous polling loop governed
+by internal timers:</p>
+<ol type="1">
+<li><strong>Polling (Interval):</strong> At every configured interval
+(e.g., <code>interval = "10s"</code>), Telegraf invokes the
+<code>Gather()</code> method for each enabled input plugin
+concurrently.</li>
+<li><strong>Normalization:</strong> The gathered metrics are converted
+into an internal data model consisting of a measurement name, tags
+(indexed key-value pairs like <code>host</code> or <code>device</code>),
+fields (unindexed values like <code>usage_idle = 95.2</code>), and an
+accurate UNIX timestamp.</li>
+<li><strong>Aggregation and Filtering:</strong> Optional processor and
+aggregator plugins modify or downsample metrics directly in memory
+according to defined rules.</li>
+</ol>
+<h3 id="buffering-and-ingestion-pipeline">Buffering and Ingestion
+Pipeline</h3>
+<p>To minimize I/O overhead on the host Linux system, Telegraf does not
+transmit metrics immediately upon retrieval. Instead, metrics are placed
+into an in-memory ring buffer (<code>metric_buffer_limit</code>).</p>
+<p>A separate flushing routine runs based on the
+<code>flush_interval</code> directive (e.g.,
+<code>flush_interval = "10s"</code>). During each flush cycle, Telegraf
+packages batches of metrics into the format required by the configured
+output plugins (such as InfluxDB Line Protocol, Prometheus, Kafka, or
+OpenTelemetry) and writes them over network sockets via TCP, UDP, or
+HTTP. If a downstream network failure occurs, the buffer retains metrics
+locally up to its configured ceiling, preventing data loss during
+temporary network partitions.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Purpose of the /etc Directory in Linux - linux</title>
+    <meta name="description" content="The /etc directory is one of the most critical components of the Linux Filesystem Hierarchy Standard (FHS), serving as the central hub for system-wide configuration files. This article covers the core purpose of /etc, the types of files it stores, key co">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/purpose-of-the-etc-directory-in-linux">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Purpose of the /etc Directory in Linux - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/purpose-of-the-etc-directory-in-linux" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="The /etc directory is one of the most critical components of the Linux Filesystem Hierarchy Standard (FHS), serving as the central hub for system-wide configuration files. This article covers the core purpose of /etc, the types of files it stores, key co" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="purpose-of-the-etc-directory-in-linux">Purpose of the /etc
+Directory in Linux</h1>
+<p>The <code>/etc</code> directory is one of the most critical
+components of the Linux Filesystem Hierarchy Standard (FHS), serving as
+the central hub for system-wide configuration files. This article covers
+the core purpose of <code>/etc</code>, the types of files it stores, key
+configuration examples, and essential rules for managing its
+contents.</p>
+<h3 id="the-role-of-etc">The Role of <code>/etc</code></h3>
+<p>In modern Linux operating systems, <code>/etc</code> stands for
+"Editable Text Configuration" (though historically it stood for "et
+cetera"). Its sole purpose is to store host-specific, system-wide
+configuration files and directories. A configuration file controls the
+operation of the operating system, services, and installed
+applications.</p>
+<p>Unlike other directories in the root filesystem, <code>/etc</code>
+contains purely administrative and operational settings.</p>
+<h3 id="key-characteristics-of-the-etc-directory">Key Characteristics of
+the <code>/etc</code> Directory</h3>
+<ul>
+<li><strong>Static Configuration Data:</strong> According to the Linux
+Filesystem Hierarchy Standard, <code>/etc</code> must only store
+configuration files. It does not store executable binaries, application
+data, or user files.</li>
+<li><strong>Plain Text Format:</strong> The vast majority of files in
+<code>/etc</code> are human-readable text files. This allows system
+administrators to read and edit settings using standard text editors
+such as Nano, Vim, or Emacs.</li>
+<li><strong>Root Ownership:</strong> Because settings in
+<code>/etc</code> affect the entire operating system and all users,
+normal user accounts only have read permissions. Modifying any file
+within <code>/etc</code> requires superuser (<code>root</code> or
+<code>sudo</code>) privileges.</li>
+<li><strong>System-Wide Scope:</strong> Configurations set in
+<code>/etc</code> apply globally. Individual users can often override
+these settings for their own accounts using hidden "dotfiles" located in
+their personal home directories (such as <code>~/.bashrc</code>).</li>
+</ul>
+<h3 id="common-files-and-subdirectories-in-etc">Common Files and
+Subdirectories in <code>/etc</code></h3>
+<p>The contents of <code>/etc</code> vary depending on the installed
+software and Linux distribution, but several standard files and
+directories are found on nearly all systems:</p>
+<ul>
+<li><strong>/etc/passwd and /etc/shadow:</strong> Manage user account
+attributes and encrypted user passwords.</li>
+<li><strong>/etc/group:</strong> Defines user groups and
+memberships.</li>
+<li><strong>/etc/fstab:</strong> Contains a static table of filesystems
+that the system mounts automatically during boot.</li>
+<li><strong>/etc/hosts:</strong> Maps static IP addresses to hostnames
+locally before the system queries external DNS servers.</li>
+<li><strong>/etc/resolv.conf:</strong> Specifies the DNS nameservers the
+system uses for network address resolution.</li>
+<li><strong>/etc/network/ or /etc/netplan/:</strong> Contains
+configuration files for system network interfaces.</li>
+<li><strong>/etc/ssh/:</strong> Houses configuration files and keys for
+OpenSSH client and server daemons.</li>
+<li><strong>/etc/systemd/ or /etc/init.d/:</strong> Holds startup
+scripts and service unit configuration files used to manage system
+services.</li>
+</ul>
+<h3 id="best-practices-for-managing-etc">Best Practices for Managing
+<code>/etc</code></h3>
+<p>Because a syntax error in an <code>/etc</code> configuration file can
+prevent services or the entire operating system from booting,
+administrators should follow standard best practices:</p>
+<ul>
+<li><strong>Always Create Backups:</strong> Copy a configuration file
+before modifying it (e.g.,
+<code>sudo cp /etc/fstab /etc/fstab.bak</code>).</li>
+<li><strong>Use Version Control:</strong> Tools such as
+<code>etckeeper</code> can automatically track changes made to
+<code>/etc</code> using Git, allowing administrators to audit
+modifications or roll back errors.</li>
+<li><strong>Check Configuration Syntax:</strong> Many services provide
+testing flags to validate configuration files before applying them (such
+as <code>nginx -t</code> or <code>sshd -t</code>).</li>
+</ul></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

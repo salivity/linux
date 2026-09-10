@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How containerd-shim Decouples Container Lifecycles - linux</title>
+    <meta name="description" content="In Linux container environments, containerd-shim serves as a lightweight intermediary process between high-level runtimes like containerd and low-level OCI runtimes like runc. This article explains how the Linux operating system implements process repare">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-containerd-shim-decouples-container-lifecycles">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How containerd-shim Decouples Container Lifecycles - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-containerd-shim-decouples-container-lifecycles" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="In Linux container environments, containerd-shim serves as a lightweight intermediary process between high-level runtimes like containerd and low-level OCI runtimes like runc. This article explains how the Linux operating system implements process repare" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-containerd-shim-decouples-container-lifecycles">How
+containerd-shim Decouples Container Lifecycles</h1>
+<p>In Linux container environments, <code>containerd-shim</code> serves
+as a lightweight intermediary process between high-level runtimes like
+<code>containerd</code> and low-level OCI runtimes like
+<code>runc</code>. This article explains how the Linux operating system
+implements process reparenting, file descriptor preservation, and system
+calls to allow <code>containerd-shim</code> to decouple containers from
+daemon lifecycles. By isolating runtime dependencies, Linux ensures that
+containers remain running even if management daemons crash, restart, or
+upgrade.</p>
+<h3 id="the-architecture-challenge-of-direct-execution">The Architecture
+Challenge of Direct Execution</h3>
+<p>Under the Open Container Initiative (OCI) model, low-level runtimes
+like <code>runc</code> are responsible for setting up namespaces,
+cgroups, and root filesystems before executing the container's initial
+process. However, <code>runc</code> is ephemeral: it executes the setup,
+starts the container workload, and exits immediately.</p>
+<p>If the central container manager (such as <code>containerd</code>)
+monitored the container process directly, it would create a tight
+coupling between the management daemon and the container. Under standard
+Linux process semantics, terminating or restarting
+<code>containerd</code> would drop child process handlers, sever
+standard I/O pipes, and terminate all active containers.</p>
+<h3 id="process-reparenting-and-pr_set_child_subreaper">Process
+Reparenting and <code>PR_SET_CHILD_SUBREAPER</code></h3>
+<p>Linux handles process lifecycles hierarchically. When a parent
+process terminates, its child processes are traditionally reparented to
+PID 1 (<code>init</code> or <code>systemd</code>). If <code>runc</code>
+exits, the container process becomes orphaned.</p>
+<p>To solve this, Linux introduced the <code>prctl</code> system call
+with the <code>PR_SET_CHILD_SUBREAPER</code> option. When
+<code>containerd</code> creates a container, it does not launch
+<code>runc</code> directly; it first spawns
+<code>containerd-shim</code>. The shim executes:</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode c"><code class="sourceCode c"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>prctl<span class="op">(</span>PR_SET_CHILD_SUBREAPER<span class="op">,</span> <span class="dv">1</span><span class="op">,</span> <span class="dv">0</span><span class="op">,</span> <span class="dv">0</span><span class="op">,</span> <span class="dv">0</span><span class="op">);</span></span></code></pre></div>
+<p>By marking itself as a subreaper, the shim informs the Linux kernel
+that any orphaned processes within its descendant tree must be
+reparented to the shim process instead of PID 1. When
+<code>containerd-shim</code> executes <code>runc</code>, and
+<code>runc</code> subsequently exits, the container process's parent PID
+automatically becomes the shim.</p>
+<h3 id="decoupling-from-the-daemon-hierarchy">Decoupling from the Daemon
+Hierarchy</h3>
+<p>To completely detach the container from the parent daemon,
+<code>containerd-shim</code> is executed as an orphaned or detached
+process relative to <code>containerd</code>. When
+<code>containerd</code> starts a shim, it uses a standard double-fork
+mechanism or launches the process in a new session
+(<code>setsid()</code>).</p>
+<p>Because the shim is detached from the daemon’s process group:</p>
+<ul>
+<li><code>containerd</code> can be stopped, upgraded, or restarted
+without propagating signals (such as <code>SIGTERM</code> or
+<code>SIGHUP</code>) to the shim.</li>
+<li>The container workload continues running uninterrupted in its
+respective namespaces.</li>
+<li>Once <code>containerd</code> restarts, it queries the local
+filesystem (typically finding Unix domain sockets left by each shim) to
+reattach to the running shims without disturbing the underlying
+containers.</li>
+</ul>
+<h3 id="preserving-io-streams-and-file-descriptors">Preserving I/O
+Streams and File Descriptors</h3>
+<p>A container relies on standard input, output, and error streams
+(<code>stdin</code>, <code>stdout</code>, <code>stderr</code>). If the
+process managing these pipes terminates, the Linux kernel generates a
+<code>SIGPIPE</code> or reaches an <code>EOF</code> state, causing the
+container process to fail.</p>
+<p>The <code>containerd-shim</code> addresses this by maintaining the
+container's standard streams directly:</p>
+<ol type="1">
+<li>The shim opens the Linux FIFO pipes or pseudo-terminals (PTYs)
+allocated for the container.</li>
+<li>The shim retains these open file descriptors regardless of whether
+<code>containerd</code> is actively listening.</li>
+<li>If <code>containerd</code> shuts down, the shim buffers output or
+holds the pipe open until <code>containerd</code> reconnects to the
+shim's control socket.</li>
+</ol>
+<p>Because the file descriptors reside in the shim’s file descriptor
+table, the container’s streams remain valid and open at the kernel
+level.</p>
+<h3 id="exit-status-retention-and-zombie-prevention">Exit Status
+Retention and Zombie Prevention</h3>
+<p>In Linux, when a child process terminates, it enters a "zombie" state
+until its parent process invokes <code>waitpid()</code> or
+<code>waitid()</code> to read its exit status.</p>
+<p>Because <code>containerd-shim</code> acts as the subreaper and
+immediate parent of the container process:</p>
+<ul>
+<li>It continuously monitors the container process for termination.</li>
+<li>When the container exits, the shim collects the exit status code
+immediately, preventing zombie process accumulation.</li>
+<li>The shim persists this exit code in memory and on disk, holding it
+until <code>containerd</code> requests it, even if the primary daemon
+was offline at the exact moment the container exited. Once the status is
+retrieved, the shim exits cleanly.</li>
+</ul></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

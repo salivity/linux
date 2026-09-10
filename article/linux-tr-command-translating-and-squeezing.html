@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linux tr Command: Translating and Squeezing - linux</title>
+    <meta name="description" content="The tr (translate) command is a core utility in the Linux operating system designed for stream-based character manipulation. This article explores the significance of tr in Linux text processing, detailing how it functions within pipelines to translate c">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/linux-tr-command-translating-and-squeezing">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Linux tr Command: Translating and Squeezing - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/linux-tr-command-translating-and-squeezing" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="The tr (translate) command is a core utility in the Linux operating system designed for stream-based character manipulation. This article explores the significance of tr in Linux text processing, detailing how it functions within pipelines to translate c" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="linux-tr-command-translating-and-squeezing">Linux tr Command:
+Translating and Squeezing</h1>
+<p>The <code>tr</code> (translate) command is a core utility in the
+Linux operating system designed for stream-based character manipulation.
+This article explores the significance of <code>tr</code> in Linux text
+processing, detailing how it functions within pipelines to translate
+characters, squeeze repeated sequences, and delete unwanted elements,
+along with practical examples demonstrating why it remains a
+foundational tool for system administrators and developers.</p>
+<h3 id="what-is-the-tr-command">What is the <code>tr</code>
+Command?</h3>
+<p>The <code>tr</code> utility reads from standard input
+(<code>stdin</code>), transforms or filters the input stream based on
+specified character sets, and writes the result to standard output
+(<code>stdout</code>). Unlike tools like <code>sed</code> or
+<code>awk</code>, <code>tr</code> does not work directly with filenames
+as arguments; it operates exclusively on streams, making it a critical
+component of command-line pipelines.</p>
+<h3 id="character-translation">Character Translation</h3>
+<p>The primary function of <code>tr</code> is mapping characters from a
+source set to a destination set on a one-to-one basis. This is crucial
+for normalization tasks, such as standardizing file content or
+environment variables.</p>
+<ul>
+<li><strong>Case Conversion:</strong> It provides a lightweight way to
+change case without regular expressions.
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span> file.txt <span class="kw">|</span> <span class="fu">tr</span> <span class="st">&#39;a-z&#39;</span> <span class="st">&#39;A-Z&#39;</span></span></code></pre></div></li>
+<li><strong>Character Swapping:</strong> Individual characters can be
+replaced globally throughout a stream.
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span> data.csv <span class="kw">|</span> <span class="fu">tr</span> <span class="st">&#39;,&#39;</span> <span class="st">&#39;\t&#39;</span></span></code></pre></div></li>
+</ul>
+<h3 id="squeezing-repeated-characters--s">Squeezing Repeated Characters
+(<code>-s</code>)</h3>
+<p>The squeezing functionality (<code>-s</code> or
+<code>--squeeze-repeats</code>) replaces consecutive duplicate instances
+of a specified character with a single instance. This capability is
+significant for data cleaning and formatting raw system outputs.</p>
+<ul>
+<li><strong>Normalizing Whitespace:</strong> System commands like
+<code>ps</code>, <code>df</code>, or <code>netstat</code> output columns
+separated by variable numbers of spaces. Squeezing reduces these to
+single delimiters, making the data easier to parse with tools like
+<code>cut</code>.
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span> log.txt <span class="kw">|</span> <span class="fu">tr</span> <span class="at">-s</span> <span class="st">&#39; &#39;</span></span></code></pre></div></li>
+<li><strong>Removing Redundant Newlines:</strong> Empty blank lines
+caused by multiple consecutive newline characters can be condensed into
+a single line break.
+<div class="sourceCode" id="cb4"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span> text.txt <span class="kw">|</span> <span class="fu">tr</span> <span class="at">-s</span> <span class="st">&#39;\n&#39;</span></span></code></pre></div></li>
+</ul>
+<h3 id="deleting-characters--d">Deleting Characters
+(<code>-d</code>)</h3>
+<p>The deletion flag (<code>-d</code>) removes specific characters from
+the input stream entirely. This is widely used for:</p>
+<ul>
+<li><strong>Removing Carriage Returns:</strong> Converting
+Windows-formatted line endings (CRLF) to Unix line endings (LF).
+<div class="sourceCode" id="cb5"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span> script.sh <span class="kw">|</span> <span class="fu">tr</span> <span class="at">-d</span> <span class="st">&#39;\r&#39;</span></span></code></pre></div></li>
+<li><strong>Stripping Non-Alphanumeric Data:</strong> Isolating pure
+data by deleting symbols, punctuation, or digits.
+<div class="sourceCode" id="cb6"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span> input.txt <span class="kw">|</span> <span class="fu">tr</span> <span class="at">-d</span> <span class="st">&#39;0-9&#39;</span></span></code></pre></div></li>
+</ul>
+<h3 id="why-tr-is-significant-in-linux">Why <code>tr</code> is
+Significant in Linux</h3>
+<ol type="1">
+<li><strong>Performance and Efficiency:</strong> Written in optimized C,
+<code>tr</code> executes substantially faster than larger
+text-processing utilities like <code>sed</code>, <code>awk</code>, or
+<code>perl</code> when performing byte-level and character-level
+operations.</li>
+<li><strong>Stream Integration:</strong> Because it operates strictly on
+standard input, <code>tr</code> integrates natively into Unix pipelines
+(<code>|</code>), allowing modular data transformations without
+generating temporary intermediate files.</li>
+<li><strong>Simplicity in Automation:</strong> The syntax is concise,
+making shell scripts easier to write, read, and maintain when performing
+everyday tasks such as sanitizing file names, parsing logs, or
+reformatting structured text.</li>
+</ol></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

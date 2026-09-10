@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How Linux LVM Manages Volume Groups Across Disks - linux</title>
+    <meta name="description" content="The Logical Volume Manager (LVM) in Linux provides a flexible method for pooling storage across multiple physical drives into a single administrative unit known as a Volume Group (VG). By inserting an abstraction layer between physical hardware and the f">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-linux-lvm-manages-volume-groups-across-disks">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How Linux LVM Manages Volume Groups Across Disks - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-linux-lvm-manages-volume-groups-across-disks" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="The Logical Volume Manager (LVM) in Linux provides a flexible method for pooling storage across multiple physical drives into a single administrative unit known as a Volume Group (VG). By inserting an abstraction layer between physical hardware and the f" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-linux-lvm-manages-volume-groups-across-disks">How Linux LVM
+Manages Volume Groups Across Disks</h1>
+<p>The Logical Volume Manager (LVM) in Linux provides a flexible method
+for pooling storage across multiple physical drives into a single
+administrative unit known as a Volume Group (VG). By inserting an
+abstraction layer between physical hardware and the file system, LVM
+allows administrators to create dynamic Logical Volumes (LVs) that
+seamlessly span multiple physical disks without being constrained by
+individual partition boundaries. This guide explains the underlying
+mechanisms—including physical extents, device-mapper kernel drivers, and
+data allocation strategies—that Linux uses to manage these multi-disk
+configurations.</p>
+<h3 id="the-core-architecture-pvs-vgs-and-lvs">The Core Architecture:
+PVs, VGs, and LVs</h3>
+<p>To manage storage across multiple disks, LVM relies on a three-tier
+hierarchical architecture:</p>
+<ol type="1">
+<li><strong>Physical Volumes (PVs):</strong> Individual disks, SSDs, or
+standard disk partitions are initialized as PVs using the
+<code>pvcreate</code> command. This process writes an LVM label and
+metadata area to the beginning of the drive.</li>
+<li><strong>Volume Groups (VGs):</strong> Multiple PVs are combined into
+a single storage pool using <code>vgcreate</code> or
+<code>vgextend</code>. The VG treats all underlying physical space as a
+single, contiguous pool of available storage.</li>
+<li><strong>Logical Volumes (LVs):</strong> Block devices carved out of
+the VG using <code>lvcreate</code>. These act as virtual partitions
+where file systems (such as ext4 or XFS) are created and mounted.</li>
+</ol>
+<h3 id="physical-extents-the-building-blocks-of-allocation">Physical
+Extents: The Building Blocks of Allocation</h3>
+<p>The primary mechanism that enables an LVM Volume Group to span
+physical drives is the <strong>Physical Extent (PE)</strong>.</p>
+<p>When a Volume Group is created, all assigned storage is divided into
+uniform, fixed-size chunks called Physical Extents, typically 4MB by
+default. Similarly, Logical Volumes are composed of <strong>Logical
+Extents (LEs)</strong> of the exact same size.</p>
+<p>LVM manages multi-disk spanning by maintaining a mapping table that
+links each Logical Extent in a Logical Volume to a specific Physical
+Extent on any available Physical Volume. Because of this 1:1 mapping
+between LEs and PEs, a Logical Volume can draw its required extents from
+completely different physical disks while presenting a single,
+continuous block device to the operating system.</p>
+<h3 id="allocation-policies-across-multiple-disks">Allocation Policies
+Across Multiple Disks</h3>
+<p>When a Logical Volume spans multiple disks within a Volume Group,
+Linux manages data placement according to configured allocation
+policies:</p>
+<ul>
+<li><strong>Linear Allocation (Default):</strong> Extents are allocated
+sequentially. LVM fills the available Physical Extents on the first disk
+before automatically continuing onto the next disk. This provides a
+simple concatenation of storage space.</li>
+<li><strong>Striped Allocation:</strong> Similar to RAID 0, LVM can
+alternate chunks of data across multiple physical drives. This
+round-robin distribution increases read/write performance by leveraging
+the I/O bandwidth of multiple disks simultaneously.</li>
+<li><strong>Mirrored and RAID Modes:</strong> LVM can allocate extents
+redundantly across distinct physical disks within the same Volume Group.
+This ensures that if one disk fails, identical copies of the extents are
+preserved on another drive.</li>
+</ul>
+<h3 id="the-role-of-the-linux-device-mapper">The Role of the Linux
+Device Mapper</h3>
+<p>At the operating system level, LVM relies on the Linux kernel's
+<strong>Device Mapper</strong> framework (<code>dm-mod</code>).</p>
+<p>The Device Mapper provides the low-level block-device translation
+layer. When an application or file system requests an I/O operation at a
+specific logical block address, the Device Mapper intercepts the
+request. It references the extent mapping table provided by the LVM
+metadata and translates the logical block address into the exact
+physical device identifier and physical sector number on the appropriate
+underlying drive.</p>
+<h3 id="metadata-management-and-dynamic-expansion">Metadata Management
+and Dynamic Expansion</h3>
+<p>Linux stores identical copies of the Volume Group's configuration
+metadata in the header area of every Physical Volume assigned to that
+group. This metadata describes the entire topology, including the list
+of PVs, the active LVs, and the complete PE-to-LE mapping tables.</p>
+<p>Because metadata is distributed and synchronized across all member
+disks:</p>
+<ul>
+<li><strong>Dynamic Expansion:</strong> Administrators can attach new
+physical disks to an active Volume Group at runtime. Once the new
+drive's PEs are registered, existing Logical Volumes can be extended
+across the new disk with zero downtime.</li>
+<li><strong>Data Migration:</strong> Using the <code>pvmove</code>
+utility, the Linux kernel can copy allocated extents from one physical
+disk to another within the same Volume Group while the filesystem
+remains online, enabling drive replacement and rebalancing without
+service interruption.</li>
+</ul></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

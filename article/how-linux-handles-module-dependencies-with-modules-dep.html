@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How Linux Handles Module Dependencies with modules.dep - linux</title>
+    <meta name="description" content="The Linux operating system maintains a modular architecture that allows device drivers and kernel extensions to load and unload on demand without rebooting the system. When modules rely on symbols and functions exported by other modules, the system preve">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-linux-handles-module-dependencies-with-modules-dep">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How Linux Handles Module Dependencies with modules.dep - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-linux-handles-module-dependencies-with-modules-dep" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="The Linux operating system maintains a modular architecture that allows device drivers and kernel extensions to load and unload on demand without rebooting the system. When modules rely on symbols and functions exported by other modules, the system preve" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-linux-handles-module-dependencies-with-modulesdep">How Linux
+Handles Module Dependencies with modules.dep</h1>
+<p>The Linux operating system maintains a modular architecture that
+allows device drivers and kernel extensions to load and unload on demand
+without rebooting the system. When modules rely on symbols and functions
+exported by other modules, the system prevents runtime errors by
+resolving these interdependencies automatically. This article examines
+how Linux maps, organizes, and resolves these relationships using the
+<code>modules.dep</code> file and related user-space tools like
+<code>depmod</code> and <code>modprobe</code>.</p>
+<h2 id="the-purpose-of-modulesdep">The Purpose of modules.dep</h2>
+<p>The Linux kernel does not contain native, high-level graph-traversal
+logic to hunt down missing dependencies on disk; that responsibility
+belongs to user space. To make dependency resolution fast and efficient,
+the operating system precomputes a static mapping of all module
+relationships and stores it in a file called
+<code>modules.dep</code>.</p>
+<p>Located in <code>/lib/modules/$(uname -r)/modules.dep</code>, this
+plain-text file lists every compiled kernel module for the current
+kernel release along with the exact paths of the modules it requires.
+Modern Linux distributions also generate an optimized binary equivalent,
+<code>modules.dep.bin</code>, which allows tools to perform fast lookups
+without parsing large text files.</p>
+<h2 id="how-modulesdep-is-generated-with-depmod">How modules.dep Is
+Generated with depmod</h2>
+<p>The generation of <code>modules.dep</code> is handled by the
+<code>depmod</code> utility, typically executed during system
+installation, kernel updates, or manual driver compilation.</p>
+<ol type="1">
+<li><p><strong>Symbol Inspection</strong>: Kernel modules are ELF
+(Executable and Linkable Format) binaries. When <code>depmod</code>
+runs, it scans all <code>.ko</code> (kernel object) files under
+<code>/lib/modules/$(uname -r)/</code>. It inspects the ELF symbol
+tables of each module, identifying:</p>
+<ul>
+<li><strong>Provided symbols</strong>: Functions and variables exposed
+via macros like <code>EXPORT_SYMBOL()</code> or
+<code>EXPORT_SYMBOL_GPL()</code>.</li>
+<li><strong>Required symbols</strong>: External functions and variables
+referenced by the module but not defined internally.</li>
+</ul></li>
+<li><p><strong>Graph Construction</strong>: <code>depmod</code>
+cross-references the required symbols of each module with the provided
+symbols of all other available modules.</p></li>
+<li><p><strong>Output Generation</strong>: Once the dependency graph is
+established, <code>depmod</code> writes the output to
+<code>modules.dep</code>.</p></li>
+</ol>
+<p>The format of <code>modules.dep</code> follows a straightforward
+layout:</p>
+<pre class="text"><code>kernel/drivers/net/ethernet/intel/e1000e/e1000e.ko: kernel/drivers/net/mdio.ko kernel/net/core/ptp.ko</code></pre>
+<p>In this example, the <code>e1000e.ko</code> driver requires both
+<code>mdio.ko</code> and <code>ptp.ko</code>. The target module appears
+first, followed by a colon and a space-separated list of its direct and
+indirect dependencies.</p>
+<h2 id="dependency-resolution-at-runtime-modprobe-vs-insmod">Dependency
+Resolution at Runtime: modprobe vs. insmod</h2>
+<p>Linux provides two primary tools for inserting modules into the
+kernel: <code>insmod</code> and <code>modprobe</code>. Understanding the
+difference highlights why <code>modules.dep</code> is essential.</p>
+<h3 id="insmod">insmod</h3>
+<p>The <code>insmod</code> command is a low-level utility that instructs
+the kernel directly to load a specific module file into memory using the
+<code>init_module</code> or <code>finit_module</code> system calls. It
+does not read configuration files or dependency lists. If you attempt to
+load a module with unmet dependencies using <code>insmod</code>, the
+kernel will reject the request with an unresolved symbol error (such as
+<code>Unknown symbol in module</code>).</p>
+<h3 id="modprobe">modprobe</h3>
+<p>The standard, intelligent utility for module management is
+<code>modprobe</code>. When requested to load a module (for example,
+<code>modprobe e1000e</code>), <code>modprobe</code> performs the
+following steps:</p>
+<ol type="1">
+<li><strong>Consults <code>modules.dep.bin</code> (or
+<code>modules.dep</code>)</strong>: It searches for the requested module
+name to locate its file path and its declared dependencies.</li>
+<li><strong>Builds an Execution Order</strong>: It constructs a
+topological sort of the required modules, ensuring that base
+dependencies load before the modules that rely on them.</li>
+<li><strong>Loads Modules in Sequence</strong>: <code>modprobe</code>
+invokes the kernel module loading system calls for each dependency in
+order, ending with the requested module.</li>
+<li><strong>Applies Configurations</strong>: It accounts for module
+aliases, blacklists, and custom parameters defined in
+<code>/etc/modprobe.d/</code>.</li>
+</ol>
+<h2 id="unloading-dependent-modules">Unloading Dependent Modules</h2>
+<p><code>modules.dep</code> also assists when removing modules. When you
+execute <code>modprobe -r &lt;module_name&gt;</code>, the utility
+unloads the specified module and evaluates the dependency chain in
+reverse. If any supporting modules were loaded exclusively to satisfy
+the removed module and are no longer in use by any other running
+component, <code>modprobe</code> safely unloads them as well, reclaiming
+system memory.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

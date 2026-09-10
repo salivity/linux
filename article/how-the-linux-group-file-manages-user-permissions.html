@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How the Linux Group File Manages User Permissions - linux</title>
+    <meta name="description" content="In the Linux operating system, the /etc/group file serves as the central registry for user groups, defining how shared access rights and permissions are distributed among multiple accounts. Instead of assigning individual permissions for every user on a">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-the-linux-group-file-manages-user-permissions">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How the Linux Group File Manages User Permissions - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-the-linux-group-file-manages-user-permissions" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="In the Linux operating system, the /etc/group file serves as the central registry for user groups, defining how shared access rights and permissions are distributed among multiple accounts. Instead of assigning individual permissions for every user on a" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-the-linux-group-file-manages-user-permissions">How the Linux
+Group File Manages User Permissions</h1>
+<p>In the Linux operating system, the <code>/etc/group</code> file
+serves as the central registry for user groups, defining how shared
+access rights and permissions are distributed among multiple accounts.
+Instead of assigning individual permissions for every user on a system,
+administrators use this file to organize users into logical units that
+share common access rights to files, directories, and system resources.
+This article explains the structure of the <code>/etc/group</code> file,
+how group-based file permissions work, and how the operating system
+evaluates group membership to enforce security boundaries.</p>
+<h3 id="the-structure-of-the-etcgroup-file">The Structure of the
+/etc/group File</h3>
+<p>The <code>/etc/group</code> file is a plain-text file where each line
+represents a single group. Each entry is divided into four
+colon-delimited fields:</p>
+<pre class="text"><code>group_name:password:GID:user_list</code></pre>
+<ol type="1">
+<li><strong>Group Name:</strong> The human-readable identifier for the
+group (e.g., <code>developers</code>, <code>sudo</code>, or
+<code>docker</code>).</li>
+<li><strong>Password:</strong> Historically used to store an encrypted
+group password. In modern systems, this is represented by an
+<code>x</code>, indicating that shadow passwords stored in
+<code>/etc/gshadow</code> are used if a password exists, or that no
+password is required.</li>
+<li><strong>Group ID (GID):</strong> A unique numerical value that the
+Linux kernel uses internally to track the group. GID 0 is reserved for
+<code>root</code>, system groups typically occupy lower numbers (often
+1–999), and standard user groups start at 1000 or higher.</li>
+<li><strong>User List:</strong> A comma-separated list of usernames that
+belong to the group as supplementary members.</li>
+</ol>
+<h3 id="primary-vs-supplementary-groups">Primary vs. Supplementary
+Groups</h3>
+<p>Linux categorizes group memberships into two types:</p>
+<ul>
+<li><strong>Primary Group:</strong> Stored in the
+<code>/etc/passwd</code> file rather than the member list in
+<code>/etc/group</code>. When a user creates a new file or directory,
+the item automatically inherits the user's primary GID as its group
+owner.</li>
+<li><strong>Supplementary (Secondary) Groups:</strong> Explicitly listed
+in the fourth field of <code>/etc/group</code>. A user can belong to
+multiple supplementary groups. These memberships allow users to access
+files and services owned by groups other than their primary group.</li>
+</ul>
+<h3 id="how-the-linux-kernel-evaluates-permissions">How the Linux Kernel
+Evaluates Permissions</h3>
+<p>Linux uses standard Discretionary Access Control (DAC) to regulate
+file access. Every file and directory on the system is associated with
+three permission categories:</p>
+<ul>
+<li><strong>User (u):</strong> The specific user who owns the file.</li>
+<li><strong>Group (g):</strong> The group that owns the file.</li>
+<li><strong>Others (o):</strong> All other users on the system.</li>
+</ul>
+<p>Each category can have Read (<code>r</code>), Write (<code>w</code>),
+and Execute (<code>x</code>) permissions.</p>
+<p>When a user attempts to interact with a file, the Linux kernel
+determines access permissions in a strict order:</p>
+<ol type="1">
+<li><strong>Owner Check:</strong> If the user’s User ID (UID) matches
+the file owner's UID, the kernel applies the <strong>User</strong>
+permissions and stops checking further.</li>
+<li><strong>Group Check:</strong> If the user is not the owner, the
+kernel checks whether the file's owning GID matches the user's primary
+group or any of the supplementary groups defined in
+<code>/etc/group</code>. If a match is found, the kernel applies the
+<strong>Group</strong> permissions and stops checking.</li>
+<li><strong>Others Check:</strong> If neither the user nor any of their
+groups match, the <strong>Others</strong> permissions are applied.</li>
+</ol>
+<h3 id="multi-user-collaboration-through-group-permissions">Multi-User
+Collaboration Through Group Permissions</h3>
+<p>The <code>/etc/group</code> file allows system administrators to
+grant identical access levels to multiple users without altering
+permissions for the rest of the system.</p>
+<p>For example, to provide three users (<code>alice</code>,
+<code>bob</code>, and <code>charlie</code>) with read and write access
+to a shared project directory:</p>
+<ol type="1">
+<li>An administrator creates a group entry in <code>/etc/group</code>:
+<pre class="text"><code>project_dev:x:1005:alice,bob,charlie</code></pre></li>
+<li>The shared directory's ownership is assigned to that group:
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">chgrp</span> project_dev /var/shared/project</span></code></pre></div></li>
+<li>The directory permissions are set to allow group read, write, and
+execute access:
+<div class="sourceCode" id="cb4"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">chmod</span> 770 /var/shared/project</span></code></pre></div></li>
+</ol>
+<p>Because <code>alice</code>, <code>bob</code>, and
+<code>charlie</code> are mapped to GID <code>1005</code> in
+<code>/etc/group</code>, the kernel matches their group access rights,
+allowing all three to collaborate within
+<code>/var/shared/project</code> while preventing unauthorized users
+from reading or altering the directory contents.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

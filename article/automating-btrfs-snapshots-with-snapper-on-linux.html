@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Automating Btrfs Snapshots with Snapper on Linux - linux</title>
+    <meta name="description" content="This article explores the critical role of the Snapper tool in managing and automating Btrfs filesystem snapshots on Linux. It covers how Snapper interacts with Btrfs copy-on-write subvolumes, sets up automated background schedules, tracks system changes">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/automating-btrfs-snapshots-with-snapper-on-linux">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Automating Btrfs Snapshots with Snapper on Linux - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/automating-btrfs-snapshots-with-snapper-on-linux" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="This article explores the critical role of the Snapper tool in managing and automating Btrfs filesystem snapshots on Linux. It covers how Snapper interacts with Btrfs copy-on-write subvolumes, sets up automated background schedules, tracks system changes" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="automating-btrfs-snapshots-with-snapper-on-linux">Automating
+Btrfs Snapshots with Snapper on Linux</h1>
+<p>This article explores the critical role of the Snapper tool in
+managing and automating Btrfs filesystem snapshots on Linux. It covers
+how Snapper interacts with Btrfs copy-on-write subvolumes, sets up
+automated background schedules, tracks system changes before and after
+software updates, and automatically prunes old snapshots to prevent
+storage exhaustion, ultimately providing a robust safety net for system
+recovery.</p>
+<h3 id="the-purpose-of-snapper">The Purpose of Snapper</h3>
+<p>The Btrfs filesystem provides native, low-overhead snapshotting
+capabilities through its copy-on-write (CoW) design. However, managing
+these snapshots manually using the standard
+<code>btrfs subvolume snapshot</code> command is labor-intensive and
+prone to human error. Snapper bridges this gap by serving as a
+high-level management daemon and command-line utility that standardizes,
+schedules, and automates snapshot lifecycles across specified
+subvolumes.</p>
+<h3 id="timeline-based-snapshot-automation">Timeline-Based Snapshot
+Automation</h3>
+<p>One of Snapper's primary roles is maintaining a continuous history of
+filesystem states. By leveraging systemd timers or cron jobs, Snapper
+automates snapshots at predetermined intervals:</p>
+<ul>
+<li><strong>Hourly Snapshots:</strong> Captures incremental changes made
+during active work sessions.</li>
+<li><strong>Daily, Weekly, Monthly, and Yearly Snapshots:</strong>
+Preserves long-term milestones for disaster recovery.</li>
+</ul>
+<p>This automation requires zero manual intervention once a
+configuration profile (e.g., for <code>/</code> or <code>/home</code>)
+is created. Users simply define how many snapshots of each type to
+retain, and Snapper takes care of the scheduling.</p>
+<h3 id="pre-and-post-snapshots-for-system-modifications">Pre and Post
+Snapshots for System Modifications</h3>
+<p>Snapper integrates directly with Linux package managers—such as
+<code>pacman</code> via hooks, <code>dnf</code> via plugins, and
+natively with <code>zypper</code>. This integration facilitates
+"pre-post" snapshot pairs:</p>
+<ol type="1">
+<li><strong>Pre-snapshot:</strong> Generated immediately before a
+package installation, upgrade, or system configuration change.</li>
+<li><strong>Post-snapshot:</strong> Generated immediately after the
+transaction finishes.</li>
+</ol>
+<p>By pairing these snapshots, Snapper allows administrators to run
+<code>snapper diff</code> to view the exact filesystem modifications
+(added files, removed configurations, altered binaries) introduced by a
+specific update.</p>
+<h3 id="automated-cleanup-and-retention-policies">Automated Cleanup and
+Retention Policies</h3>
+<p>Without management, Btrfs snapshots can quickly consume available
+disk space by locking modified blocks. Snapper prevents filesystem
+exhaustion through automated cleanup algorithms defined in its
+configuration profiles:</p>
+<ul>
+<li><strong>Timeline Cleanup:</strong> Enforces minimum age thresholds
+and retention quotas for hourly, daily, and monthly snapshots.</li>
+<li><strong>Number Cleanup:</strong> Limits the total count of manual or
+pre-post snapshot pairs retained.</li>
+<li><strong>Empty Pre-Post Cleanup:</strong> Automatically removes
+snapshot pairs that contain no actual filesystem differences.</li>
+<li><strong>Free Space Monitoring:</strong> Prioritizes snapshot
+deletion when global disk space falls below a defined percentage
+threshold.</li>
+</ul>
+<h3 id="seamless-rollbacks-and-disaster-recovery">Seamless Rollbacks and
+Disaster Recovery</h3>
+<p>Automating snapshots is only beneficial if recovery is
+straightforward. Snapper integrates with bootloaders like GRUB, allowing
+systems to boot directly into read-only snapshots if an update renders
+the operating system unbootable. With the <code>snapper rollback</code>
+command, the tool automates the process of cloning a known good snapshot
+into a new default read-write subvolume, drastically reducing system
+downtime after failed upgrades or administrative mistakes.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

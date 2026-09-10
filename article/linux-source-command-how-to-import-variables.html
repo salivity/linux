@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linux Source Command: How to Import Variables - linux</title>
+    <meta name="description" content="This article provides an overview of the source command in the Linux operating system, explaining how it enables the current shell session to read, execute, and import variables from external files. By reading this guide, you will learn the core mechanic">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/linux-source-command-how-to-import-variables">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Linux Source Command: How to Import Variables - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/linux-source-command-how-to-import-variables" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="This article provides an overview of the source command in the Linux operating system, explaining how it enables the current shell session to read, execute, and import variables from external files. By reading this guide, you will learn the core mechanic" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="linux-source-command-how-to-import-variables">Linux Source
+Command: How to Import Variables</h1>
+<p>This article provides an overview of the <code>source</code> command
+in the Linux operating system, explaining how it enables the current
+shell session to read, execute, and import variables from external
+files. By reading this guide, you will learn the core mechanics of the
+<code>source</code> command, why it differs from normal script
+execution, and how to effectively use it to maintain persistent
+configuration and environment variables across your shell workflows.</p>
+<hr />
+<h3 id="the-challenge-of-variable-persistence-in-bash">The Challenge of
+Variable Persistence in Bash</h3>
+<p>When you execute a shell script using standard invocation
+methods—such as <code>./script.sh</code> or
+<code>bash script.sh</code>—the operating system spawns a new, separate
+child process (a subshell).</p>
+<p>Any variables declared, modified, or exported inside that script
+exist only within the lifetime of that child process. Once the script
+finishes executing, the subshell terminates, and its memory space is
+destroyed. Consequently, any variables defined inside the file are not
+inherited by the parent shell where the command was initiated.</p>
+<h3 id="the-role-of-the-source-command">The Role of the
+<code>source</code> Command</h3>
+<p>The <code>source</code> command (represented alternatively by a
+single dot <code>.</code>) is a shell built-in command in Bash and other
+POSIX-compliant shells. Its primary role is to execute commands from a
+specified file directly within the <strong>current shell
+environment</strong>, rather than launching a subshell.</p>
+<p>When you use <code>source</code> to read a file containing variable
+definitions, the shell interprets the lines as if you had typed them
+directly into your current terminal prompt. As a result, all variables
+defined in that file remain active and accessible in your existing
+session.</p>
+<h3 id="basic-syntax-and-usage">Basic Syntax and Usage</h3>
+<p>The syntax for the command is straightforward:</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="bu">source</span> /path/to/filename</span></code></pre></div>
+<p>Or using the POSIX-compliant dot operator:</p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="bu">.</span> /path/to/filename</span></code></pre></div>
+<h4 id="example-scenario">Example Scenario</h4>
+<p>Consider a configuration file named <code>config.env</code>:</p>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co"># config.env</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="va">DB_HOST</span><span class="op">=</span><span class="st">&quot;localhost&quot;</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="va">DB_PORT</span><span class="op">=</span><span class="st">&quot;5432&quot;</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="va">API_KEY</span><span class="op">=</span><span class="st">&quot;xyz12345&quot;</span></span></code></pre></div>
+<p>If you execute this file directly:</p>
+<div class="sourceCode" id="cb4"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">bash</span> config.env</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="va">$DB_HOST</span></span></code></pre></div>
+<p>The output will be blank because <code>$DB_HOST</code> was created
+and destroyed in a subshell.</p>
+<p>If you import the variables using <code>source</code>:</p>
+<div class="sourceCode" id="cb5"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="bu">source</span> config.env</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="va">$DB_HOST</span></span></code></pre></div>
+<p>The output will immediately return:</p>
+<pre class="text"><code>localhost</code></pre>
+<h3 id="key-technical-differences-execution-vs-sourcing">Key Technical
+Differences: Execution vs. Sourcing</h3>
+<ol type="1">
+<li><strong>Process Context</strong>: Standard execution forks a child
+process; <code>source</code> runs within the existing process
+space.</li>
+<li><strong>File Permissions</strong>: To run a script normally, it must
+have execute permissions (<code>chmod +x</code>). To <code>source</code>
+a file, the user only requires <strong>read permissions</strong>
+(<code>r</code>), because the active shell process is simply reading and
+evaluating text lines from the target file.</li>
+<li><strong>Shell History and State</strong>: Modifying functions,
+aliases, and working directories (<code>cd</code>) inside a sourced file
+alters the state of your active shell, whereas executing the script
+leaves the current shell untouched.</li>
+</ol>
+<h3 id="common-use-cases">Common Use Cases</h3>
+<ul>
+<li><strong>Configuration Management</strong>: Sourcing
+<code>.env</code> files or centralized configuration settings into
+automation scripts.</li>
+<li><strong>Shell Initialization</strong>: Sourcing startup scripts such
+as <code>~/.bashrc</code>, <code>~/.bash_profile</code>, or
+<code>~/.zshrc</code> after making modifications, reloading
+configurations without restarting the terminal.</li>
+<li><strong>Virtual Environments</strong>: Activating Python virtual
+environments (<code>source venv/bin/activate</code>), which alters your
+current <code>$PATH</code> to point to local binaries rather than
+system-wide binaries.</li>
+</ul></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

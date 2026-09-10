@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How to Use pwmconfig for Linux Fan Speed Control - linux</title>
+    <meta name="description" content="The pwmconfig script is an interactive configuration utility bundled with the lm-sensors software package that enables automated fan speed control on Linux systems. This article explains the primary function of pwmconfig, how it tests hardware to correla">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-to-use-pwmconfig-for-linux-fan-speed-control">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How to Use pwmconfig for Linux Fan Speed Control - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-to-use-pwmconfig-for-linux-fan-speed-control" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="The pwmconfig script is an interactive configuration utility bundled with the lm-sensors software package that enables automated fan speed control on Linux systems. This article explains the primary function of pwmconfig, how it tests hardware to correla" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-to-use-pwmconfig-for-linux-fan-speed-control">How to Use
+pwmconfig for Linux Fan Speed Control</h1>
+<p>The <code>pwmconfig</code> script is an interactive configuration
+utility bundled with the <code>lm-sensors</code> software package that
+enables automated fan speed control on Linux systems. This article
+explains the primary function of <code>pwmconfig</code>, how it tests
+hardware to correlate system cooling fans with pulse-width modulation
+(PWM) outputs and temperature sensors, and how it outputs the necessary
+configuration file used by the background <code>fancontrol</code> daemon
+to dynamically adjust fan speeds.</p>
+<h3 id="what-is-the-pwmconfig-script">What is the pwmconfig Script?</h3>
+<p>In the Linux environment, low-level hardware monitoring is typically
+managed by the <code>lm-sensors</code> framework via the
+<code>sysfs</code> filesystem (located at
+<code>/sys/class/hwmon/</code>). While modern hardware often allows the
+operating system to regulate fan speeds via Pulse Width Modulation
+(PWM), manually identifying which PWM control corresponds to which
+physical fan and which temperature sensor is difficult.</p>
+<p>The <code>pwmconfig</code> script automates this discovery process.
+It acts as an interactive setup wizard that tests your system's fan
+controllers, helps you associate specific fans with specific motherboard
+or CPU temperature inputs, and defines thermal thresholds.</p>
+<h3 id="core-functions-of-pwmconfig">Core Functions of pwmconfig</h3>
+<p>The <code>pwmconfig</code> script performs several automated
+diagnostic and configuration tasks:</p>
+<ol type="1">
+<li><strong>Detection of PWM Controls and Fans:</strong> The script
+scans the system for supported hardware monitoring chips that expose PWM
+outputs (usually named <code>pwm1</code>, <code>pwm2</code>, etc.) and
+fan tachometers (named <code>fan1_input</code>, <code>fan2_input</code>,
+etc.).</li>
+<li><strong>Correlation Testing:</strong> To determine which PWM output
+controls which fan, <code>pwmconfig</code> cycles through each PWM
+channel, systematically changing the duty cycle value (from 255 down to
+0). It monitors the tachometer readings to observe which fan slows down
+or stops when a specific PWM value is altered.</li>
+<li><strong>Threshold Calibration:</strong> The script helps determine
+the minimum PWM value required to spin up each fan from a dead stop, as
+well as the minimum speed at which the fan can reliably run without
+stalling.</li>
+<li><strong>Sensor-to-Fan Mapping:</strong> Once fans and controllers
+are paired, the script prompts the user to link each fan to a specific
+temperature sensor (such as CPU core, GPU, or motherboard ambient
+sensors).</li>
+<li><strong>Configuration Generation:</strong> After establishing the
+desired temperature ranges (minimum and maximum operating temperatures),
+<code>pwmconfig</code> compiles these parameters into a structured
+configuration file, typically saved to
+<code>/etc/fancontrol</code>.</li>
+</ol>
+<h3 id="relationship-with-the-fancontrol-daemon">Relationship with the
+fancontrol Daemon</h3>
+<p>It is important to note that <code>pwmconfig</code> does not actively
+regulate fan speeds in real time. It is solely a configuration
+generation tool.</p>
+<p>Once <code>pwmconfig</code> has written <code>/etc/fancontrol</code>,
+the ongoing task of dynamic fan speed regulation falls to
+<code>fancontrol</code>, a background daemon. When enabled as a
+<code>systemd</code> service, <code>fancontrol</code> reads the
+configuration generated by <code>pwmconfig</code>, monitors system
+temperatures continuously, and dynamically adjusts the PWM duty cycles
+according to the thermal curves defined during setup.</p>
+<h3 id="prerequisites-and-safety-considerations">Prerequisites and
+Safety Considerations</h3>
+<p>To execute <code>pwmconfig</code>, the system must already have
+hardware monitoring drivers loaded. Users typically must run
+<code>sensors-detect</code> first to ensure the kernel recognizes the
+onboard monitoring chips.</p>
+<p>Because <code>pwmconfig</code> temporarily stops fans during its
+diagnostic cycle to correlate controllers with tachometers, it should be
+executed with root privileges (<code>sudo pwmconfig</code>) when the
+system is idle. Stopping cooling fans during intensive workloads can
+lead to rapid thermal buildup. If a system lacks compatible driver
+support for its hardware monitoring chip, <code>pwmconfig</code> will
+notify the user that no PWM-capable sensors were detected.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

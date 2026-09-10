@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linux Network Disk Cloning Using Clonezilla - linux</title>
+    <meta name="description" content="Clonezilla utilizes the underlying Linux operating system to capture, compress, and stream raw block-level disk data across a local area network to remote storage or multiple client machines simultaneously. By combining specialized low-level disk utiliti">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/linux-network-disk-cloning-using-clonezilla">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Linux Network Disk Cloning Using Clonezilla - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/linux-network-disk-cloning-using-clonezilla" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="Clonezilla utilizes the underlying Linux operating system to capture, compress, and stream raw block-level disk data across a local area network to remote storage or multiple client machines simultaneously. By combining specialized low-level disk utiliti" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="linux-network-disk-cloning-using-clonezilla">Linux Network Disk
+Cloning Using Clonezilla</h1>
+<p>Clonezilla utilizes the underlying Linux operating system to capture,
+compress, and stream raw block-level disk data across a local area
+network to remote storage or multiple client machines simultaneously. By
+combining specialized low-level disk utilities, network file protocols,
+and efficient network streaming tools like UDPcast, Linux transforms
+Clonezilla into a high-performance deployment engine capable of unicast
+and multicast imaging with minimal resource overhead.</p>
+<h3 id="core-architecture-and-underlying-linux-tools">Core Architecture
+and Underlying Linux Tools</h3>
+<p>Clonezilla is not an independent operating system; it is a
+specialized Linux distribution (typically based on Debian or Ubuntu)
+packaged with disk management utilities. Rather than operating at the
+file level like standard backup software, it operates at the block
+level.</p>
+<p>To achieve this, the Linux kernel loads necessary storage controller
+drivers to expose drives as block devices (such as <code>/dev/sda</code>
+or <code>/dev/nvme0n1</code>). Clonezilla then uses specific tools
+depending on the filesystem:</p>
+<ul>
+<li><strong>Partclone:</strong> The primary engine used for supported
+filesystems (ext2/3/4, XFS, Btrfs, NTFS, FAT). Partclone queries the
+filesystem metadata directly through the Linux VFS or specific
+filesystem libraries to identify which blocks contain data and which are
+marked as free space. It reads only the used blocks, drastically
+reducing image size.</li>
+<li><strong>Partimage and ntfsclone:</strong> Secondary tools used for
+older or specialized partition formats.</li>
+<li><strong>dd:</strong> A fallback utility used when an unknown,
+encrypted, or corrupted filesystem is detected. The Linux
+<code>dd</code> command executes a sector-by-sector copy, cloning both
+used and unused space.</li>
+</ul>
+<h3 id="network-storage-integration">Network Storage Integration</h3>
+<p>When capturing or restoring an image over a network in standard
+Clonezilla Live mode, Linux mounts remote network storage locally using
+standard Linux networking subsystems:</p>
+<ol type="1">
+<li><strong>Network Configuration:</strong> The system initializes
+network interfaces via DHCP or static IP configuration using tools like
+<code>iproute2</code> or standard network scripts.</li>
+<li><strong>Mounting Remote Targets:</strong> The target storage is
+mounted directly to a local directory (traditionally
+<code>/home/partimag</code>). Linux handles this using:
+<ul>
+<li><strong>NFS (Network File System):</strong> Low-overhead, native
+UNIX protocol providing the fastest throughput.</li>
+<li><strong>Samba/CIFS:</strong> Used to store or retrieve images from
+Windows-based network shares.</li>
+<li><strong>SSH/SFTP:</strong> Encrypted transfer handling via
+OpenSSH.</li>
+<li><strong>WebDAV / S3:</strong> Handled via user-space network
+filesystems.</li>
+</ul></li>
+</ol>
+<p>Once mounted, the disk-cloning pipeline writes directly to or reads
+directly from this mounted path as if it were a local disk.</p>
+<h3 id="the-streaming-pipeline">The Streaming Pipeline</h3>
+<p>Linux handles disk cloning via standard Unix pipelines, feeding data
+seamlessly from the disk to the network without intermediate local
+staging:</p>
+<ol type="1">
+<li><strong>Reading:</strong> Partclone reads data blocks from
+<code>/dev/sdX</code>.</li>
+<li><strong>Compression:</strong> The stream is piped through a
+multi-threaded compression algorithm (such as <code>pigz</code> for
+gzip, <code>pixz</code> for xz, or <code>zstd</code>). Linux schedules
+these compression threads across available CPU cores.</li>
+<li><strong>Transmission:</strong> The compressed stream is written
+through the network mount point over TCP/IP to the storage server.</li>
+</ol>
+<p>During a restore operation, this pipeline is reversed: data is pulled
+from the network share, decompressed on the fly in RAM, and written
+sequentially to the local block device.</p>
+<h3 id="mass-deployment-multicast-and-clonezilla-server-drbl">Mass
+Deployment: Multicast and Clonezilla Server (DRBL)</h3>
+<p>For mass deployment to dozens or hundreds of machines, unicast TCP
+traffic quickly saturates network links. In these scenarios, the
+Clonezilla Server Edition operates on top of DRBL (Diskless Remote Boot
+in Linux).</p>
+<ul>
+<li><strong>PXE Booting:</strong> Target clients boot via Preboot
+Execution Environment (PXE). The Linux server delivers an IP address via
+DHCP, a bootloader via TFTP, and a minimal Linux kernel and initramfs
+via HTTP, NFS, or TFTP.</li>
+<li><strong>UDPcast:</strong> Instead of point-to-point TCP connections,
+the Linux server executes <code>udp-sender</code>, and each client runs
+<code>udp-receiver</code>.</li>
+<li><strong>Multicast Streaming:</strong> The server reads the disk
+image from storage and broadcasts the packets across the local subnet
+using UDP. Every client listening to the multicast group receives the
+same data packets simultaneously. If a client drops a packet, UDPcast
+coordinates retransmission without requiring the entire stream to
+restart, allowing a single server to clone identical operating system
+images to an entire network simultaneously without increasing network
+bandwidth linearly.</li>
+</ul></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

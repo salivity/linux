@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linux Hardware Interrupt Management with APIC - linux</title>
+    <meta name="description" content="This article explores how the modern Linux operating system handles hardware interrupts through the Advanced Programmable Interrupt Controller (APIC) architecture. It covers the dual roles of the I/O APIC and Local APIC, the hardware-to-kernel routing pi">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/linux-hardware-interrupt-management-with-apic">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Linux Hardware Interrupt Management with APIC - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/linux-hardware-interrupt-management-with-apic" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="This article explores how the modern Linux operating system handles hardware interrupts through the Advanced Programmable Interrupt Controller (APIC) architecture. It covers the dual roles of the I/O APIC and Local APIC, the hardware-to-kernel routing pi" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="linux-hardware-interrupt-management-with-apic">Linux Hardware
+Interrupt Management with APIC</h1>
+<p>This article explores how the modern Linux operating system handles
+hardware interrupts through the Advanced Programmable Interrupt
+Controller (APIC) architecture. It covers the dual roles of the I/O APIC
+and Local APIC, the hardware-to-kernel routing pipeline, interrupt
+distribution across multi-core symmetric multiprocessing (SMP) systems,
+and the execution workflow from initial signal reception to deferred
+kernel processing.</p>
+<h2 id="the-apic-architecture-io-apic-vs-local-apic">The APIC
+Architecture: I/O APIC vs. Local APIC</h2>
+<p>Legacy systems relied on the 8259 PIC (Programmable Interrupt
+Controller), which supported limited interrupt lines and lacked
+multi-core coordination. The modern x86 APIC architecture replaces this
+legacy system by splitting responsibilities into two distinct
+components:</p>
+<ul>
+<li><strong>Local APIC (LAPIC):</strong> Integrated directly into each
+CPU core. The LAPIC is responsible for delivering interrupts to its
+specific core, managing local interrupt priorities via registers,
+handling local timer interrupts, and dispatching Inter-Processor
+Interrupts (IPIs) for multi-core coordination (such as TLB shootdowns
+and CPU rescheduling).</li>
+<li><strong>I/O APIC:</strong> Integrated into the chipset/system bus.
+The I/O APIC receives physical interrupt lines from external hardware
+peripherals (such as disk controllers and network cards) and routes
+these signals across the system bus to one or more LAPICs.</li>
+</ul>
+<p>Modern high-performance devices often bypass the physical pin
+connections of the I/O APIC using Message Signaled Interrupts (MSI and
+MSI-X). MSI devices write interrupt vectors directly to target Local
+APICs over the PCIe bus, significantly reducing latency and eliminating
+physical pin contention.</p>
+<h2 id="kernel-initialization-and-hardware-discovery">Kernel
+Initialization and Hardware Discovery</h2>
+<p>During system boot, the Linux kernel determines the topology of the
+system's interrupt hardware using ACPI (Advanced Configuration and Power
+Interface) tables, specifically the Multiple APIC Description Table
+(MADT).</p>
+<ol type="1">
+<li><strong>Enumeration:</strong> Linux parses the MADT to locate the
+base memory-mapped I/O (MMIO) addresses for all available I/O APICs and
+Local APICs.</li>
+<li><strong>Vector Mapping:</strong> The kernel assigns architectural
+interrupt vectors (ranging from 32 to 255 on x86, as 0 to 31 are
+reserved for CPU exceptions) to specific hardware IRQs.</li>
+<li><strong>Redirection Table Programming:</strong> Each pin on an I/O
+APIC corresponds to an entry in its Redirection Table. Linux programs
+these registers with the target interrupt vector, the delivery mode, and
+the target Local APIC ID.</li>
+</ol>
+<h2 id="interrupt-routing-and-cpu-affinity">Interrupt Routing and CPU
+Affinity</h2>
+<p>In multi-core systems, the Linux kernel leverages the APIC structure
+to distribute interrupt processing loads across available cores.</p>
+<ul>
+<li><strong>IRQ Affinity:</strong> Every IRQ registered in the kernel
+exposes an entry in the virtual filesystem under
+<code>/proc/irq/[IRQ_NUMBER]/smp_affinity</code>. Linux administrators
+or background daemons (such as <code>irqbalance</code>) write bitmasks
+to these files to specify which CPU cores are allowed to service a
+specific interrupt.</li>
+<li><strong>Delivery Modes:</strong> The I/O APIC can be configured for
+fixed delivery (sending the interrupt strictly to a designated LAPIC) or
+lowest-priority delivery (directing the interrupt to the processor
+running at the lowest priority according to its Task Priority
+Register).</li>
+</ul>
+<h2 id="the-interrupt-processing-lifecycle">The Interrupt Processing
+Lifecycle</h2>
+<p>When an external hardware device requires CPU attention, the
+execution follows a deterministic path through the APIC and the
+kernel:</p>
+<ol type="1">
+<li><strong>Signal Generation:</strong> The peripheral triggers an
+interrupt line on the I/O APIC or sends an MSI packet directly targeting
+a LAPIC.</li>
+<li><strong>LAPIC Arbitrament:</strong> The target core's LAPIC checks
+the incoming vector against its Task Priority Register (TPR) and
+Processor Priority Register (PPR). If the priority is higher than the
+current execution level, the LAPIC interrupts the CPU core.</li>
+<li><strong>IDT Lookup:</strong> The CPU uses the assigned vector number
+as an index into the Interrupt Descriptor Table (IDT). The IDT points
+directly to the kernel's low-level architecture interrupt entry
+point.</li>
+<li><strong>Top-Half Execution (Hard IRQ):</strong> The kernel saves the
+current register state, disables local interrupts on that core, and
+executes the registered Interrupt Service Routine (ISR). This step
+performs only the minimum critical operations needed, such as reading
+device registers and acknowledging the hardware state.</li>
+<li><strong>End of Interrupt (EOI):</strong> The kernel writes an End of
+Interrupt (EOI) command to the Local APIC's EOI register. This signals
+the APIC that the current interrupt has been accepted, unblocking
+subsequent interrupts of equal or lower priority.</li>
+<li><strong>Bottom-Half Execution (Soft IRQ):</strong> To prevent system
+latency, any extensive work (such as copying network packets into memory
+structures) is deferred to "bottom-half" mechanisms—predominantly
+<code>softirqs</code>, <code>tasklets</code>, or dedicated kernel
+threads known as <code>threaded_irqs</code>. Once the top half finishes,
+local interrupts are re-enabled, and the kernel processes these deferred
+queues.</li>
+</ol></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

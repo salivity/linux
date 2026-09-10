@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>What Is Preemptive Scheduling in Linux? - linux</title>
+    <meta name="description" content="This article provides a comprehensive overview of preemptive scheduling within the Linux operating system, explaining its core mechanisms, internal implementation, and architectural significance. Readers will learn how the Linux kernel forcibly pauses ex">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/what-is-preemptive-scheduling-in-linux">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="What Is Preemptive Scheduling in Linux? - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/what-is-preemptive-scheduling-in-linux" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="This article provides a comprehensive overview of preemptive scheduling within the Linux operating system, explaining its core mechanisms, internal implementation, and architectural significance. Readers will learn how the Linux kernel forcibly pauses ex" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="what-is-preemptive-scheduling-in-linux">What Is Preemptive
+Scheduling in Linux?</h1>
+<p>This article provides a comprehensive overview of preemptive
+scheduling within the Linux operating system, explaining its core
+mechanisms, internal implementation, and architectural significance.
+Readers will learn how the Linux kernel forcibly pauses executing
+processes to allocate CPU time to other tasks, the distinction between
+user and kernel preemption, the role of modern schedulers like the
+Completely Fair Scheduler (CFS) and EEVDF, and the practical benefits
+this scheduling model brings to system responsiveness and
+multitasking.</p>
+<h2 id="understanding-preemptive-scheduling">Understanding Preemptive
+Scheduling</h2>
+<p>Preemptive scheduling is an operating system mechanism where the
+kernel can interrupt a currently running task to reallocate the CPU to
+another task with higher priority or greater scheduling need. Unlike
+cooperative scheduling, which requires a running program to voluntarily
+yield CPU control, preemptive scheduling guarantees that no single
+process can indefinitely monopolize system resources.</p>
+<p>The primary goal of preemption in Linux is to maintain fairness,
+maximize throughput, and ensure real-time responsiveness for interactive
+applications.</p>
+<h2 id="how-preemption-works-in-linux">How Preemption Works in
+Linux</h2>
+<p>Linux achieves preemptive multitasking through a combination of
+hardware timer interrupts and software-defined priority metrics:</p>
+<ol type="1">
+<li><strong>Timer Interrupts:</strong> The hardware timer fires periodic
+interrupts (ticks) at defined frequencies (typically 100Hz to 1000Hz).
+During each tick, the kernel's scheduler updates runtime statistics for
+the currently active task.</li>
+<li><strong>Scheduling Metrics:</strong> The scheduler tracks process
+metrics such as virtual runtime (<code>vruntime</code>) under schedulers
+like the Completely Fair Scheduler (CFS) or Earliest Eligible Virtual
+Deadline First (EEVDF). If a task has exhausted its allocated time slice
+or another task becomes eligible and has higher urgency, the kernel
+marks the current task for rescheduling.</li>
+<li><strong>Context Switching:</strong> When preemption occurs, the
+kernel saves the current state (registers, program counter, and stack
+pointer) of the preempted task into its Process Control Block
+(<code>task_struct</code>). It then loads the saved state of the next
+task chosen from the runqueue, shifting CPU execution seamlessly.</li>
+</ol>
+<h2 id="user-vs-kernel-preemption">User vs. Kernel Preemption</h2>
+<p>Linux handles preemption at two distinct levels: user space and
+kernel space.</p>
+<h3 id="user-preemption">User Preemption</h3>
+<p>User preemption occurs when a process is executing its own code in
+user mode. The kernel can preempt this process when:</p>
+<ul>
+<li>It returns from a system call back to user space.</li>
+<li>It returns from an interrupt handler back to user space.</li>
+</ul>
+<p>Before execution returns to user mode, the kernel checks the
+<code>TIF_NEED_RESCHED</code> flag. If this flag is set, the scheduler
+invokes a context switch before the user application resumes
+execution.</p>
+<h3 id="kernel-preemption">Kernel Preemption</h3>
+<p>Historically, Linux was non-preemptive in kernel mode: once a process
+entered kernel space via a system call, it could not be interrupted by
+another process until the call completed or it explicitly blocked.</p>
+<p>Since Linux 2.6, the kernel supports kernel preemption (configurable
+via <code>CONFIG_PREEMPT</code>). This allows the scheduler to preempt a
+task even while it is executing kernel code, provided the task does not
+hold critical locks. The kernel uses a <code>preempt_count</code>
+counter in each process descriptor. When code enters a critical section
+protected by a spinlock, <code>preempt_count</code> increments, blocking
+preemption. Once the lock is released, the count decrements, enabling
+preemption again once the counter reaches zero.</p>
+<p>Linux offers several kernel preemption models at compile-time:</p>
+<ul>
+<li><strong>No Forced Preemption
+(<code>CONFIG_PREEMPT_NONE</code>):</strong> Optimized for raw
+throughput, ideal for compute-heavy server workloads.</li>
+<li><strong>Preemptible Kernel for Desktop
+(<code>CONFIG_PREEMPT</code>):</strong> Enhances desktop responsiveness
+by preempting kernel tasks whenever possible.</li>
+<li><strong>Real-Time (<code>PREEMPT_RT</code>):</strong> Converts
+almost all kernel spinlocks into sleepable locks, guaranteeing
+predictable, ultra-low latency for time-critical workloads.</li>
+</ul>
+<h2 id="key-advantages-in-linux">Key Advantages in Linux</h2>
+<ul>
+<li><strong>High Responsiveness:</strong> Background tasks cannot freeze
+the interface; interactive user input receives immediate processing
+time.</li>
+<li><strong>Starvation Prevention:</strong> Every process receives an
+equitable share of the processor based on its priority
+(<code>nice</code> level).</li>
+<li><strong>Graceful Error Recovery:</strong> If an application enters
+an infinite loop, preemptive scheduling allows the operating system and
+user utilities to retain control and terminate the offending
+process.</li>
+</ul></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

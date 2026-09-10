@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linux 802.1Q VLAN Tagging on Physical Interfaces - linux</title>
+    <meta name="description" content="The Linux operating system manages IEEE 802.1Q Virtual Local Area Network (VLAN) tagging by creating virtual network devices layered directly over physical network interfaces. This mechanism is powered by the Linux kernel's networking subsystem and the d">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/linux-802-1q-vlan-tagging-on-physical-interfaces">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Linux 802.1Q VLAN Tagging on Physical Interfaces - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/linux-802-1q-vlan-tagging-on-physical-interfaces" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="The Linux operating system manages IEEE 802.1Q Virtual Local Area Network (VLAN) tagging by creating virtual network devices layered directly over physical network interfaces. This mechanism is powered by the Linux kernel's networking subsystem and the d" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="linux-8021q-vlan-tagging-on-physical-interfaces">Linux 802.1Q
+VLAN Tagging on Physical Interfaces</h1>
+<p>The Linux operating system manages IEEE 802.1Q Virtual Local Area
+Network (VLAN) tagging by creating virtual network devices layered
+directly over physical network interfaces. This mechanism is powered by
+the Linux kernel's networking subsystem and the dedicated
+<code>8021q</code> module, which processes tagged Ethernet frames,
+manipulates packet headers, and leverages network interface card (NIC)
+hardware acceleration. The following sections explain the underlying
+architecture, packet egress and ingress paths, user-space configuration,
+and hardware offloading capabilities.</p>
+<h3 id="the-8021q-kernel-architecture">The 802.1Q Kernel
+Architecture</h3>
+<p>At the core of Linux VLAN handling is the <code>8021q</code> kernel
+module. When loaded, it registers the <code>vlan</code> device type with
+the kernel's network core. Rather than reconfiguring the physical
+interface itself to handle multi-tenant traffic internally, Linux
+introduces a parent-child device model:</p>
+<ul>
+<li><strong>Physical Interface (Parent):</strong> The raw network device
+(such as <code>eth0</code> or <code>enp3s0</code>) acts as the trunk
+port. It receives and transmits raw Ethernet frames directly over the
+wire.</li>
+<li><strong>VLAN Sub-Interface (Child):</strong> A virtual network
+interface (such as <code>eth0.100</code> or <code>vlan100</code>)
+represents traffic restricted to a specific VLAN ID (VID). The
+sub-interface maintains its own IP addresses, MAC address, routing
+tables, and firewall rules while depending on the parent device for
+actual physical transmission.</li>
+</ul>
+<h3 id="egress-processing-transmitting-frames">Egress Processing
+(Transmitting Frames)</h3>
+<p>When an application sends data out of a VLAN sub-interface (e.g.,
+<code>eth0.100</code>), the Linux network stack processes the packet
+through the following sequence:</p>
+<ol type="1">
+<li><strong>Routing and Socket Allocation:</strong> The routing table
+directs outbound packets to the virtual device interface
+(<code>eth0.100</code>).</li>
+<li><strong>Socket Buffer (<code>sk_buff</code>) Tagging:</strong> The
+kernel prepares the packet buffer (<code>sk_buff</code>). It populates
+the 4-byte 802.1Q header fields:
+<ul>
+<li><strong>Tag Protocol Identifier (TPID):</strong> Defaults to
+<code>0x8100</code>.</li>
+<li><strong>Priority Code Point (PCP):</strong> 3 bits mapping Quality
+of Service (QoS) priorities from the socket.</li>
+<li><strong>Drop Eligible Indicator (DEI):</strong> 1 bit indicating
+frame drop priority during congestion.</li>
+<li><strong>VLAN Identifier (VID):</strong> 12 bits identifying the
+specific VLAN (ranging from 1 to 4094).</li>
+</ul></li>
+<li><strong>Software vs. Hardware Insertion:</strong> If hardware
+offloading is disabled, the kernel modifies the packet payload directly
+by inserting the 4-byte tag into the Ethernet header before passing it
+down. If hardware offloading is enabled, the kernel stores the VLAN
+metadata inside the <code>sk_buff</code> descriptor rather than altering
+the frame payload.</li>
+<li><strong>Transmission:</strong> The packet is handed over to the
+physical interface's queue discipline (<code>qdisc</code>) and
+dispatched through the device driver.</li>
+</ol>
+<h3 id="ingress-processing-receiving-frames">Ingress Processing
+(Receiving Frames)</h3>
+<p>When the physical network interface receives an 802.1Q tagged
+Ethernet frame from the wire:</p>
+<ol type="1">
+<li><strong>Frame Capture:</strong> The physical driver places the
+received frame into an allocated <code>sk_buff</code>.</li>
+<li><strong>VLAN Demultiplexing:</strong> In the core reception path
+(<code>__netif_receive_skb_core</code>), the kernel inspects the frame.
+If the frame contains an 802.1Q tag, the kernel extracts the VID.</li>
+<li><strong>Interface Lookup:</strong> The kernel searches an internal
+hash table for a child VLAN interface associated with both the parent
+interface and the extracted VID.</li>
+<li><strong>Stripping and Repath:</strong>
+<ul>
+<li>If a matching VLAN device is found, the kernel strips the 802.1Q tag
+from the header (or retrieves it from hardware offload registers),
+updates the packet's receive device pointer from <code>eth0</code> to
+<code>eth0.100</code>, and loops back into the packet processing
+stack.</li>
+<li>If no matching interface exists and no bridge or raw packet socket
+is listening for untracked tags, the packet is discarded.</li>
+</ul></li>
+<li><strong>Upper-Layer Processing:</strong> The untagged frame is
+passed upward to layer 3 (IPv4/IPv6) as if it arrived natively on a
+standard physical interface.</li>
+</ol>
+<h3 id="hardware-offloading-acceleration">Hardware Offloading
+(Acceleration)</h3>
+<p>Software insertion and removal of the 4-byte 802.1Q header incurs CPU
+overhead due to memory copies and packet resizing. Modern NICs mitigate
+this via hardware offloading:</p>
+<ul>
+<li><strong>TX VLAN Insertion:</strong> The kernel passes an untagged
+packet to the NIC driver along with the VLAN tag stored in the
+<code>sk_buff-&gt;vlan_tci</code> field. The NIC's onboard ASIC inserts
+the 802.1Q tag into the frame header in hardware right as it hits the
+physical wire.</li>
+<li><strong>RX VLAN Stripping:</strong> The NIC identifies the 802.1Q
+header upon frame reception, strips the tag from the payload, and writes
+the tag value into the hardware packet descriptor. The driver reads this
+value and marks the <code>sk_buff</code> accordingly, delivering an
+untagged packet to the CPU.</li>
+</ul>
+<p>These offload capabilities can be queried and managed using
+<code>ethtool</code>:</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co"># View offload status</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="ex">ethtool</span> <span class="at">-k</span> eth0 <span class="kw">|</span> <span class="fu">grep</span> vlan</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Enable hardware TX/RX VLAN offloading</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="ex">ethtool</span> <span class="at">-K</span> eth0 tx-vlan-hw-insert on</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="ex">ethtool</span> <span class="at">-K</span> eth0 rx-vlan-hw-parse on</span></code></pre></div>
+<h3 id="configuration-via-iproute2">Configuration via iproute2</h3>
+<p>Linux manages VLAN interfaces natively via the modern <code>ip</code>
+utility. To create, activate, and manage an 802.1Q VLAN interface:</p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Ensure the 8021q module is loaded</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="ex">modprobe</span> 8021q</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Create a VLAN sub-interface for VLAN ID 50 on eth0</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="ex">ip</span> link add link eth0 name eth0.50 type vlan id 50</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Assign an IP address to the VLAN interface</span></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a><span class="ex">ip</span> addr add 192.168.50.2/24 dev eth0.50</span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a><span class="co"># Bring the physical and VLAN interfaces up</span></span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a><span class="ex">ip</span> link set dev eth0 up</span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a><span class="ex">ip</span> link set dev eth0.50 up</span></code></pre></div>
+<p>Through this abstraction, Linux provides a scalable,
+standards-compliant way to segment traffic without requiring multiple
+physical adapters.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

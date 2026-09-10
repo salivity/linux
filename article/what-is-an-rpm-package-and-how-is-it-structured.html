@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>What Is an RPM Package and How Is It Structured? - linux</title>
+    <meta name="description" content="An RPM package is the standard software distribution and installation format used by Red Hat Enterprise Linux and its derived distributions. This article explains what an RPM package is, its role in Linux software management, its file naming conventions,">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/what-is-an-rpm-package-and-how-is-it-structured">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="What Is an RPM Package and How Is It Structured? - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/what-is-an-rpm-package-and-how-is-it-structured" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="An RPM package is the standard software distribution and installation format used by Red Hat Enterprise Linux and its derived distributions. This article explains what an RPM package is, its role in Linux software management, its file naming conventions," />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="what-is-an-rpm-package-and-how-is-it-structured">What Is an RPM
+Package and How Is It Structured?</h1>
+<p>An RPM package is the standard software distribution and installation
+format used by Red Hat Enterprise Linux and its derived distributions.
+This article explains what an RPM package is, its role in Linux software
+management, its file naming conventions, and a detailed breakdown of its
+internal architectural structure—from the legacy lead to the compressed
+payload containing the software files.</p>
+<h2 id="what-is-an-rpm-package">What Is an RPM Package?</h2>
+<p>RPM, which stands for RPM Package Manager (originally Red Hat Package
+Manager), is a package management system designed for Linux operating
+systems. An RPM package is essentially an archive file containing the
+files that make up a software application, along with metadata required
+for installation, upgrading, verification, and removal.</p>
+<p>Distributions that use the RPM format include Red Hat Enterprise
+Linux (RHEL), Fedora, CentOS, AlmaLinux, Rocky Linux, and openSUSE.
+These systems use higher-level package managers like <code>dnf</code> or
+<code>zypper</code> to resolve dependencies, but the underlying packages
+installed on the system are RPM files.</p>
+<h3 id="rpm-naming-convention">RPM Naming Convention</h3>
+<p>RPM files typically follow a strict naming convention:</p>
+<p><code>name-version-release.architecture.rpm</code></p>
+<p>For example, in <code>httpd-2.4.51-1.el9.x86_64.rpm</code>:</p>
+<ul>
+<li><strong>Name:</strong> <code>httpd</code> (the software
+program)</li>
+<li><strong>Version:</strong> <code>2.4.51</code> (upstream source
+software version)</li>
+<li><strong>Release:</strong> <code>1.el9</code> (the build/packaging
+release for Enterprise Linux 9)</li>
+<li><strong>Architecture:</strong> <code>x86_64</code> (the target
+hardware processor architecture)</li>
+</ul>
+<h2 id="the-internal-structure-of-an-rpm-file">The Internal Structure of
+an RPM File</h2>
+<p>Under the hood, an RPM package is a binary file composed of four
+distinct sections arranged sequentially:</p>
+<h3 id="1-the-lead">1. The Lead</h3>
+<p>The Lead is a fixed-size, 96-byte header located at the very
+beginning of the RPM file. Originally created to identify the file
+format to the operating system's <code>file</code> command, it
+contains:</p>
+<ul>
+<li><strong>Magic Number:</strong> Identifies the file as an RPM archive
+(<code>\xed\xab\xee\xdb</code>).</li>
+<li><strong>RPM Version:</strong> The version of the RPM file format
+used to build the package.</li>
+<li><strong>Package Type:</strong> Indicates whether the package is a
+binary package (0) or a source package (1).</li>
+<li><strong>Architecture and OS tags:</strong> Legacy indicators for the
+target platform.</li>
+</ul>
+<p><em>Note: Modern RPM utilities largely ignore the information in the
+Lead (aside from the magic number) in favor of data found in the Header
+section.</em></p>
+<h3 id="2-the-signature">2. The Signature</h3>
+<p>The Signature section ensures the integrity and authenticity of the
+package. It allows the system administrator or package manager to verify
+that the package has not been corrupted and was issued by a trusted
+vendor.</p>
+<ul>
+<li>It uses an implementation of the OpenPGP standard (GPG keys) or
+checksums (such as SHA-256 or MD5).</li>
+<li>It contains an index and store structure, similar to the main
+Header, containing records that hash or sign the contents of the Header
+and Payload sections.</li>
+</ul>
+<h3 id="3-the-header-metadata">3. The Header (Metadata)</h3>
+<p>The Header contains all the operational metadata describing the
+package. This section is parsed by package managers like RPM, YUM, or
+DNF to evaluate compatibility and dependencies without extracting the
+software. It includes:</p>
+<ul>
+<li><strong>Identification Data:</strong> Package name, version,
+release, summary, and license.</li>
+<li><strong>Dependencies:</strong> Lists of capabilities the package
+requires (<code>Requires</code>), provides (<code>Provides</code>), or
+conflicts with (<code>Conflicts</code>).</li>
+<li><strong>File Lists:</strong> The absolute destination paths,
+permissions, owners, and checksums of every file included in the
+payload.</li>
+<li><strong>Pre/Post-Install Scripts:</strong> Shell scripts executed at
+various stages of the installation lifecycle (e.g., <code>%pre</code>,
+<code>%post</code>, <code>%preun</code>, and <code>%postun</code>).</li>
+</ul>
+<h3 id="4-the-payload">4. The Payload</h3>
+<p>The Payload contains the actual files to be installed on the
+operating system.</p>
+<ul>
+<li>The payload is packaged as a standard <code>cpio</code>
+archive.</li>
+<li>The <code>cpio</code> archive is compressed to save disk space and
+bandwidth. Standard compression algorithms include <code>gzip</code>,
+<code>bzip2</code>, <code>xz</code>, or <code>zstd</code>.</li>
+<li>When an installation occurs, the RPM tool decompresses the payload
+and streams the <code>cpio</code> archive directly to the filesystem
+paths mapped out in the Header.</li>
+</ul></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

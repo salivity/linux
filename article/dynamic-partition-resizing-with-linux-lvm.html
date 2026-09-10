@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dynamic Partition Resizing with Linux LVM - linux</title>
+    <meta name="description" content="Logical Volume Management (LVM) provides an abstraction layer over physical storage in Linux, replacing rigid, traditional disk partitioning schemes with flexible virtual allocations. This architecture allows system administrators to dynamically expand o">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/dynamic-partition-resizing-with-linux-lvm">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Dynamic Partition Resizing with Linux LVM - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/dynamic-partition-resizing-with-linux-lvm" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="Logical Volume Management (LVM) provides an abstraction layer over physical storage in Linux, replacing rigid, traditional disk partitioning schemes with flexible virtual allocations. This architecture allows system administrators to dynamically expand o" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="dynamic-partition-resizing-with-linux-lvm">Dynamic Partition
+Resizing with Linux LVM</h1>
+<p>Logical Volume Management (LVM) provides an abstraction layer over
+physical storage in Linux, replacing rigid, traditional disk
+partitioning schemes with flexible virtual allocations. This
+architecture allows system administrators to dynamically expand or
+shrink storage boundaries without rebooting the system or reformatting
+drives. By decoupling the operating system's file systems from the
+underlying physical hardware, LVM makes on-the-fly storage
+reconfiguration safe, scalable, and seamless.</p>
+<h3 id="the-abstraction-layers-of-lvm">The Abstraction Layers of
+LVM</h3>
+<p>Traditional partitioning maps a filesystem directly to a contiguous
+block of sectors on a single physical drive. If that block runs out of
+space and the adjacent sectors are occupied, the partition cannot
+expand. LVM resolves this limitation by dividing storage into three
+distinct layers:</p>
+<ol type="1">
+<li><strong>Physical Volumes (PVs):</strong> The raw storage devices,
+such as hard drives, solid-state drives, or standard partitions (e.g.,
+<code>/dev/sdb1</code>), initialized for use by LVM.</li>
+<li><strong>Volume Groups (VGs):</strong> A storage pool created by
+combining one or more PVs. The VG aggregates the total capacity of all
+assigned physical disks into a single shared reservoir.</li>
+<li><strong>Logical Volumes (LVs):</strong> Virtual partitions carved
+out of a Volume Group. The operating system mounts these volumes just
+like standard block devices (e.g., <code>/dev/vg_name/lv_name</code>),
+hosting filesystems such as ext4 or XFS.</li>
+</ol>
+<h3 id="physical-extents-the-building-blocks">Physical Extents: The
+Building Blocks</h3>
+<p>The core mechanism enabling dynamic resizing is the <strong>Physical
+Extent (PE)</strong>. When a Volume Group is created, its total storage
+pool is divided into small, uniform chunks known as extents—typically 4
+megabytes in size by default.</p>
+<p>When you allocate or resize a Logical Volume, LVM assigns or removes
+these extents. Crucially, extents allocated to a single Logical Volume
+do not need to be physically contiguous, nor do they need to reside on
+the same physical disk. LVM maintains an internal mapping table that
+translates continuous logical addresses requested by the operating
+system into scattered physical extents across the underlying drives.</p>
+<h3 id="how-dynamic-expansion-works">How Dynamic Expansion Works</h3>
+<p>Dynamic expansion occurs in two synchronized phases: expanding the
+block device via LVM, and expanding the filesystem hosted on that
+device.</p>
+<ol type="1">
+<li><strong>Allocating Additional Extents:</strong> When an
+administrator issues an expansion command (such as
+<code>lvextend</code>), LVM checks the parent Volume Group for
+unallocated Physical Extents. It assigns the requested number of extents
+to the target Logical Volume and updates its mapping metadata instantly,
+with no interruption to active read/write operations.</li>
+<li><strong>Expanding Past Physical Disk Limits:</strong> If a Volume
+Group runs out of free extents, a new physical drive can be initialized
+as a PV and appended to the existing VG using <code>vgextend</code>. The
+existing Logical Volumes can then immediately consume space from this
+newly added drive, spanning across entirely separate physical disks
+without interrupting users.</li>
+<li><strong>Filesystem Growth:</strong> Once the Logical Volume is
+enlarged, the filesystem layer must recognize the new boundaries. Modern
+Linux filesystems (like ext4 via <code>resize2fs</code> or XFS via
+<code>xfs_growfs</code>) support online resizing, allowing them to
+expand across the newly allocated extents while actively mounted.</li>
+</ol>
+<h3 id="how-dynamic-reduction-works">How Dynamic Reduction Works</h3>
+<p>LVM also supports shrinking storage, provided the underlying
+filesystem allows it. Unlike expansion, reduction must occur in reverse
+order to prevent data corruption:</p>
+<ol type="1">
+<li><strong>Filesystem Reduction:</strong> The filesystem must first be
+shrunk to ensure that no active data resides in the blocks scheduled for
+removal. Note that while ext4 supports shrinking, it typically requires
+unmounting, and some filesystems (like XFS) do not support shrinking at
+all.</li>
+<li><strong>Reclaiming Extents:</strong> Once the filesystem is safely
+scaled down, <code>lvreduce</code> updates the LVM mapping table,
+releasing the designated Physical Extents back into the Volume Group's
+free pool for use by other volumes.</li>
+</ol>
+<p>By breaking the rigid link between continuous disk sectors and
+filesystems, LVM's extent-based architecture provides the flexibility
+required for modern enterprise environments, continuous uptime, and
+automated cloud storage scaling.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

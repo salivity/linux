@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rsync Daemon Over SSH for Secure Linux Sync - linux</title>
+    <meta name="description" content="This article explains how Linux integrates the file-transfer utility rsync with the Secure Shell (SSH) protocol to achieve fast, encrypted remote data synchronization. You will learn the mechanics behind tunneling rsync traffic through SSH, why this appr">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/rsync-daemon-over-ssh-for-secure-linux-sync">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Rsync Daemon Over SSH for Secure Linux Sync - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/rsync-daemon-over-ssh-for-secure-linux-sync" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="This article explains how Linux integrates the file-transfer utility rsync with the Secure Shell (SSH) protocol to achieve fast, encrypted remote data synchronization. You will learn the mechanics behind tunneling rsync traffic through SSH, why this appr" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="rsync-daemon-over-ssh-for-secure-linux-sync">Rsync Daemon Over
+SSH for Secure Linux Sync</h1>
+<p>This article explains how Linux integrates the file-transfer utility
+<code>rsync</code> with the Secure Shell (SSH) protocol to achieve fast,
+encrypted remote data synchronization. You will learn the mechanics
+behind tunneling rsync traffic through SSH, why this approach replaces
+legacy unencrypted daemon configurations, and the practical commands
+used to run remote synchronization securely.</p>
+<h3 id="the-architecture-of-rsync-over-ssh">The Architecture of Rsync
+Over SSH</h3>
+<p>By default, the standalone <code>rsync</code> daemon
+(<code>rsyncd</code>) listens on TCP port 873. While efficient, this
+native protocol transmits authentication credentials and file contents
+in plain text unless encapsulated by an external cryptographic
+layer.</p>
+<p>Linux avoids exposing port 873 across public networks by using SSH as
+a transport shell. When executed over SSH, the local <code>rsync</code>
+client initiates a standard SSH connection to the remote host. Once the
+SSH session is authenticated, it spawns a remote <code>rsync</code>
+process in server mode (<code>rsync --server</code>) or invokes a
+preconfigured daemon setup. The local and remote <code>rsync</code>
+processes communicate directly through the encrypted standard input and
+output (stdio) streams of the SSH tunnel.</p>
+<h3 id="how-the-process-operates">How the Process Operates</h3>
+<p>The synchronization workflow follows four key stages:</p>
+<ol type="1">
+<li><strong>Connection and Authentication:</strong> The local machine
+contacts the remote server on port 22 using SSH. Authentication is
+handled entirely by the SSH subsystem via public key cryptography, PAM,
+or passwords.</li>
+<li><strong>Remote Execution:</strong> After authentication, the SSH
+daemon on the target host launches the <code>rsync</code> binary
+automatically with operational flags passed from the client.</li>
+<li><strong>Data Comparison:</strong> Both instances of
+<code>rsync</code> examine file metadata (modification times, sizes, or
+checksums) across the encrypted pipe to determine the differences.</li>
+<li><strong>Encrypted Delta-Transfer:</strong> Only the modified blocks
+of data are compressed and sent through the SSH stream, ensuring both
+minimal bandwidth usage and end-to-end encryption.</li>
+</ol>
+<h3 id="command-execution-methods">Command Execution Methods</h3>
+<p>Linux administrators utilize rsync over SSH primarily in two
+operational modes:</p>
+<h4 id="1-standard-remote-shell-invocation">1. Standard Remote Shell
+Invocation</h4>
+<p>The most common implementation bypasses <code>/etc/rsyncd.conf</code>
+entirely, relying on native user accounts:</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">rsync</span> <span class="at">-avz</span> <span class="at">-e</span> ssh /local/directory/ username@remote_host:/remote/directory/</span></code></pre></div>
+<ul>
+<li><code>-a</code> preserves file permissions, ownerships, and
+timestamps.</li>
+<li><code>-v</code> enables verbose output.</li>
+<li><code>-z</code> compresses data during transfer.</li>
+<li><code>-e ssh</code> specifies the remote shell to use (this is the
+default in modern Linux distributions).</li>
+</ul>
+<h4 id="2-accessing-a-predefined-daemon-module-via-ssh">2. Accessing a
+Predefined Daemon Module via SSH</h4>
+<p>When centralized access policies or module definitions from
+<code>/etc/rsyncd.conf</code> are required, you can connect to
+daemon-defined modules directly over an SSH transport using the
+double-colon syntax:</p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">rsync</span> <span class="at">-avz</span> <span class="at">-e</span> ssh /local/directory/ username@remote_host::module_name/</span></code></pre></div>
+<p>Alternatively, you can tunnel directly to the local daemon
+socket:</p>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">rsync</span> <span class="at">-avz</span> <span class="at">--rsh</span><span class="op">=</span><span class="st">&quot;ssh -l username&quot;</span> remote_host::module_name /local/destination/</span></code></pre></div>
+<p>In this configuration, SSH establishes the outer security perimeter,
+while the target host directs the input stream to the local rsync
+configuration, eliminating the need to expose port 873 to the outside
+world.</p>
+<h3 id="key-advantages-of-this-implementation">Key Advantages of This
+Implementation</h3>
+<ul>
+<li><strong>Single Port Exposure:</strong> Systems only need to expose
+SSH (port 22), reducing firewall complexity and the attack surface.</li>
+<li><strong>Robust Access Control:</strong> Leveraging SSH enables
+advanced security measures, such as hardware security keys (FIDO2), SSH
+key restrictions via <code>authorized_keys</code>, and fail2ban
+protection.</li>
+<li><strong>Integrity and Privacy:</strong> Data packets cannot be
+inspected or altered in transit, protecting sensitive files from network
+sniffing and man-in-the-middle attacks.</li>
+</ul></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

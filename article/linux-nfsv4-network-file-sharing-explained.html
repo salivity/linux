@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linux NFSv4 Network File Sharing Explained - linux</title>
+    <meta name="description" content="The Linux operating system handles Network File System version 4 (NFSv4) through a hybrid architecture combining in-kernel modules with user-space daemons to deliver stateful, secure, and high-performance network file sharing. Unlike earlier stateless ve">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/linux-nfsv4-network-file-sharing-explained">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Linux NFSv4 Network File Sharing Explained - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/linux-nfsv4-network-file-sharing-explained" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="The Linux operating system handles Network File System version 4 (NFSv4) through a hybrid architecture combining in-kernel modules with user-space daemons to deliver stateful, secure, and high-performance network file sharing. Unlike earlier stateless ve" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="linux-nfsv4-network-file-sharing-explained">Linux NFSv4 Network
+File Sharing Explained</h1>
+<p>The Linux operating system handles Network File System version 4
+(NFSv4) through a hybrid architecture combining in-kernel modules with
+user-space daemons to deliver stateful, secure, and high-performance
+network file sharing. Unlike earlier stateless versions, Linux
+implements NFSv4 as a connection-oriented, single-port protocol natively
+integrated into the Virtual File System (VFS). This article explains the
+underlying mechanisms Linux uses to process NFSv4 operations, manage
+state and locking, handle authentication, and optimize network
+throughput.</p>
+<h3 id="kernel-level-architecture">Kernel-Level Architecture</h3>
+<p>File operations begin at the Linux Virtual File System (VFS) layer,
+which provides a standard POSIX interface for applications. When an
+application accesses an NFS mount, the VFS routes system calls to the
+client-side <code>nfs</code> kernel module. For hosting shares, the
+server-side <code>nfsd</code> kernel module services these incoming
+requests directly in kernel space to eliminate context-switching
+overhead between user space and kernel space.</p>
+<p>On the server side, shares are organized under a single
+pseudo-filesystem root. The Linux kernel presents all exported local
+filesystems as a unified, hierarchical tree to the client. This replaces
+the legacy need for separate export mounts, allowing clients to traverse
+nested exports seamlessly using standard path navigation.</p>
+<h3 id="stateful-connection-and-lease-management">Stateful Connection
+and Lease Management</h3>
+<p>NFSv4 is fundamentally stateful, meaning both the Linux client and
+server continuously track open files, file locks, and delegations.</p>
+<ul>
+<li><strong>File Locking:</strong> Locking mechanisms
+(<code>fcntl</code>, POSIX locks) are integrated directly into the core
+NFSv4 protocol. Linux eliminates the external <code>lockd</code> and
+<code>statd</code> daemons required by NFSv3.</li>
+<li><strong>Lease-Based Tracking:</strong> The Linux NFS server grants
+state leases to clients. Clients periodically renew these leases by
+sending operations or dedicated keepalive signals (<code>RENEW</code> or
+<code>SEQUENCE</code> compound operations).</li>
+<li><strong>State Recovery:</strong> If a server reboots or network
+connectivity drops, Linux triggers a grace period. During this window,
+clients reclaim their previous open states and locks before new lock
+requests are granted, preventing data corruption.</li>
+<li><strong>Delegations:</strong> To optimize read and write operations,
+the Linux NFS server can delegate file management to a client. When a
+read delegation is active, the client handles opens and closes locally
+without communicating over the network. If another client requests write
+access, the server recalls the delegation.</li>
+</ul>
+<h3 id="compound-rpc-procedures">Compound RPC Procedures</h3>
+<p>To minimize network latency, Linux leverages NFSv4 compound Remote
+Procedure Calls (RPC). In older versions, mounting a directory or
+opening a file required separate sequential RPCs: lookup, permission
+check, open, and read. Under NFSv4, the Linux kernel packages multiple
+operations into a single compound request sent over the network. The
+server executes these operations sequentially and returns a single
+compound response, drastically reducing round-trip time over
+high-latency networks.</p>
+<h3 id="networking-and-port-standardization">Networking and Port
+Standardization</h3>
+<p>Linux routes all NFSv4 traffic through a single, well-defined
+transport layer:</p>
+<ul>
+<li><strong>Single TCP Port:</strong> NFSv4 runs exclusively over TCP
+(port 2049 by default). Linux does not require the auxiliary
+<code>rpcbind</code> (portmapper) service to negotiate dynamic ports for
+mounting or locking, greatly simplifying firewall configurations.</li>
+<li><strong>RPC Transport Engine:</strong> The Linux <code>sunrpc</code>
+kernel module manages transport sockets, handling connection
+multiplexing, message serialization (XDR), and congestion control.</li>
+</ul>
+<h3 id="identity-mapping-and-security">Identity Mapping and
+Security</h3>
+<p>NFSv4 departs from relying strictly on numerical User IDs (UIDs) and
+Group IDs (GIDs), which often cause permission mismatches across
+heterogeneous systems.</p>
+<ul>
+<li><strong>String-Based Identities:</strong> Linux transmits user and
+group ownership as strings in the format <code>user@domain</code>.</li>
+<li><strong>The <code>idmapd</code> Subsystem:</strong> In user space,
+the <code>rpc.idmapd</code> daemon or the kernel-level
+<code>nfsidmap</code> utility maps these strings to local numeric UIDs
+and GIDs. Both client and server must share the same NFS domain (defined
+in <code>/etc/idmapd.conf</code>) to ensure accurate translation.</li>
+<li><strong>GSS-API and Kerberos:</strong> Linux integrates with the
+Generic Security Services Application Program Interface (GSS-API) via
+<code>rpc.gssd</code> and <code>rpc.svcgssd</code>. This architecture
+allows Linux to support RPCSEC_GSS authentication levels, including
+Kerberos integrity checking (<code>krb5i</code>) and full payload
+encryption (<code>krb5p</code>), ensuring secure transit over untrusted
+networks.</li>
+</ul></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>POSIX vs System V Message Queues in Linux - linux</title>
+    <meta name="description" content="Inter-process communication (IPC) in the Linux operating system relies heavily on message queues, with the two primary standards being System V and POSIX. While both mechanisms allow processes to exchange structured data asynchronously, Linux implements">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/posix-vs-system-v-message-queues-in-linux">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="POSIX vs System V Message Queues in Linux - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/posix-vs-system-v-message-queues-in-linux" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="Inter-process communication (IPC) in the Linux operating system relies heavily on message queues, with the two primary standards being System V and POSIX. While both mechanisms allow processes to exchange structured data asynchronously, Linux implements" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="posix-vs-system-v-message-queues-in-linux">POSIX vs System V
+Message Queues in Linux</h1>
+<p>Inter-process communication (IPC) in the Linux operating system
+relies heavily on message queues, with the two primary standards being
+System V and POSIX. While both mechanisms allow processes to exchange
+structured data asynchronously, Linux implements them using
+fundamentally different architectural designs. This article examines the
+core implementation differences between POSIX and System V message
+queues in Linux, covering kernel-level abstraction, file descriptor
+integration, message prioritization, and asynchronous event
+notification.</p>
+<h3 id="kernel-abstraction-and-filesystem-integration">Kernel
+Abstraction and Filesystem Integration</h3>
+<p>The primary structural divergence between the two implementations
+lies in how Linux represents them within the kernel.</p>
+<p>POSIX message queues are implemented in Linux as a dedicated virtual
+file system (<code>mqueuefs</code>), typically mounted at
+<code>/dev/mqueue</code>. Because of this design, queues are named using
+standard slash-prefixed paths (e.g., <code>/my_queue</code>) and behave
+similarly to files. Developers can inspect, monitor, and remove queues
+using standard shell utilities such as <code>ls</code>,
+<code>cat</code>, and <code>rm</code>.</p>
+<p>In contrast, System V message queues exist entirely outside the Linux
+Virtual File System (VFS). They are identified by arbitrary integer keys
+generated via <code>ftok()</code> or <code>IPC_PRIVATE</code> and
+assigned an IPC identifier by the kernel. System V queues reside in
+global kernel memory tables and require specialized administrative
+tools, such as <code>ipcs</code> and <code>ipcrm</code>, to inspect and
+manipulate.</p>
+<h3 id="file-descriptors-and-io-multiplexing">File Descriptors and I/O
+Multiplexing</h3>
+<p>Because POSIX message queues are integrated into the Linux VFS, the
+descriptor returned by <code>mq_open</code> (<code>mqd_t</code>) can be
+converted or treated as a standard file descriptor in Linux. This
+architectural choice enables seamless integration with modern Linux I/O
+multiplexing interfaces, including <code>select()</code>,
+<code>poll()</code>, and <code>epoll()</code>. Systems handling
+high-throughput event loops can monitor POSIX message queues alongside
+network sockets and file handles without dedicated worker threads.</p>
+<p>System V message queues do not use file descriptors. The identifier
+returned by <code>msgget()</code> is strictly an internal index to a
+kernel IPC table. As a result, System V queues cannot be monitored
+directly with <code>epoll</code> or <code>select</code>. To process
+incoming messages, applications must either perform blocking calls on
+<code>msgrcv()</code> or continuously poll the queue in non-blocking
+mode, consuming unnecessary CPU cycles.</p>
+<h3 id="asynchronous-notification">Asynchronous Notification</h3>
+<p>Linux provides built-in asynchronous notification capabilities for
+POSIX message queues via the <code>mq_notify()</code> system call. This
+mechanism allows an application to register for a one-time notification
+when a message arrives on an empty queue. The kernel can deliver this
+notification either by generating a specified signal (such as
+<code>SIGUSR1</code> or a real-time signal) or by instantiating a new
+thread inside the receiving process via POSIX threads
+(<code>pthread</code>).</p>
+<p>System V provides no equivalent event-driven notification mechanism.
+Processes must block inside the kernel waiting for data via
+<code>msgrcv()</code> or implement custom signaling abstractions around
+the queue operations.</p>
+<h3 id="priority-handling-and-message-retrieval">Priority Handling and
+Message Retrieval</h3>
+<p>Message ordering and retrieval logic also differ significantly
+between the two interfaces:</p>
+<ul>
+<li><strong>POSIX Message Queues:</strong> Messages are strictly
+prioritized. Every message is assigned an unsigned integer priority
+during <code>mq_send()</code>. The Linux kernel inserts messages into
+the queue ordered by priority, ensuring that higher-priority messages
+are always retrieved before lower-priority ones. Messages sharing the
+same priority are retrieved in First-In, First-Out (FIFO) order.</li>
+<li><strong>System V Message Queues:</strong> Messages do not feature a
+native priority field. Instead, every message contains a user-defined
+<code>mtype</code> (a positive <code>long</code> integer). The consuming
+process can use <code>msgrcv()</code> to request the first message in
+FIFO order, the first message matching a specific type, or the lowest
+type less than or equal to a specified absolute value. This enables
+flexible multiplexing of different message types across a single queue
+rather than strict priority sorting.</li>
+</ul>
+<h3 id="resource-limits-and-management">Resource Limits and
+Management</h3>
+<p>Linux enforces resource controls on both mechanisms, but applies them
+differently:</p>
+<ul>
+<li><strong>POSIX:</strong> Limits are managed dynamically per queue via
+<code>mq_attr</code> structures (defining <code>mq_maxmsg</code> and
+<code>mq_msgsize</code>) and globally through the
+<code>/proc/sys/fs/mqueue/</code> virtual file tree. They are also
+subject to modern Linux resource limits
+(<code>RLIMIT_MSGQUEUE</code>).</li>
+<li><strong>System V:</strong> Limits are governed by global sysctl
+parameters located in <code>/proc/sys/kernel/</code>, including
+<code>msgmax</code> (maximum message size), <code>msgmnb</code> (maximum
+queue size in bytes), and <code>msgmni</code> (maximum number of message
+queue identifiers).</li>
+</ul></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

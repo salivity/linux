@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How Linux Implements io_uring for Asynchronous I/O - linux</title>
+    <meta name="description" content="The iouring subsystem, introduced in Linux 5.1, is a high-performance asynchronous I/O framework designed to eliminate the scalability bottlenecks of older interfaces like epoll and aio. This article explores how the Linux kernel implements iouring throu">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-linux-implements-io-uring-for-asynchronous-i-o">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How Linux Implements io_uring for Asynchronous I/O - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-linux-implements-io-uring-for-asynchronous-i-o" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="The iouring subsystem, introduced in Linux 5.1, is a high-performance asynchronous I/O framework designed to eliminate the scalability bottlenecks of older interfaces like epoll and aio. This article explores how the Linux kernel implements iouring throu" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-linux-implements-io_uring-for-asynchronous-io">How Linux
+Implements io_uring for Asynchronous I/O</h1>
+<p>The <code>io_uring</code> subsystem, introduced in Linux 5.1, is a
+high-performance asynchronous I/O framework designed to eliminate the
+scalability bottlenecks of older interfaces like <code>epoll</code> and
+<code>aio</code>. This article explores how the Linux kernel implements
+<code>io_uring</code> through shared ring buffers, lockless
+synchronization, kernel polling threads, and asynchronous worker pools
+to maximize I/O throughput while drastically reducing system call
+overhead.</p>
+<h3 id="shared-ring-buffers">Shared Ring Buffers</h3>
+<p>At the foundation of <code>io_uring</code> are two primary lockless
+ring buffers allocated in kernel space and exposed to user space via
+<code>mmap()</code>:</p>
+<ol type="1">
+<li><strong>Submission Queue (SQ):</strong> An array of indices mapping
+to a shared buffer of Submission Queue Entries
+(<code>struct io_uring_sqe</code>). User space produces requests by
+populating SQEs and updating the submission ring's tail.</li>
+<li><strong>Completion Queue (CQ):</strong> An array of Completion Queue
+Entries (<code>struct io_uring_cqe</code>). The kernel consumes SQ
+entries, processes them, and writes results to the CQ, updating the
+completion ring's tail.</li>
+</ol>
+<p>Because both user space and the kernel share these memory regions,
+application threads can submit requests and consume results without
+context switching into the kernel for every operation. Memory barriers
+and atomic operations coordinate ring head and tail pointers, allowing
+single-producer single-consumer lockless access.</p>
+<h3 id="system-call-lifecycle-and-processing">System Call Lifecycle and
+Processing</h3>
+<p>To initiate I/O, an application initializes an instance using the
+<code>io_uring_setup()</code> system call, which creates the queues and
+returns a file descriptor. The application then configures its shared
+memory mappings.</p>
+<p>When operations are ready:</p>
+<ul>
+<li>The application places one or more operations (e.g., reads, writes,
+network calls, filesystem operations) into the SQ.</li>
+<li>The application invokes the <code>io_uring_enter()</code> system
+call to notify the kernel that new entries are ready. A single
+<code>io_uring_enter()</code> call can submit hundreds of requests at
+once and optionally wait for a specified number of completions,
+combining submission and retrieval into one context switch.</li>
+</ul>
+<h3 id="kernel-polling-mode-sqpoll">Kernel Polling Mode (SQPOLL)</h3>
+<p>To achieve true zero-syscall I/O, <code>io_uring</code> provides an
+optional kernel polling mode (<code>IORING_SETUP_SQPOLL</code>). When
+enabled, the kernel spawns a dedicated kernel thread
+(<code>io_uring-sq</code>) that continuously monitors the Submission
+Queue.</p>
+<p>As soon as user space writes an entry and updates the queue's tail,
+the kernel thread detects the change and processes the operation
+immediately. Under sustained loads, an application can perform millions
+of I/O operations entirely via shared memory without invoking a single
+system call.</p>
+<h3 id="the-io-wq-subsystem-for-blocking-operations">The io-wq Subsystem
+for Blocking Operations</h3>
+<p>Not all I/O operations can be executed non-blockingly at the device
+driver level. For buffered file I/O or metadata lookups, operations may
+block waiting on disk or locks.</p>
+<p>To prevent blocking the calling context or the SQ polling thread,
+Linux implements an asynchronous work-queue subsystem named
+<code>io-wq</code>. When an operation cannot complete immediately in a
+non-blocking fashion, <code>io_uring</code> offloads the operation to an
+<code>io-wq</code> worker thread. These threads dynamically scale based
+on demand to handle concurrent blocking operations and return their
+completions to the primary Completion Queue once finished.</p>
+<h3 id="fixed-resources-and-registered-buffers">Fixed Resources and
+Registered Buffers</h3>
+<p>Linux further optimizes <code>io_uring</code> performance through
+resource pre-registration:</p>
+<ul>
+<li><strong>Registered Files
+(<code>IORING_REGISTER_FILES</code>):</strong> Avoids the overhead of
+incrementing and decrementing file descriptor reference counts on every
+I/O operation by maintaining an internal fixed array of file
+references.</li>
+<li><strong>Registered Buffers
+(<code>IORING_REGISTER_BUFFERS</code>):</strong> Eliminates page mapping
+and pinning overhead. User-space buffers are locked into memory once
+during initialization, allowing the kernel to map virtual memory
+directly to physical addresses for direct DMA transfers.</li>
+</ul>
+<p>Through shared memory queues, asynchronous worker threads, and
+optional zero-syscall kernel polling, the Linux kernel's
+<code>io_uring</code> implementation provides a unified, highly scalable
+engine capable of handling storage, networking, and generic asynchronous
+tasks with minimal CPU overhead.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

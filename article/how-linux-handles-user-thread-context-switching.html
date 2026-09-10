@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How Linux Handles User Thread Context Switching - linux</title>
+    <meta name="description" content="Context switching between user threads in Linux is the core mechanism enabling multitasking, where the operating system pauses the execution of one thread and resumes another. Because the Linux kernel treats threads as lightweight processes sharing an ad">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-linux-handles-user-thread-context-switching">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How Linux Handles User Thread Context Switching - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-linux-handles-user-thread-context-switching" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="Context switching between user threads in Linux is the core mechanism enabling multitasking, where the operating system pauses the execution of one thread and resumes another. Because the Linux kernel treats threads as lightweight processes sharing an ad" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-linux-handles-user-thread-context-switching">How Linux
+Handles User Thread Context Switching</h1>
+<p>Context switching between user threads in Linux is the core mechanism
+enabling multitasking, where the operating system pauses the execution
+of one thread and resumes another. Because the Linux kernel treats
+threads as lightweight processes sharing an address space, context
+switching between threads within the same process avoids the heavy
+overhead of flushing translation lookaside buffers (TLBs) and altering
+virtual memory mappings. The process fundamentally relies on the kernel
+scheduler to save the CPU register state of the outgoing thread, select
+the next runnable thread, load the incoming thread’s hardware context,
+and resume execution in user space.</p>
+<h3 id="the-representation-of-user-threads">The Representation of User
+Threads</h3>
+<p>In the Linux kernel, threads are not handled as fundamentally
+distinct entities from processes. Instead, both are represented by the
+<code>task_struct</code> data structure. When a multi-threaded
+application creates a thread (typically via
+<code>pthread_create</code>), the system invokes the
+<code>clone()</code> system call with specific flags such as
+<code>CLONE_VM</code>, <code>CLONE_FS</code>, and
+<code>CLONE_FILES</code>. These flags instruct the kernel to share the
+virtual memory map, file system context, and open file descriptors among
+threads. Consequently, user threads are technically lightweight tasks
+that share the same memory descriptor (<code>mm_struct</code>).</p>
+<h3 id="triggers-for-a-context-switch">Triggers for a Context
+Switch</h3>
+<p>A context switch between user threads can be triggered in two
+ways:</p>
+<ol type="1">
+<li><strong>Voluntary (Cooperative):</strong> The currently running
+thread voluntarily yields control. This occurs when the thread requests
+a blocking system call (such as reading from a socket or disk), sleeps
+(<code>nanosleep</code>), waits on a synchronization primitive (such as
+a mutex or futex), or explicitly yields the CPU using
+<code>sched_yield()</code>.</li>
+<li><strong>Involuntary (Preemptive):</strong> The kernel interrupts the
+thread. The system timer interrupt fires periodically, allowing the
+Completely Fair Scheduler (CFS) to update the thread’s runtime metrics.
+If the thread has exhausted its allocated time slice, or if a
+higher-priority thread becomes runnable, the scheduler flags the current
+task for rescheduling (<code>need_resched</code>).</li>
+</ol>
+<h3 id="the-switching-pipeline-schedule-and-context_switch">The
+Switching Pipeline: <code>schedule()</code> and
+<code>context_switch()</code></h3>
+<p>Regardless of how the switch is initiated, the CPU transitions from
+user space into kernel space via an interrupt or system call handler.
+Once in kernel mode, the core execution path enters
+<code>__schedule()</code>, which performs the following steps:</p>
+<ol type="1">
+<li><strong>Task Selection:</strong> The scheduler chooses the next
+thread to run based on the active scheduling class (such as CFS for
+standard threads or FIFO/Round-Robin for real-time threads).</li>
+<li><strong>Invocation of <code>context_switch()</code>:</strong> Once
+the next thread is determined, the kernel calls
+<code>context_switch()</code>, which coordinates the transfer of control
+from the previous task (<code>prev</code>) to the next task
+(<code>next</code>).</li>
+</ol>
+<h3 id="memory-context-handling-switch_mm">Memory Context Handling
+(<code>switch_mm</code>)</h3>
+<p>Under normal process-to-process switching, the kernel must execute
+<code>switch_mm()</code> to load the base address of the new process’s
+page tables into the CPU's control register (CR3 on x86 architectures).
+This operation typically invalidates the CPU's TLB, degrading memory
+performance until the cache warms up.</p>
+<p>When switching between user threads of the <strong>same
+process</strong>, both tasks reference identical <code>mm_struct</code>
+pointers (<code>prev-&gt;mm == next-&gt;mm</code>). The kernel detects
+this match and skips switching the page tables entirely. As a result,
+the TLB remains valid, eliminating the primary performance bottleneck
+associated with context switching.</p>
+<h3
+id="architecture-specific-register-state-switching-switch_to">Architecture-Specific
+Register State Switching (<code>switch_to</code>)</h3>
+<p>Once the memory context is handled, the kernel invokes the
+architecture-dependent macro or assembly function
+<code>switch_to()</code>. This handles the actual hardware state
+transfer:</p>
+<ol type="1">
+<li><strong>Stack Pointer Switch:</strong> The kernel saves the current
+kernel stack pointer into the outgoing thread’s
+<code>thread_struct</code> and loads the incoming thread’s kernel stack
+pointer into the CPU's stack pointer register (e.g.,
+<code>RSP</code>).</li>
+<li><strong>Register Preservation:</strong> General-purpose registers,
+the instruction pointer (<code>RIP</code>), and processor flags are
+preserved. Linux pushes the outgoing register states onto the current
+thread’s kernel stack.</li>
+<li><strong>Floating-Point and Extended States:</strong> Modern x86
+processors use features like <code>XSAVE</code> and <code>XRSTOR</code>
+to manage AVX, SSE, and floating-point registers. Linux frequently
+optimizes this by using lazy or optimized state saving to avoid writing
+heavy register sets unless they were actively modified.</li>
+<li><strong>Thread-Local Storage (TLS):</strong> The kernel updates
+architecture-specific segment registers or model-specific registers
+(such as <code>FS_BASE</code> on x86_64) to point to the incoming
+thread’s specific Thread-Local Storage area.</li>
+</ol>
+<h3 id="returning-to-user-space">Returning to User Space</h3>
+<p>With the new thread's kernel stack active and its architectural
+registers restored, the kernel prepares to exit kernel space. The CPU
+executes an instruction such as <code>sysret</code> or
+<code>iret</code>. This atomic transition restores the user-space
+instruction pointer, switches to the user-space stack pointer, drops the
+CPU privilege level from Ring 0 (kernel) to Ring 3 (user), and
+seamlessly resumes the new thread at the exact instruction where it was
+previously interrupted.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

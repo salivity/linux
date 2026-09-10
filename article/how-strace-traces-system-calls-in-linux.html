@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How strace Traces System Calls in Linux - linux</title>
+    <meta name="description" content="The strace utility is a diagnostic and debugging tool in Linux used to monitor and capture the interactions between user-space applications and the Linux kernel. It operates primarily by leveraging the kernel's ptrace (process trace) system call, which a">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-strace-traces-system-calls-in-linux">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How strace Traces System Calls in Linux - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-strace-traces-system-calls-in-linux" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="The strace utility is a diagnostic and debugging tool in Linux used to monitor and capture the interactions between user-space applications and the Linux kernel. It operates primarily by leveraging the kernel's ptrace (process trace) system call, which a" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-strace-traces-system-calls-in-linux">How strace Traces
+System Calls in Linux</h1>
+<p>The <code>strace</code> utility is a diagnostic and debugging tool in
+Linux used to monitor and capture the interactions between user-space
+applications and the Linux kernel. It operates primarily by leveraging
+the kernel's <code>ptrace</code> (process trace) system call, which
+allows <code>strace</code> to pause an application, inspect its CPU
+registers and memory, decode the arguments and return values of executed
+system calls, and then resume execution. This article explains the
+internal mechanisms <code>strace</code> uses to attach to processes,
+intercept kernel transitions, decode syscall data, and display runtime
+execution.</p>
+<h3 id="initialization-and-attachment-via-ptrace">Initialization and
+Attachment via ptrace</h3>
+<p>When you launch a program using <code>strace</code> or attach it to a
+running process (using the <code>-p</code> flag), <code>strace</code>
+establishes a parent-child or tracer-tracee relationship using the
+<code>ptrace</code> system call.</p>
+<ul>
+<li><strong>Spawning a New Process:</strong> <code>strace</code> forks
+itself. The child process calls
+<code>ptrace(PTRACE_TRACEME, ...)</code>, which notifies the kernel that
+it wants its parent to trace it. The child then executes the target
+program via <code>execve()</code>.</li>
+<li><strong>Attaching to a Running Process:</strong> <code>strace</code>
+calls <code>ptrace(PTRACE_ATTACH, pid)</code> or
+<code>ptrace(PTRACE_SEIZE, pid)</code>, prompting the kernel to stop the
+target process and assign <code>strace</code> as its tracer.</li>
+</ul>
+<h3 id="the-interception-cycle">The Interception Cycle</h3>
+<p>Once tracing is established, <code>strace</code> configures the
+kernel to stop the tracee every time a system call is made. This is
+accomplished using the <code>PTRACE_SYSCALL</code> request within an
+event loop managed via the <code>waitpid</code> system call.</p>
+<p>Tracing a single system call involves two interception points:</p>
+<ol type="1">
+<li><strong>Syscall-Enter-Stop:</strong> When the target process
+triggers a software interrupt, a <code>syscall</code> instruction (on
+x86_64), or a <code>sysenter</code> instruction to transition from user
+mode to kernel mode, the kernel intercepts the action. Instead of
+immediately running the system call, the kernel pauses the thread and
+sends a <code>SIGTRAP</code> signal (specifically with
+<code>PTRACE_O_TRACESYSGOOD</code> set) to notify
+<code>strace</code>.</li>
+<li><strong>Syscall-Exit-Stop:</strong> After <code>strace</code>
+inspects the initial call, it allows the kernel to execute the system
+call. Once the kernel finishes servicing the request and before
+returning control to user space, it pauses the process again. This
+second stop enables <code>strace</code> to capture the return value or
+error code.</li>
+</ol>
+<h3 id="reading-system-call-arguments">Reading System Call
+Arguments</h3>
+<p>When the tracee is paused at the syscall-enter stage,
+<code>strace</code> retrieves the state of the target CPU registers
+using <code>ptrace(PTRACE_GETREGSET, ...)</code> or
+<code>ptrace(PTRACE_GETREGS, ...)</code>.</p>
+<p>The registers hold the system call number and its arguments according
+to the architecture's Application Binary Interface (ABI). On an x86_64
+architecture:</p>
+<ul>
+<li>The <code>rax</code> register holds the system call number (such as
+<code>0</code> for <code>read</code> or <code>1</code> for
+<code>write</code>).</li>
+<li>The <code>rdi</code>, <code>rsi</code>, <code>rdx</code>,
+<code>r10</code>, <code>r8</code>, and <code>r9</code> registers contain
+the first six arguments passed to the call.</li>
+</ul>
+<p><code>strace</code> maintains an internal lookup table that maps
+system call numbers to human-readable names and signatures. If an
+argument is a primitive value (like a file descriptor or flag mask),
+<code>strace</code> reads it directly from the register.</p>
+<p>If an argument is a memory pointer (such as a string pointer for a
+file path or a buffer pointer), <code>strace</code> must read the
+tracee's virtual memory space. It does this either through the
+<code>process_vm_readv</code> system call or via repeated
+<code>ptrace(PTRACE_PEEKDATA, ...)</code> operations, decoding
+structures and null-terminated strings into readable text.</p>
+<h3 id="capturing-return-values">Capturing Return Values</h3>
+<p>After reading the arguments, <code>strace</code> issues
+<code>ptrace(PTRACE_SYSCALL, ...)</code> to resume execution. The kernel
+performs the actual operation and places the result into the designated
+return register (<code>rax</code> on x86_64).</p>
+<p>At the syscall-exit-stop, <code>strace</code> reads the register
+state once more:</p>
+<ul>
+<li>A positive integer or zero indicates a successful return value (such
+as bytes read or a file descriptor).</li>
+<li>A negative integer within a specific range represents an error,
+which <code>strace</code> translates into standard errno names (such as
+<code>-ENOENT</code> or <code>-EACCES</code>).</li>
+</ul>
+<h3 id="performance-overhead">Performance Overhead</h3>
+<p>Because <code>strace</code> requires two context switches between
+user space and kernel space—and between the tracee and tracer—for every
+individual system call, running a program under <code>strace</code>
+introduces substantial execution overhead. This overhead makes
+<code>strace</code> well suited for debugging and troubleshooting, but
+typically unsuitable for high-throughput production environments.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

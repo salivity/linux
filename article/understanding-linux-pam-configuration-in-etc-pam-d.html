@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Understanding Linux PAM Configuration in /etc/pam.d/ - linux</title>
+    <meta name="description" content="Pluggable Authentication Modules (PAM) provide a flexible, modular architecture for managing user authentication across the Linux operating system. The files located in the /etc/pam.d/ directory act as the control center for this system, defining the exa">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/understanding-linux-pam-configuration-in-etc-pam-d">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Understanding Linux PAM Configuration in /etc/pam.d/ - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/understanding-linux-pam-configuration-in-etc-pam-d" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="Pluggable Authentication Modules (PAM) provide a flexible, modular architecture for managing user authentication across the Linux operating system. The files located in the /etc/pam.d/ directory act as the control center for this system, defining the exa" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="understanding-linux-pam-configuration-in-etcpamd">Understanding
+Linux PAM Configuration in /etc/pam.d/</h1>
+<p>Pluggable Authentication Modules (PAM) provide a flexible, modular
+architecture for managing user authentication across the Linux operating
+system. The files located in the <code>/etc/pam.d/</code> directory act
+as the control center for this system, defining the exact authentication
+policies and security checks enforced for individual applications and
+services such as SSH, sudo, and local logins. This article explains the
+role of these configuration files, breaks down their syntax and
+functional types, and highlights their impact on system administration
+and security.</p>
+<h3 id="the-role-of-etcpamd">The Role of <code>/etc/pam.d/</code></h3>
+<p>Traditionally, authentication logic was hardcoded directly into
+application software, requiring recompilation whenever policies changed.
+PAM decouples authentication from applications, allowing administrators
+to configure rules globally or per service.</p>
+<p>The <code>/etc/pam.d/</code> directory contains service-specific
+configuration files. When an application initiates an authentication
+request, it queries PAM using its own service name. PAM then reads the
+corresponding file in <code>/etc/pam.d/</code> (such as
+<code>/etc/pam.d/sshd</code> for the OpenSSH daemon or
+<code>/etc/pam.d/sudo</code> for the sudo utility) to determine which
+security checks must be performed. If a specific service file does not
+exist, PAM falls back to <code>/etc/pam.d/other</code>.</p>
+<h3 id="configuration-syntax">Configuration Syntax</h3>
+<p>Each file in <code>/etc/pam.d/</code> consists of a stack of rules.
+Each rule is defined on a single line using a standardized four-column
+format:</p>
+<pre class="text"><code>&lt;module_interface&gt; &lt;control_flag&gt; &lt;module_name&gt; [module_arguments]</code></pre>
+<h4 id="1-module-interfaces-management-groups">1. Module Interfaces
+(Management Groups)</h4>
+<p>The first column specifies the scope of the rule:</p>
+<ul>
+<li><strong>auth</strong>: Authenticates the user (typically by
+validating credentials like passwords or MFA tokens) and establishes
+user credentials such as group memberships.</li>
+<li><strong>account</strong>: Verifies that the account is valid,
+checking conditions such as account expiration, password validity dates,
+or access-time restrictions.</li>
+<li><strong>password</strong>: Handles updating authentication
+credentials, including enforcing password strength, history checks, and
+encryption algorithms.</li>
+<li><strong>session</strong>: Manages tasks required before user access
+is granted and after it terminates, such as mounting user directories,
+logging to system logs, or setting resource limits
+(<code>pam_limits.so</code>).</li>
+</ul>
+<h4 id="2-control-flags">2. Control Flags</h4>
+<p>The second column determines how PAM responds to the success or
+failure of a specific module:</p>
+<ul>
+<li><strong>required</strong>: The module must succeed for the overall
+authentication to pass. However, PAM continues evaluating subsequent
+modules before returning a failure to prevent attackers from discovering
+which check failed.</li>
+<li><strong>requisite</strong>: The module must succeed. If it fails,
+PAM terminates execution immediately and rejects the request.</li>
+<li><strong>sufficient</strong>: If this module succeeds and no previous
+<code>required</code> module has failed, PAM immediately grants access
+without processing further modules in that stack.</li>
+<li><strong>optional</strong>: The module's result is generally ignored
+unless it is the only module defined in the stack.</li>
+<li><strong>include / substack</strong>: References shared, system-wide
+configuration files (such as <code>common-auth</code> or
+<code>system-auth</code>) to avoid duplicating rules across multiple
+service files.</li>
+</ul>
+<h4 id="3-module-name-and-arguments">3. Module Name and Arguments</h4>
+<p>The third and fourth columns define the compiled shared library
+(located typically in <code>/lib/security/</code> or
+<code>/lib64/security/</code>) and any optional parameters passed to it.
+Examples include <code>pam_unix.so</code> for standard Linux password
+checks, <code>pam_deny.so</code> to automatically block requests, or
+<code>pam_tally2.so</code> / <code>pam_faillock.so</code> for account
+lockout policies.</p>
+<h3 id="system-impact-and-security">System Impact and Security</h3>
+<p>The configuration files in <code>/etc/pam.d/</code> are fundamental
+to Linux hardening. Through these files, administrators can implement
+Multi-Factor Authentication (MFA), integrate external identity providers
+like LDAP or Kerberos, restrict root access to specific terminals, and
+establish password complexity rules without modifying application source
+code.</p>
+<p>Because changes take effect immediately without requiring a daemon
+restart, modifications to <code>/etc/pam.d/</code> carry significant
+risk. A misconfigured module or invalid control flag can inadvertently
+grant root access to unauthorized users or lock administrative accounts
+out of the system entirely.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

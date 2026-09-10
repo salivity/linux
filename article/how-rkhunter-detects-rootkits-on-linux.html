@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How rkhunter Detects Rootkits on Linux - linux</title>
+    <meta name="description" content="This article provides an overview of Rootkit Hunter (rkhunter), a specialized open-source security tool designed to scan Linux systems locally for signs of compromise. It details how the utility analyzes core system binaries, compares cryptographic hashe">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-rkhunter-detects-rootkits-on-linux">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How rkhunter Detects Rootkits on Linux - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-rkhunter-detects-rootkits-on-linux" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="This article provides an overview of Rootkit Hunter (rkhunter), a specialized open-source security tool designed to scan Linux systems locally for signs of compromise. It details how the utility analyzes core system binaries, compares cryptographic hashe" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-rkhunter-detects-rootkits-on-linux">How rkhunter Detects
+Rootkits on Linux</h1>
+<p>This article provides an overview of Rootkit Hunter
+(<code>rkhunter</code>), a specialized open-source security tool
+designed to scan Linux systems locally for signs of compromise. It
+details how the utility analyzes core system binaries, compares
+cryptographic hashes, uncovers hidden processes, and detects dormant or
+active rootkits and backdoors. By understanding its functionality,
+system administrators can effectively implement <code>rkhunter</code> as
+an essential layer of host-based intrusion detection.</p>
+<hr />
+<h3 id="what-is-rkhunter">What is rkhunter?</h3>
+<p>Rootkit Hunter (<code>rkhunter</code>) is a POSIX-compliant shell
+script that performs automated security audits directly on a host
+machine. Rootkits are malicious suites of tools that provide
+unauthorized, administrative-level access while concealing their
+presence from standard operating system monitoring tools. To counter
+this, <code>rkhunter</code> scans local files, system configurations,
+and active kernel components to ensure the system has not been
+subverted.</p>
+<hr />
+<h3 id="core-functions-of-rkhunter">Core Functions of rkhunter</h3>
+<h4 id="1-file-integrity-verification">1. File Integrity
+Verification</h4>
+<p>Rootkits frequently replace core system binaries—such as
+<code>ls</code>, <code>ps</code>, <code>top</code>, <code>login</code>,
+and <code>netstat</code>—with trojanized versions designed to hide
+malicious files, processes, and network connections.
+<code>rkhunter</code> addresses this by:</p>
+<ul>
+<li>Calculating cryptographic hashes (SHA-1, SHA-256, or MD5) of
+critical utilities.</li>
+<li>Comparing these values against a baseline database of known-good
+system hashes.</li>
+<li>Detecting unauthorized file modifications, unexpected inode changes,
+and altered file modification timestamps.</li>
+</ul>
+<h4 id="2-signature-based-rootkit-scanning">2. Signature-Based Rootkit
+Scanning</h4>
+<p>The tool contains an extensive, periodically updated database of
+known rootkits, backdoors, and trojans. During a scan, it looks for:</p>
+<ul>
+<li>Named files and directories typically installed by popular
+rootkits.</li>
+<li>Hardcoded strings and signatures within binary files.</li>
+<li>Well-known backdoor ports and associated configuration files.</li>
+</ul>
+<h4 id="3-operating-system-and-configuration-checks">3. Operating System
+and Configuration Checks</h4>
+<p>Beyond scanning individual files, <code>rkhunter</code> examines the
+deeper system environment to identify suspicious anomalies:</p>
+<ul>
+<li><strong>Hidden Processes:</strong> Compares process tables from
+system tools against process listings obtained through direct
+<code>/proc</code> scanning to spot hidden processes.</li>
+<li><strong>Hidden Files and Directories:</strong> Searches critical
+directories (such as <code>/dev</code>) for hidden or suspicious
+dot-files that attackers commonly use to store scripts or log
+files.</li>
+<li><strong>Network Interfaces:</strong> Identifies network interfaces
+operating in promiscuous mode, which can indicate packet sniffing or
+unauthorized monitoring.</li>
+<li><strong>Account and Authentication Checks:</strong> Scans
+<code>/etc/passwd</code> and <code>/etc/shadow</code> for accounts with
+empty passwords, root-equivalent UID/GID configurations, or unauthorized
+SSH authorized keys.</li>
+</ul>
+<hr />
+<h3 id="operational-workflow">Operational Workflow</h3>
+<ol type="1">
+<li><p><strong>Baseline Creation:</strong> When installed,
+<code>rkhunter</code> establishes a baseline of the system's files using
+the command:</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">rkhunter</span> <span class="at">--propupd</span></span></code></pre></div>
+<p>This creates a database (<code>rkhunter.dat</code>) storing the clean
+hashes of installed software.</p></li>
+<li><p><strong>Scanning:</strong> System checks are executed locally
+using:</p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="ex">rkhunter</span> <span class="at">--check</span></span></code></pre></div>
+<p>The tool methodically tests the system in phases (system commands,
+rootkit signatures, network/local host checks) and provides immediate
+terminal output colored by severity (OK, Warning, or Suspect).</p></li>
+<li><p><strong>Logging and Reporting:</strong> Detailed results and
+warning contexts are written directly to
+<code>/var/log/rkhunter.log</code>. This log highlights exact path
+mismatches, missing files, or modified attributes for post-scan
+administrative review.</p></li>
+</ol>
+<hr />
+<h3 id="operational-limitations">Operational Limitations</h3>
+<p>Because <code>rkhunter</code> runs locally within the operating
+system it is inspecting, its effectiveness depends on the integrity of
+the underlying kernel. If an attacker installs a sophisticated
+kernel-level rootkit (Loadable Kernel Module or eBPF-based), the rootkit
+can intercept and alter the system calls that <code>rkhunter</code>
+relies upon to read the file system or inspect memory. Consequently,
+<code>rkhunter</code> is best used as a proactive baseline verification
+tool and early-warning mechanism alongside remote logging, file
+integrity monitoring (such as AIDE or Tripwire), and network-level
+security controls.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

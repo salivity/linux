@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How Linux Manages Persistent Volumes with Rook - linux</title>
+    <meta name="description" content="This article provides a technical overview of how the Linux operating system handles persistent volumes when orchestrated by Rook within a Kubernetes cluster. It explains the mechanics between the Linux kernel, the Container Storage Interface (CSI), and">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-linux-manages-persistent-volumes-with-rook">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How Linux Manages Persistent Volumes with Rook - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-linux-manages-persistent-volumes-with-rook" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="This article provides a technical overview of how the Linux operating system handles persistent volumes when orchestrated by Rook within a Kubernetes cluster. It explains the mechanics between the Linux kernel, the Container Storage Interface (CSI), and" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-linux-manages-persistent-volumes-with-rook">How Linux
+Manages Persistent Volumes with Rook</h1>
+<p>This article provides a technical overview of how the Linux operating
+system handles persistent volumes when orchestrated by Rook within a
+Kubernetes cluster. It explains the mechanics between the Linux kernel,
+the Container Storage Interface (CSI), and the Rook Ceph storage
+backend, illustrating how raw network storage is translated into
+mounted, production-grade Linux filesystems for containerized
+workloads.</p>
+<h3 id="the-role-of-rook-and-ceph-in-the-linux-environment">The Role of
+Rook and Ceph in the Linux Environment</h3>
+<p>Rook is an open-source, cloud-native storage orchestrator designed
+for Kubernetes. Rather than functioning as a storage provider itself,
+Rook automates the deployment, configuration, and management of Ceph—a
+battle-tested, distributed storage system.</p>
+<p>When deployed on a Linux-based Kubernetes cluster, Rook runs as an
+operator. It configures Ceph daemons (Monitors, Managers, and OSDs)
+directly on Linux nodes. These daemons leverage underlying Linux storage
+resources, such as raw partitions, raw NVMe/SATA drives, or logical
+volumes managed by Linux LVM (Logical Volume Manager), using the
+BlueStore engine for low-overhead write paths.</p>
+<h3 id="csi-drivers-the-bridge-between-kubernetes-and-the-kernel">CSI
+Drivers: The Bridge Between Kubernetes and the Kernel</h3>
+<p>When a user requests a PersistentVolumeClaim (PVC), Rook and Ceph
+utilize specialized Container Storage Interface (CSI) drivers—primarily
+<code>ceph.csi.ceph.com</code> for block devices (RBD) and shared
+filesystems (CephFS). The Linux operating system interfaces with these
+persistent volumes through the following step-by-step workflow:</p>
+<ol type="1">
+<li><strong>Volume Provisioning</strong>: The Rook operator provisions
+the underlying storage asset within the Ceph cluster according to the
+defined StorageClass parameters.</li>
+<li><strong>Node Attachment</strong>: The CSI node driver on the target
+Linux host maps the remote Ceph storage resource to the host.</li>
+<li><strong>Format and Mount</strong>: The host Linux kernel exposes the
+storage as a device, formats it with a standard filesystem if required,
+and mounts it into the container's mount namespace.</li>
+</ol>
+<h3 id="handling-block-storage-with-rados-block-device-rbd">Handling
+Block Storage with RADOS Block Device (RBD)</h3>
+<p>For standard <code>ReadWriteOnce</code> persistent volumes, Rook
+relies on Ceph RBD. The Linux OS handles this integration primarily
+through the native Linux kernel RBD module (<code>rbd.ko</code>):</p>
+<ul>
+<li><strong>Kernel Mapping</strong>: The Ceph CSI node plugin
+communicates with the Linux kernel via <code>sysfs</code> to map a Ceph
+image. The kernel assigns this mapped network volume a local block
+device handle, typically located under <code>/dev/rbd*</code> (e.g.,
+<code>/dev/rbd0</code>).</li>
+<li><strong>Device Formatting</strong>: If the volume is newly
+provisioned, the Linux host formats the block device using standard
+local utilities, applying filesystems such as <code>ext4</code> or
+<code>XFS</code>.</li>
+<li><strong>Mounting and Namespaces</strong>: The Linux kernel mounts
+the formatted block device to a global directory managed by Kubelet
+(typically inside
+<code>/var/lib/kubelet/plugins/kubernetes.io/csi/</code>). From there,
+the Linux VFS (Virtual File System) bind-mounts the path into the target
+pod’s container mount namespace.</li>
+</ul>
+<h3 id="handling-shared-storage-with-cephfs">Handling Shared Storage
+with CephFS</h3>
+<p>For multi-node access (<code>ReadWriteMany</code> workloads), Rook
+orchestrates CephFS. Linux handles CephFS persistent volumes using one
+of two methods:</p>
+<ul>
+<li><strong>Kernel Driver (<code>ceph.ko</code>)</strong>:
+High-performance deployments use the in-tree Linux CephFS kernel module.
+The Linux kernel establishes direct network connections with Ceph
+metadata servers (MDS) and OSDs, presenting the remote POSIX-compliant
+filesystem as a native mount point on the node.</li>
+<li><strong>FUSE Driver (<code>ceph-fuse</code>)</strong>: When the
+running Linux kernel lacks the appropriate module version or required
+security capabilities, the CSI driver falls back to running CephFS in
+user space using the Linux FUSE (Filesystem in Userspace)
+subsystem.</li>
+</ul>
+<h3 id="io-execution-and-teardown">I/O Execution and Teardown</h3>
+<p>Once mounted, all container I/O operations travel through the
+standard Linux I/O stack:</p>
+<ul>
+<li><strong>I/O Routing</strong>: System calls (<code>read</code>,
+<code>write</code>, <code>fsync</code>) issued by applications enter the
+Linux VFS layer. For RBD, operations translate into block I/O requests
+handled by the kernel's network socket layer, which transmits RADOS
+operations directly to Ceph OSD nodes.</li>
+<li><strong>Page Cache and Buffering</strong>: Linux manages host-level
+page caching for these persistent volumes just as it would for local
+storage, optimizing read and write speeds based on node memory
+availability.</li>
+<li><strong>Unmapping and Cleanup</strong>: When a pod terminates,
+Kubelet and the CSI node plugin signal the Linux OS to unmount the
+volume, flush unwritten data, release the namespace bindings, and unmap
+the <code>/dev/rbd*</code> device to preserve data integrity across the
+cluster.</li>
+</ul></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How Linux Uses ACPI for Power Management - linux</title>
+    <meta name="description" content="The Linux operating system manages modern hardware power consumption primarily through the Advanced Configuration and Power Interface (ACPI), an open industry standard that abstracts platform hardware. This article examines how the Linux kernel discovers">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-linux-uses-acpi-for-power-management">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How Linux Uses ACPI for Power Management - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-linux-uses-acpi-for-power-management" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="The Linux operating system manages modern hardware power consumption primarily through the Advanced Configuration and Power Interface (ACPI), an open industry standard that abstracts platform hardware. This article examines how the Linux kernel discovers" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-linux-uses-acpi-for-power-management">How Linux Uses ACPI
+for Power Management</h1>
+<p>The Linux operating system manages modern hardware power consumption
+primarily through the Advanced Configuration and Power Interface (ACPI),
+an open industry standard that abstracts platform hardware. This article
+examines how the Linux kernel discovers hardware capabilities via ACPI
+tables, implements the ACPI Component Architecture (ACPICA), regulates
+processor performance and sleep states, handles thermal constraints, and
+translates firmware-level power events into actionable system
+behaviors.</p>
+<h2 id="firmware-initialization-and-acpi-tables">Firmware Initialization
+and ACPI Tables</h2>
+<p>The interaction begins at boot when the platform firmware (UEFI or
+BIOS) presents a set of ACPI tables in system memory to the Linux
+kernel. The most critical tables include:</p>
+<ul>
+<li><strong>RSDP/XSDT (Root/Extended System Description
+Tables):</strong> Pointer structures that identify all other available
+ACPI tables.</li>
+<li><strong>FADT (Fixed ACPI Description Table):</strong> Contains
+fixed-hardware register details, system power flags, and pointers to the
+DSDT.</li>
+<li><strong>DSDT (Differentiated System Description Table):</strong>
+Contains the primary platform hardware definitions written in ACPI
+Source Language (ASL) and compiled into ACPI Machine Language (AML) byte
+code.</li>
+<li><strong>SSDT (Secondary System Description Table):</strong> Supplies
+optional and modular device definitions that extend the DSDT, often used
+for dynamic hardware configurations.</li>
+</ul>
+<p>Linux parses these tables using ACPICA (ACPI Component Architecture),
+an OS-independent reference implementation maintained by Intel and built
+directly into the kernel. The ACPICA interpreter evaluates the AML byte
+code, creating a hierarchical namespace representing devices, power
+resources, thermal zones, and control methods.</p>
+<h2 id="cpu-power-management">CPU Power Management</h2>
+<p>Linux links ACPI definitions directly to its CPU power
+subsystems:</p>
+<h3 id="processor-sleep-states-c-states">Processor Sleep States
+(C-States)</h3>
+<p>The <code>cpuidle</code> subsystem queries ACPI <code>_CST</code>
+(C-State) objects to discover platform idle modes. When a CPU core has
+no threads to execute, <code>cpuidle</code> selects an appropriate
+low-power C-state (ranging from C1 to deeper states like C6/C10). Deeper
+states save more power by powering down execution units and caches, but
+incur higher wake-up latencies.</p>
+<h3 id="processor-performance-states-p-states-and-cppc">Processor
+Performance States (P-States and CPPC)</h3>
+<p>For active workloads, the Linux <code>cpufreq</code> subsystem
+manages processor operating frequencies and voltages:</p>
+<ul>
+<li><strong>Legacy P-States:</strong> Described via ACPI
+<code>_PSS</code> and <code>_PCT</code> objects, allowing the kernel's
+CPU governors (e.g., <code>schedutil</code>, <code>powersave</code>,
+<code>performance</code>) to manually select discrete performance
+points.</li>
+<li><strong>Collaborative Processor Performance Control (CPPC):</strong>
+Modern systems use ACPI <code>_CPC</code> objects, implemented in
+drivers like <code>amd_pstate</code> and <code>intel_pstate</code>.
+Under CPPC, the Linux kernel conveys abstract performance requirements
+directly to hardware, allowing the processor itself to autonomously
+scale clocks and voltages at microsecond intervals.</li>
+</ul>
+<h2 id="system-sleep-and-suspensions-s-states">System Sleep and
+Suspensions (S-States)</h2>
+<p>Linux exposes ACPI-defined system sleep states to userspace via
+<code>/sys/power/state</code>:</p>
+<ul>
+<li><strong>S3 (Suspend-to-RAM):</strong> Execution halts, device
+contexts are saved to RAM, and platform clocks stop. The kernel invokes
+ACPI <code>_PTS</code> (Prepare to Sleep) and writes to ACPI control
+registers to enter the sleep state.</li>
+<li><strong>S4 (Hibernation / Suspend-to-Disk):</strong> System memory
+is written to non-volatile storage, and the hardware transitions to a
+full ACPI S4 or G2/S5 soft-off state.</li>
+<li><strong>Suspend-to-Idle (s2idle / Modern Standby):</strong> An
+alternative to S3 common in modern laptops. Instead of relying on
+firmware S3 transitions, the Linux kernel coordinates deep runtime power
+down across all devices and puts CPUs into their deepest package
+C-states while remaining in the ACPI S0 working state.</li>
+</ul>
+<h2 id="device-power-management-d-states">Device Power Management
+(D-States)</h2>
+<p>Individual devices within the ACPI tree define power resources and
+methods (<code>_PS0</code> through <code>_PS3</code>) to manage device
+states from D0 (fully on) to D3cold (completely unpowered). The Linux
+Runtime Power Management (Runtime PM) framework monitors device
+utilization. When a device (such as a PCIe controller, storage drive, or
+network card) becomes idle, the kernel executes its ACPI power
+transition methods to cut power automatically, restoring it
+instantaneously when the device is accessed again.</p>
+<h2 id="thermal-management-and-event-handling">Thermal Management and
+Event Handling</h2>
+<p>ACPI provides dynamic event reporting and thermal management
+capabilities through interrupts:</p>
+<ul>
+<li><strong>Fixed and General Purpose Events (GPEs):</strong> Hardware
+triggers an ACPI event (like closing a laptop lid, pressing the power
+button, or inserting a battery charger) via a low-level interrupt. The
+Linux ACPI driver catches this interrupt, evaluates the corresponding
+GPE handler, and forwards the event to userspace daemons (such as
+<code>systemd-logind</code> or <code>acpid</code>) via netlink sockets
+or the <code>/dev/input</code> subsystem.</li>
+<li><strong>Thermal Control:</strong> The Linux thermal framework
+interacts with ACPI thermal zones (<code>_TZ</code> objects). If
+temperatures exceed defined thresholds (<code>_ACx</code> for active
+cooling, <code>_CRT</code> for critical shutdown, <code>_PSV</code> for
+passive cooling), the kernel automatically activates fans via ACPI fan
+drivers or throttles CPU frequency to prevent thermal damage.</li>
+</ul></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

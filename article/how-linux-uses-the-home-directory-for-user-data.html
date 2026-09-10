@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How Linux Uses the /home Directory for User Data - linux</title>
+    <meta name="description" content="In Linux-based operating systems, the /home directory serves as the primary repository for individual user environments, personal files, and customized application settings. This article explores how Linux structures the /home directory to isolate person">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-linux-uses-the-home-directory-for-user-data">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How Linux Uses the /home Directory for User Data - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-linux-uses-the-home-directory-for-user-data" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="In Linux-based operating systems, the /home directory serves as the primary repository for individual user environments, personal files, and customized application settings. This article explores how Linux structures the /home directory to isolate person" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-linux-uses-the-home-directory-for-user-data">How Linux Uses
+the /home Directory for User Data</h1>
+<p>In Linux-based operating systems, the <code>/home</code> directory
+serves as the primary repository for individual user environments,
+personal files, and customized application settings. This article
+explores how Linux structures the <code>/home</code> directory to
+isolate personal files from critical system components, manages
+user-level access and security through standard permission models, and
+simplifies system maintenance and backups by keeping user data
+compartmentalized.</p>
+<h3 id="structure-and-organization-of-home">Structure and Organization
+of <code>/home</code></h3>
+<p>Under the Filesystem Hierarchy Standard (FHS), <code>/home</code> is
+reserved for standard, non-root user accounts. When a new user account
+is created, the operating system generates a corresponding subdirectory
+named after the username (for example, <code>/home/alice</code>).</p>
+<p>Within each personal directory, Linux typically generates standard
+subfolders for organizing media and documents, such as
+<code>Desktop</code>, <code>Documents</code>, <code>Downloads</code>,
+<code>Music</code>, <code>Pictures</code>, and <code>Videos</code>.
+Aside from these visible folders, the directory contains hidden files
+and directories—known as "dotfiles" (such as <code>.bashrc</code>,
+<code>.profile</code>, and the <code>.config/</code> folder). These
+dotfiles store user-specific configuration options, shell history, and
+application states, ensuring changes made by one user do not alter
+default settings for others.</p>
+<h3 id="separation-of-system-and-user-data">Separation of System and
+User Data</h3>
+<p>Linux maintains a strict boundary between operating system files and
+user files. Critical binary files, libraries, and core configurations
+reside in directories like <code>/usr</code>, <code>/bin</code>,
+<code>/etc</code>, and <code>/var</code>.</p>
+<p>By confining user writes almost exclusively to
+<code>/home/username</code>, Linux prevents regular users from
+inadvertently deleting or modifying system-critical files. This
+separation also makes the operating system more resilient: even if a
+user fills their home directory to maximum capacity or misconfigures an
+application, the underlying operating system continues to function
+normally.</p>
+<h3 id="permissions-and-multi-user-security">Permissions and Multi-User
+Security</h3>
+<p>Linux uses a standard discretionary access control (DAC) model based
+on read (<code>r</code>), write (<code>w</code>), and execute
+(<code>x</code>) permissions assigned to users, groups, and others.</p>
+<p>By default, a user's directory inside <code>/home</code> is owned by
+that specific user and their primary group. Most modern distributions
+set permissions such that other non-administrative users cannot view or
+modify the contents of another user's home folder. The root
+administrator retains access to all <code>/home</code> directories, but
+standard accounts are strictly sandboxed into their own directories
+unless explicit permissions are granted.</p>
+<h3 id="practical-benefits-for-maintenance-and-backups">Practical
+Benefits for Maintenance and Backups</h3>
+<p>The dedicated <code>/home</code> architecture provides significant
+administrative advantages:</p>
+<ul>
+<li><strong>Independent Storage Partitioning:</strong> Administrators
+frequently mount <code>/home</code> on a separate disk partition,
+dedicated storage drive, or network share. This allows system
+administrators or desktop users to upgrade, reinstall, or swap entire
+Linux distributions on the root partition (<code>/</code>) without
+overwriting user data.</li>
+<li><strong>Streamlined Backups:</strong> Because user-generated content
+and software configurations are centralized in one location, backing up
+personal data requires only archiving the <code>/home</code> directory,
+avoiding the overhead of copying system binaries.</li>
+<li><strong>Disk Quota Management:</strong> Multi-user environments
+(such as universities or shared servers) can enforce filesystem quotas
+specifically on <code>/home</code> to prevent any single account from
+exhausting available storage.</li>
+</ul></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

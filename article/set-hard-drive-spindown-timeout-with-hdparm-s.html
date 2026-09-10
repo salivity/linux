@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Set Hard Drive Spindown Timeout with hdparm -S - linux</title>
+    <meta name="description" content="The hdparm -S command in Linux manages storage drive power consumption by configuring the idle spin-down timeout for mechanical hard disk drives (HDDs). This article explains the primary purpose of the command, the mathematical system used to define stan">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/set-hard-drive-spindown-timeout-with-hdparm-s">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Set Hard Drive Spindown Timeout with hdparm -S - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/set-hard-drive-spindown-timeout-with-hdparm-s" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="The hdparm -S command in Linux manages storage drive power consumption by configuring the idle spin-down timeout for mechanical hard disk drives (HDDs). This article explains the primary purpose of the command, the mathematical system used to define stan" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="set-hard-drive-spindown-timeout-with-hdparm--s">Set Hard Drive
+Spindown Timeout with hdparm -S</h1>
+<p>The <code>hdparm -S</code> command in Linux manages storage drive
+power consumption by configuring the idle spin-down timeout for
+mechanical hard disk drives (HDDs). This article explains the primary
+purpose of the command, the mathematical system used to define standby
+durations, the trade-offs between energy savings and hardware lifespan,
+and how to configure these settings on a Linux system.</p>
+<h2 id="the-purpose-of-the-hdparm--s-command">The Purpose of the hdparm
+-S Command</h2>
+<p>The <code>-S</code> flag in the <code>hdparm</code> utility instructs
+a storage drive's internal firmware to enter an idle or standby state
+after a specified period of inactivity. When a mechanical hard drive
+enters standby mode, it parks its read/write heads and spins down the
+physical platters.</p>
+<p>The primary purposes of spinning down an idle hard drive include:</p>
+<ul>
+<li><strong>Energy Conservation:</strong> Mechanical drives consume
+between 4 to 10 watts while spinning. Power consumption drops to under 1
+watt when spun down, which is beneficial for home servers, Network
+Attached Storage (NAS) devices, and battery-powered laptops.</li>
+<li><strong>Thermal Management:</strong> Spinning motors generate heat.
+Reducing motor activity lowers the operating temperature within tight
+drive enclosures or multi-drive chassis.</li>
+<li><strong>Acoustic Reduction:</strong> Spinning platters generate
+low-frequency vibration and motor noise. Entering standby mode makes the
+drive completely silent.</li>
+</ul>
+<p>Note that <code>hdparm -S</code> is intended for rotational media
+(mechanical hard drives). Solid-state drives (SSDs) do not possess
+moving parts, meaning mechanical spin-down does not apply to them; SSDs
+handle power states independently via standards like NVMe APST or SATA
+DIPM.</p>
+<h2 id="decoding-the-timeout-values">Decoding the Timeout Values</h2>
+<p>Unlike standard Linux utilities that accept time values in seconds or
+minutes (such as <code>10m</code> or <code>600s</code>),
+<code>hdparm -S</code> uses a non-linear legacy encoding system defined
+by the ATA specification. The value passed directly after
+<code>-S</code> determines the standby interval according to the
+following rules:</p>
+<ul>
+<li><strong>Value 0:</strong> Disables standby spin-down entirely. The
+drive platters will spin continuously regardless of idle time.</li>
+<li><strong>Values 1 to 240:</strong> Multiples of 5 seconds. For
+example, a value of <code>12</code> equals 60 seconds (12 × 5 seconds),
+and a value of <code>120</code> equals 10 minutes (120 × 5
+seconds).</li>
+<li><strong>Values 241 to 251:</strong> Multiples of 30 minutes,
+calculated as <code>(value - 240) * 30 minutes</code>. A value of
+<code>241</code> equals 30 minutes, <code>242</code> equals 1 hour, up
+to <code>251</code> which equals 5.5 hours.</li>
+<li><strong>Value 252:</strong> Hard-coded to represent 21 minutes.</li>
+<li><strong>Value 253:</strong> Vendor-defined timeout period (often
+between 8 to 12 hours).</li>
+<li><strong>Value 255:</strong> Hard-coded to represent 21 minutes and
+15 seconds.</li>
+</ul>
+<h2 id="usage-and-syntax">Usage and Syntax</h2>
+<p>To configure a spin-down timeout, execute <code>hdparm</code> with
+<code>sudo</code> or root privileges, targeting the specific block
+device.</p>
+<p>To set a drive to spin down after 10 minutes of inactivity:</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> hdparm <span class="at">-S</span> 120 /dev/sdb</span></code></pre></div>
+<p>To verify if the drive has entered standby mode without spinning it
+up in the process, run:</p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> hdparm <span class="at">-C</span> /dev/sdb</span></code></pre></div>
+<p>This returns either <code>active/idle</code> (platters spinning) or
+<code>standby</code> (platters stopped).</p>
+<h2 id="trade-offs-and-hardware-considerations">Trade-Offs and Hardware
+Considerations</h2>
+<p>While setting an aggressive spin-down timer saves power, it
+introduces specific performance and reliability considerations:</p>
+<ol type="1">
+<li><strong>Access Latency:</strong> When an application or the
+operating system requests data from a drive in standby, it must wait 5
+to 15 seconds for the platters to reach operating RPM before the data
+can be read.</li>
+<li><strong>Mechanical Wear:</strong> Hard drives are rated for a finite
+number of load/unload cycles (typically 300,000 to 600,000 cycles).
+Spinning down a drive too frequently—such as after only 1 to 2 minutes
+of idle time—can cause repeated start-stop cycles throughout the day,
+accelerating mechanical degradation.</li>
+</ol>
+<h2 id="making-settings-persistent">Making Settings Persistent</h2>
+<p>Commands issued with <code>hdparm</code> are volatile and reset when
+the system reboots or when the drive is power-cycled. To maintain the
+configuration permanently, define the parameter in
+<code>/etc/hdparm.conf</code> on Debian and Ubuntu systems:</p>
+<pre class="text"><code>/dev/disk/by-id/ata-WDC_WD20EFRX-... {
+    spindown_time = 120
+}</code></pre>
+<p>Using the persistent device identifier located in
+<code>/dev/disk/by-id/</code> ensures the settings target the correct
+physical drive even if disk drive letters (<code>/dev/sda</code>,
+<code>/dev/sdb</code>) change across reboots.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

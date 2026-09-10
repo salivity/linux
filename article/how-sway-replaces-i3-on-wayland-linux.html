@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How Sway Replaces i3 on Wayland Linux - linux</title>
+    <meta name="description" content="Sway serves as a direct, drop-in replacement for the popular i3 tiling window manager by bringing the exact same workflow, configuration syntax, and behavior to the Wayland display protocol. Designed to ease the migration from legacy X11 environments to">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-sway-replaces-i3-on-wayland-linux">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How Sway Replaces i3 on Wayland Linux - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-sway-replaces-i3-on-wayland-linux" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="Sway serves as a direct, drop-in replacement for the popular i3 tiling window manager by bringing the exact same workflow, configuration syntax, and behavior to the Wayland display protocol. Designed to ease the migration from legacy X11 environments to" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-sway-replaces-i3-on-wayland-linux">How Sway Replaces i3 on
+Wayland Linux</h1>
+<p>Sway serves as a direct, drop-in replacement for the popular i3
+tiling window manager by bringing the exact same workflow, configuration
+syntax, and behavior to the Wayland display protocol. Designed to ease
+the migration from legacy X11 environments to modern Linux graphics
+stacks, Sway allows users to transfer their existing i3 setups with
+minimal friction. This article explains how Sway achieves feature parity
+with i3, manages configuration files, replicates the internal
+communication system, and handles Wayland-specific transitions.</p>
+<h2 id="configuration-and-command-parity">Configuration and Command
+Parity</h2>
+<p>Sway is designed to support your existing i3 configuration directly.
+In most cases, a user can copy their <code>~/.config/i3/config</code>
+file to <code>~/.config/sway/config</code> and launch the window manager
+without editing a single line.</p>
+<p>Sway supports the standard i3 configuration syntax, including:</p>
+<ul>
+<li><strong>Keybindings:</strong> Standard commands like
+<code>bindsym</code> and <code>bindcode</code> function
+identically.</li>
+<li><strong>Layout Management:</strong> Split directions
+(<code>splith</code>, <code>splitv</code>), layout styles
+(<code>stacking</code>, <code>tabbed</code>, <code>default</code>), and
+floating window toggles operate under the same logic.</li>
+<li><strong>Workspaces and Assignments:</strong> Assigning applications
+to specific numbered or named workspaces uses identical syntax
+(<code>assign [class="..."] workspace</code>).</li>
+<li><strong>Modes:</strong> Custom binding modes, such as resize or
+system control modes, run with the same block formatting.</li>
+</ul>
+<p>Where i3 features are tied directly to X11-specific mechanisms (such
+as setting an X11 root background with an external tool), Sway provides
+built-in Wayland equivalents or ignores invalid X11 directives
+gracefully.</p>
+<h2 id="inter-process-communication-ipc-compatibility">Inter-Process
+Communication (IPC) Compatibility</h2>
+<p>A major factor in i3’s popularity is its robust UNIX-socket-based IPC
+interface, which tools like status bars, external scripts, and
+automation utilities rely on. Sway replicates the i3 IPC protocol down
+to the byte level.</p>
+<p>Because Sway adopts this communication standard:</p>
+<ul>
+<li>Utilities designed for i3, such as <code>i3-msg</code>, have direct
+counterparts in Sway (<code>swaymsg</code>), which accept the exact same
+commands and return matching JSON payloads.</li>
+<li>Status bars like <code>i3status</code> and <code>i3blocks</code>
+work natively inside Sway's built-in bar module
+(<code>swaybar</code>).</li>
+<li>Third-party scripts monitoring workspace changes, window focus, or
+layout modes function with Sway without requiring code
+modifications.</li>
+</ul>
+<h2 id="the-architectural-foundation-wlroots">The Architectural
+Foundation: wlroots</h2>
+<p>Unlike i3, which acts as a window manager on top of an X11 server,
+Wayland merges the role of the window manager and the compositor into a
+single program. Sway fulfills this combined role by using
+<strong>wlroots</strong>, a modular library created by the Sway
+development team.</p>
+<p>Through wlroots, Sway abstracts low-level display management
+tasks—such as KMS (Kernel Mode Setting), DRM (Direct Rendering Manager),
+input device handling through <code>libinput</code>, and rendering via
+OpenGL/Vulkan—while maintaining the precise window layout algorithms
+pioneered by i3.</p>
+<h2 id="backwards-compatibility-via-xwayland">Backwards Compatibility
+via XWayland</h2>
+<p>To ensure that older applications running exclusively on X11 do not
+break, Sway incorporates XWayland support. When an X11-dependent
+application is launched, Sway spins up a lightweight XWayland server on
+demand. The application renders seamlessly alongside native Wayland
+windows, preserving window matching rules based on X11 window classes
+and roles.</p>
+<h2 id="native-wayland-drop-in-alternatives">Native Wayland Drop-In
+Alternatives</h2>
+<p>While Sway achieves near-complete compatibility with i3's core
+functionality, external utilities that interact directly with the X11
+display server must be swapped for their Wayland equivalents. Common
+replacements include:</p>
+<ul>
+<li><strong>Application Launchers:</strong> Replace <code>dmenu</code>
+or <code>rofi</code> with native alternatives such as <code>wofi</code>,
+<code>bemenu</code>, or <code>rofi-wayland</code>.</li>
+<li><strong>Screen Lockers:</strong> Replace <code>i3lock</code> with
+<code>swaylock</code>.</li>
+<li><strong>Wallpaper Utilities:</strong> Replace tools like
+<code>feh</code> or <code>nitrogen</code> with <code>swaybg</code> or
+Sway's native output configuration commands.</li>
+<li><strong>Idle Management:</strong> Replace <code>xautolock</code>
+with <code>swayidle</code>.</li>
+</ul>
+<p>By matching i3’s layout engine, syntax, and IPC protocol while
+handling hardware compositing through wlroots, Sway allows Linux users
+to modernize their desktop environment without sacrificing the
+keyboard-driven workflow they mastered in i3.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

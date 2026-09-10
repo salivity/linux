@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How Linux Uses Partprobe for Partition Changes - linux</title>
+    <meta name="description" content="The partprobe command in Linux is a critical utility used to synchronize disk partition modifications with the operating system's kernel. When partition tables are altered using tools like fdisk or parted, the changes are written directly to the storage">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-linux-uses-partprobe-for-partition-changes">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How Linux Uses Partprobe for Partition Changes - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-linux-uses-partprobe-for-partition-changes" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="The partprobe command in Linux is a critical utility used to synchronize disk partition modifications with the operating system's kernel. When partition tables are altered using tools like fdisk or parted, the changes are written directly to the storage" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-linux-uses-partprobe-for-partition-changes">How Linux Uses
+Partprobe for Partition Changes</h1>
+<p>The <code>partprobe</code> command in Linux is a critical utility
+used to synchronize disk partition modifications with the operating
+system's kernel. When partition tables are altered using tools like
+<code>fdisk</code> or <code>parted</code>, the changes are written
+directly to the storage drive, but the kernel's in-memory representation
+may remain outdated. <code>partprobe</code> bridges this gap by querying
+the disk's updated partition layout and instructing the kernel to
+refresh its internal block device structures immediately, eliminating
+the need to reboot the system to recognize new or modified storage
+boundaries.</p>
+<h3 id="the-disconnect-between-disk-and-kernel">The Disconnect Between
+Disk and Kernel</h3>
+<p>When a storage drive is partitioned, the changes are committed to the
+disk’s metadata sector, such as the Master Boot Record (MBR) or GUID
+Partition Table (GPT). However, the Linux kernel does not continuously
+monitor storage hardware for metadata edits. Instead, it reads the
+partition table during the boot process or initial device discovery and
+keeps an internal map of partitions in memory.</p>
+<p>If a partition is added, resized, or deleted while the system is
+running, the kernel continues to reference its cached table. This
+results in the operating system being unable to find newly created
+device nodes (such as <code>/dev/sdb2</code>) or miscalculating the
+available space on resized partitions.</p>
+<h3 id="how-partprobe-works-under-the-hood">How Partprobe Works Under
+the Hood</h3>
+<p><code>partprobe</code>, which is part of the GNU Parted package,
+resolves this synchronization issue through a series of direct kernel
+interactions:</p>
+<ol type="1">
+<li><strong>Reading On-Disk Metadata:</strong> When executed,
+<code>partprobe</code> reads the partition table directly from the
+specified block device (or all available block devices if no specific
+drive is specified).</li>
+<li><strong>Issuing Kernel System Calls:</strong> Once the updated
+layout is read, <code>partprobe</code> issues an <code>ioctl</code>
+(input/output control) system call to the operating system.
+Historically, this has been the <code>BLKRRPART</code> (Block Request
+Re-Read Partition Table) request, though modern implementations may use
+the <code>BLKPG</code> ioctl to add, delete, or resize specific
+partitions directly without dropping the entire table.</li>
+<li><strong>Kernel Memory Reconstruction:</strong> Upon receiving the
+<code>ioctl</code> request, the kernel flushes its old cached partition
+information for the device, reads the physical table afresh, and
+rebuilds its internal device maps.</li>
+<li><strong>Updating the Virtual Filesystems:</strong> The kernel
+updates its virtual filesystems—primarily <code>/sys/class/block/</code>
+and <code>/proc/partitions</code>—to reflect the new boundaries,
+sectors, and partition counts.</li>
+<li><strong>Udev Event Triggering:</strong> The kernel notifies
+<code>udevd</code> (the device management daemon) of the changes. In
+response, <code>udev</code> dynamically creates, modifies, or removes
+the corresponding device nodes in the <code>/dev</code> directory.</li>
+</ol>
+<h3 id="limitations-and-in-use-partitions">Limitations and In-Use
+Partitions</h3>
+<p>While <code>partprobe</code> is powerful, the Linux kernel enforces
+safety checks to prevent data corruption. If any partition on the target
+disk is actively mounted, holds active swap space, or is part of an
+assembled LVM volume or software RAID array, the kernel will refuse to
+execute a full table re-read via <code>BLKRRPART</code>. In such cases,
+the system call fails with a <code>Device or resource busy</code>
+(EBUSY) error.</p>
+<p>To overcome this, modern systems require unmounting the active
+partitions prior to running <code>partprobe</code>, or utilizing
+partition-specific tools like <code>growpart</code> or
+<code>partx -u</code>, which leverage the <code>BLKPG</code> interface
+to resize an individual in-use partition without disrupting surrounding
+partitions.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

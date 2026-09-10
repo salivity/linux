@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linux CPU Undervolting with intel-undervolt - linux</title>
+    <meta name="description" content="Linux handles CPU undervolting by providing low-level access to the processor's Model-Specific Registers (MSRs) through specialized kernel modules, bypassing the need for heavy graphical utilities like Windows' ThrottleStop. Instead of running a continuo">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/linux-cpu-undervolting-with-intel-undervolt">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Linux CPU Undervolting with intel-undervolt - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/linux-cpu-undervolting-with-intel-undervolt" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="Linux handles CPU undervolting by providing low-level access to the processor's Model-Specific Registers (MSRs) through specialized kernel modules, bypassing the need for heavy graphical utilities like Windows' ThrottleStop. Instead of running a continuo" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="linux-cpu-undervolting-with-intel-undervolt">Linux CPU
+Undervolting with intel-undervolt</h1>
+<p>Linux handles CPU undervolting by providing low-level access to the
+processor's Model-Specific Registers (MSRs) through specialized kernel
+modules, bypassing the need for heavy graphical utilities like Windows'
+ThrottleStop. Instead of running a continuous background GUI
+application, Linux relies on lightweight command-line daemons such as
+<code>intel-undervolt</code> to apply voltage offsets to CPU cores,
+cache, and integrated graphics. This article explains the underlying
+mechanisms Linux uses to interface with hardware registers, how
+<code>intel-undervolt</code> replaces ThrottleStop functionality, and
+how power limits are enforced across system state changes.</p>
+<h3 id="kernel-level-msr-access-in-linux">Kernel-Level MSR Access in
+Linux</h3>
+<p>Unlike modern Windows environments where software interfaces with
+proprietary manufacturer drivers to alter voltages, Linux natively
+manages hardware-level processor states via the <code>msr</code> kernel
+module. When loaded, this module creates character devices at
+<code>/dev/cpu/[core_id]/msr</code>.</p>
+<p>CPU undervolting relies on writing specific bitmasks to Intel's
+voltage control register (MSR <code>0x150</code>). Because direct access
+to MSRs can expose system memory and introduce hardware instability,
+Linux strictly limits read and write operations to processes with root
+privileges or the <code>CAP_SYS_RAWIO</code> capability. Tools interact
+with these nodes via standard POSIX system calls (<code>open</code>,
+<code>pread</code>, <code>pwrite</code>), delivering voltage
+instructions directly to the CPU microcode.</p>
+<h3 id="how-intel-undervolt-replaces-throttlestop">How
+<code>intel-undervolt</code> Replaces ThrottleStop</h3>
+<p>ThrottleStop is widely used on Windows to control CPU voltages, power
+limits (PL1/PL2), and thermal trip points through an interactive
+graphical interface. On Linux, <code>intel-undervolt</code> acts as a
+headless, resource-efficient alternative written in C.</p>
+<p><code>intel-undervolt</code> parses a human-readable configuration
+file located at <code>/etc/intel-undervolt.conf</code>. In this file,
+users define negative millivolt (mV) offsets for five distinct voltage
+planes:</p>
+<ul>
+<li><strong>CPU Core:</strong> The main computing execution units.</li>
+<li><strong>CPU Cache:</strong> The L3 uncore and cache bus, which
+typically requires a matching offset with the core for stability.</li>
+<li><strong>Intel GPU:</strong> The processor's integrated
+graphics.</li>
+<li><strong>System Agent:</strong> Memory controller and peripheral
+buses.</li>
+<li><strong>Analog I/O:</strong> Chipset and secondary input/output
+paths.</li>
+</ul>
+<p>Upon execution, the utility calculates the appropriate hexadecimal
+values and writes them to MSR <code>0x150</code>, instantaneously
+lowering the voltage profile configured by the motherboard's Dynamic
+Voltage and Frequency Scaling (DVFS) tables.</p>
+<h3 id="handling-power-limits-via-intel-rapl">Handling Power Limits via
+Intel RAPL</h3>
+<p>Beyond pure voltage control, ThrottleStop manages processor power
+limits to prevent thermal throttling. Linux achieves this through the
+Running Average Power Limit (RAPL) interface, exposed by the kernel
+under <code>/sys/class/powercap/intel-rapl/</code>.</p>
+<p><code>intel-undervolt</code> reads and modifies these powercap sysfs
+nodes directly. Users can configure sustained power limits (PL1), burst
+limits (PL2), and time windows. When configured,
+<code>intel-undervolt</code> writes to the relevant RAPL MSRs
+(<code>MSR_PKG_POWER_LIMIT</code>), allowing the Linux kernel's thermal
+and power governors to dynamically manage clock speeds within
+user-defined wattage envelopes.</p>
+<h3 id="persistence-across-power-states">Persistence Across Power
+States</h3>
+<p>ThrottleStop typically runs continuously in the Windows system tray
+to re-apply settings after waking from sleep. In Linux, continuous
+execution is unnecessary because register values only need to be written
+when the processor resets or changes power states.</p>
+<p>Linux manages persistence through <code>systemd</code>:</p>
+<ol type="1">
+<li><strong>Boot Execution:</strong> A <code>systemd</code> service
+(<code>intel-undervolt.service</code>) executes once during the
+multi-user boot target, writing configured offsets to the hardware
+registers.</li>
+<li><strong>Suspend and Resume:</strong> Modern Intel CPUs reset their
+internal registers to default voltages when waking from deep sleep
+states (S3/S0ix). Linux handles this through systemd sleep hooks
+(<code>systemd-suspend.service</code> and
+<code>systemd-hibernate.service</code>), triggering
+<code>intel-undervolt apply</code> immediately upon system wake.</li>
+<li><strong>Periodic Re-application:</strong> An optional
+<code>intel-undervolt-loop.service</code> can run as a low-overhead
+timer daemon to ensure voltages remain locked even if system firmware or
+aggressive thermal daemons (like <code>thermald</code>) attempt to
+override them during runtime.</li>
+</ol></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

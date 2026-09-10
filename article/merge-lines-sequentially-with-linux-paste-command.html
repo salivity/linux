@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Merge Lines Sequentially with Linux Paste Command - linux</title>
+    <meta name="description" content="The Linux paste command is a core utility designed to join lines from one or more files and display the result to standard output. While it defaults to merging lines horizontally across multiple files, it can also process text sequentially—combining al">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/merge-lines-sequentially-with-linux-paste-command">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Merge Lines Sequentially with Linux Paste Command - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/merge-lines-sequentially-with-linux-paste-command" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="The Linux paste command is a core utility designed to join lines from one or more files and display the result to standard output. While it defaults to merging lines horizontally across multiple files, it can also process text sequentially—combining al" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="merge-lines-sequentially-with-linux-paste-command">Merge Lines
+Sequentially with Linux Paste Command</h1>
+<p>The Linux <code>paste</code> command is a core utility designed to
+join lines from one or more files and display the result to standard
+output. While it defaults to merging lines horizontally across multiple
+files, it can also process text sequentially—combining all lines within
+a single file into a single line or joining consecutive lines in series.
+This article explains the internal mechanics of the <code>paste</code>
+utility, how it handles sequential processing using specific flags, and
+practical methods for controlling delimiters and stream inputs.</p>
+<h2 id="the-mechanics-of-the-paste-utility">The Mechanics of the
+<code>paste</code> Utility</h2>
+<p>By default, the <code>paste</code> command reads corresponding lines
+from each specified file, replaces the trailing newline character of
+each line (except the last file) with a delimiter, and prints the joined
+result.</p>
+<p>When you instruct <code>paste</code> to merge lines sequentially, it
+alters its reading pattern. Instead of reading the first line from File
+A, the first line from File B, and so on, it processes an entire file
+from start to finish before moving to the next.</p>
+<h2 id="sequential-merging-with-the--s-flag">Sequential Merging with the
+<code>-s</code> Flag</h2>
+<p>The primary method for sequential merging is the <code>-s</code> (or
+<code>--serial</code>) option. When this flag is passed,
+<code>paste</code> reads through a single file, replacing every newline
+character with a delimiter, effectively turning a vertical column of
+text into a single horizontal row.</p>
+<p>Given a file named <code>items.txt</code>:</p>
+<pre class="text"><code>apple
+banana
+cherry
+date</code></pre>
+<p>Running the sequential paste command:</p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">paste</span> <span class="at">-s</span> items.txt</span></code></pre></div>
+<p>Output:</p>
+<pre class="text"><code>apple   banana  cherry  date</code></pre>
+<p>Behind the scenes, the Linux operating system reads the input stream
+character by character (or buffer by buffer), detects the
+<code>\n</code> (newline) control character, and replaces it with the
+default tab character (<code>\t</code>). The trailing newline of the
+final line remains intact to ensure standard POSIX formatting on
+standard output.</p>
+<h2 id="customizing-delimiters-with--d">Customizing Delimiters with
+<code>-d</code></h2>
+<p>By default, <code>paste</code> uses a tab (<code>\t</code>) as the
+joining character. The <code>-d</code> (or <code>--delimiters</code>)
+flag allows you to specify a single character or a list of characters to
+replace the newline.</p>
+<p>To join lines sequentially with a comma and space:</p>
+<div class="sourceCode" id="cb4"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">paste</span> <span class="at">-s</span> <span class="at">-d,</span> items.txt</span></code></pre></div>
+<p>Output:</p>
+<pre class="text"><code>apple,banana,cherry,date</code></pre>
+<h3 id="rotating-delimiters-sequentially">Rotating Delimiters
+Sequentially</h3>
+<p>The <code>paste</code> command can also cycle through a list of
+delimiters sequentially. If you provide multiple characters to
+<code>-d</code>, <code>paste</code> alternates through the list for each
+merged line until it reaches the end of the file:</p>
+<div class="sourceCode" id="cb6"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">paste</span> <span class="at">-s</span> <span class="at">-d</span><span class="st">&#39;:,&#39;</span> items.txt</span></code></pre></div>
+<p>Output:</p>
+<pre class="text"><code>apple:banana,cherry:date</code></pre>
+<p>In this execution, the utility replaces the first newline with a
+colon (<code>:</code>), the second with a comma (<code>,</code>), the
+third with a colon (<code>:</code>), and terminates the line with the
+original trailing newline.</p>
+<h2 id="merging-consecutive-line-pairs-using-standard-input">Merging
+Consecutive Line Pairs Using Standard Input</h2>
+<p>Beyond the <code>-s</code> flag, the <code>paste</code> command can
+merge a set number of consecutive lines sequentially from a single file
+by passing standard input (<code>-</code>) multiple times.</p>
+<p>When <code>paste</code> receives <code>-</code> as an argument, it
+reads one line from standard input. If you provide <code>-</code> twice,
+it reads the first line for the first argument, the second line for the
+second argument, and joins them:</p>
+<div class="sourceCode" id="cb8"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="fu">paste</span> <span class="at">-</span> <span class="at">-</span> <span class="op">&lt;</span> items.txt</span></code></pre></div>
+<p>Output:</p>
+<pre class="text"><code>apple   banana
+cherry  date</code></pre>
+<p>For every <code>-</code> provided, <code>paste</code> consumes one
+sequential line from the stream per output row. This allows for grouping
+data into pairs, triplets, or arbitrary column counts without requiring
+complex text-processing scripts like <code>awk</code> or
+<code>sed</code>.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

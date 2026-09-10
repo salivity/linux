@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Variables and Loops in Linux Shell Scripting - linux</title>
+    <meta name="description" content="This article provides an overview of how the Linux operating system handles variables and iterative control structures within shell scripts. When executing scripts, the Linux shell acts as a command language interpreter that manages memory allocation for">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/variables-and-loops-in-linux-shell-scripting">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Variables and Loops in Linux Shell Scripting - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/variables-and-loops-in-linux-shell-scripting" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="This article provides an overview of how the Linux operating system handles variables and iterative control structures within shell scripts. When executing scripts, the Linux shell acts as a command language interpreter that manages memory allocation for" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="variables-and-loops-in-linux-shell-scripting">Variables and
+Loops in Linux Shell Scripting</h1>
+<p>This article provides an overview of how the Linux operating system
+handles variables and iterative control structures within shell scripts.
+When executing scripts, the Linux shell acts as a command language
+interpreter that manages memory allocation for data storage and
+orchestrates execution flow. Understanding how the underlying shell
+environment evaluates variable assignments, scopes, and loop conditions
+allows developers to write efficient, reliable automation scripts.</p>
+<h2 id="how-linux-handles-variables">How Linux Handles Variables</h2>
+<p>In Linux shell environments like Bash, dash, or zsh, variables are
+untyped storage mechanisms that default to treating values as character
+strings unless an explicit attribute or integer context is declared.</p>
+<h3 id="assignment-and-memory-allocation">Assignment and Memory
+Allocation</h3>
+<p>When a variable is assigned (e.g., <code>NAME="Linux"</code>), the
+shell assigns a pointer to that string in its local memory space. Shell
+syntax strictly requires that no spaces surround the assignment operator
+(<code>=</code>), allowing the parser to distinguish variable
+definitions from executable commands and arguments.</p>
+<h3 id="scoping-and-the-environment">Scoping and the Environment</h3>
+<p>By default, variables defined within a script are local to the
+current shell process. Child processes created during script execution
+do not automatically inherit these variables. To make a variable
+accessible to subprocesses and child commands, the <code>export</code>
+built-in command is used. This moves the variable into the shell's
+environment table, which the Linux kernel copies into the memory space
+of subsequent child processes via the <code>fork</code> and
+<code>exec</code> system calls.</p>
+<h3 id="variable-dereferencing">Variable Dereferencing</h3>
+<p>To retrieve the value stored in a variable, the shell uses parameter
+expansion denoted by the <code>$</code> symbol (e.g., <code>$NAME</code>
+or <code>${NAME}</code>). The shell parses the line, substitutes the
+reference with the underlying value before running the command, and
+handles expansion rules such as default value substitutions, pattern
+stripping, or slicing.</p>
+<h2 id="how-linux-handles-loops">How Linux Handles Loops</h2>
+<p>Loops allow a shell script to execute a block of commands repeatedly
+based on a list of items or conditional statements. The Linux shell
+processes loops iteratively, evaluating command execution statuses to
+determine continuation.</p>
+<h3 id="the-for-loop">The <code>for</code> Loop</h3>
+<p>The <code>for</code> loop iterates over a defined list of elements.
+The syntax parses items separated by the Internal Field Separator (IFS),
+which defaults to spaces, tabs, and newlines:</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> item <span class="kw">in</span> item1 item2 item3<span class="kw">;</span> <span class="cf">do</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    <span class="bu">echo</span> <span class="st">&quot;</span><span class="va">$item</span><span class="st">&quot;</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="cf">done</span></span></code></pre></div>
+<p>The shell assigns the current element to the loop variable and
+executes the commands between <code>do</code> and <code>done</code>.
+Linux can also utilize C-style three-expression <code>for</code> loops
+(e.g., <code>for ((i=0; i&lt;10; i++))</code>), relying on internal
+arithmetic evaluation contexts where variables are treated as
+integers.</p>
+<h3 id="the-while-and-until-loops">The <code>while</code> and
+<code>until</code> Loops</h3>
+<p>Conditional loops rely directly on the Linux exit code system:</p>
+<ul>
+<li><strong><code>while</code> loop:</strong> Continues executing as
+long as the test command returns an exit status of <code>0</code>
+(indicating success).</li>
+<li><strong><code>until</code> loop:</strong> Continues executing as
+long as the test command returns a non-zero exit status (indicating
+failure), terminating once an exit code of <code>0</code> is
+reached.</li>
+</ul>
+<p>Conditions are frequently evaluated using the <code>test</code>
+command or the <code>[[ ... ]]</code> keyword construct, which returns
+standard exit codes based on file tests, string comparisons, or
+arithmetic evaluations.</p>
+<h3 id="process-management-within-loops">Process Management within
+Loops</h3>
+<p>Commands executed inside loops are typically processed synchronously
+within the main shell process unless redirected or explicitly
+backgrounded. When piping data into a loop (e.g.,
+<code>cat file.txt | while read line; do ... done</code>), most shells
+spawn a subshell to process the loop block. In this scenario, any
+variable modifications made inside the loop are lost when the subshell
+terminates upon loop completion. To persist variable state across
+iterations while processing streams, scripts typically use input
+redirection directly at the loop's end (<code>done &lt; file.txt</code>)
+rather than pipes.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>What Is Umask and How Does It Work in Linux? - linux</title>
+    <meta name="description" content="The user mask, commonly known as umask, is a Linux environment setting that determines the default permission bits assigned to newly created files and directories. Instead of granting permissions directly, umask acts as a filter that restricts specific a">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/what-is-umask-and-how-does-it-work-in-linux">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="What Is Umask and How Does It Work in Linux? - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/what-is-umask-and-how-does-it-work-in-linux" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="The user mask, commonly known as umask, is a Linux environment setting that determines the default permission bits assigned to newly created files and directories. Instead of granting permissions directly, umask acts as a filter that restricts specific a" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="what-is-umask-and-how-does-it-work-in-linux">What Is Umask and
+How Does It Work in Linux?</h1>
+<p>The user mask, commonly known as <strong>umask</strong>, is a Linux
+environment setting that determines the default permission bits assigned
+to newly created files and directories. Instead of granting permissions
+directly, umask acts as a filter that restricts specific access
+rights—read, write, or execute—from standard system-wide defaults.
+Understanding how umask calculates these values is essential for
+managing file security and multi-user environments in the Linux
+operating system.</p>
+<h3 id="base-permissions-in-linux">Base Permissions in Linux</h3>
+<p>When a new file or directory is generated, the operating system
+starts with standard baseline permissions before the umask is
+applied:</p>
+<ul>
+<li><strong>Directories:</strong> Start with a base permission of
+<code>0777</code> (<code>rwxrwxrwx</code>), granting full read, write,
+and execute rights to owner, group, and others. Directories require
+execute permissions so users can enter them and access their
+contents.</li>
+<li><strong>Files:</strong> Start with a base permission of
+<code>0666</code> (<code>rw-rw-rw-</code>), granting read and write
+rights to everyone. By default, Linux does not assign execute
+permissions to newly created regular files for security reasons.</li>
+</ul>
+<h3 id="how-umask-determines-permissions">How Umask Determines
+Permissions</h3>
+<p>The umask value represents the permissions you want to
+<em>remove</em> or <em>mask out</em> from the base permissions. It uses
+standard octal permission values:</p>
+<ul>
+<li><strong>4:</strong> Read permission (<code>r</code>)</li>
+<li><strong>2:</strong> Write permission (<code>w</code>)</li>
+<li><strong>1:</strong> Execute permission (<code>x</code>)</li>
+<li><strong>0:</strong> No permissions removed</li>
+</ul>
+<p>In basic practice, the effective permission is calculated by
+subtracting the umask value from the base permission.</p>
+<h4 id="example-calculation-with-umask-022">Example Calculation with
+Umask 022</h4>
+<p>The most common default umask on Linux distributions is
+<code>0022</code> (or simply <code>022</code>):</p>
+<ul>
+<li><strong>For a Directory:</strong> <code>0777 - 0022 = 0755</code>
+(<code>rwxr-xr-x</code>). The owner has read, write, and execute
+permissions, while group members and other users can only read and
+execute (traverse) the directory.</li>
+<li><strong>For a File:</strong> <code>0666 - 0022 = 0644</code>
+(<code>rw-r--r--</code>). The owner can read and write to the file,
+while group members and others can only read it.</li>
+</ul>
+<h4 id="example-calculation-with-umask-027">Example Calculation with
+Umask 027</h4>
+<p>In environments requiring stricter privacy, a umask of
+<code>027</code> is often applied:</p>
+<ul>
+<li><strong>For a Directory:</strong> <code>0777 - 0027 = 0750</code>
+(<code>rwxr-x---</code>). The owner has full control, group members can
+read and execute, and others have zero access.</li>
+<li><strong>For a File:</strong> <code>0666 - 0027 = 0640</code>
+(<code>rw-r-----</code>). The owner has read and write access, the group
+has read-only access, and others cannot access the file.</li>
+</ul>
+<p><em>(Note: Under the hood, Linux uses a bitwise NOT operation
+followed by a bitwise AND between the base permission and the mask:
+<code>Mode = Base &amp; (~Umask)</code>.)</em></p>
+<h3 id="viewing-and-setting-umask">Viewing and Setting Umask</h3>
+<p>To view your current shell session's umask, open a terminal and
+run:</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="bu">umask</span></span></code></pre></div>
+<p>To display the active permissions symbolically rather than in octal
+format, run:</p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="bu">umask</span> <span class="at">-S</span></span></code></pre></div>
+<p>To temporarily change the umask for your active shell session, pass
+the desired octal value:</p>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="bu">umask</span> 0077</span></code></pre></div>
+<p>With <code>0077</code>, any new file created in that session will
+receive <code>0600</code> (<code>rw-------</code>) permissions, making
+it completely private to the file owner.</p>
+<h3 id="making-umask-changes-permanent">Making Umask Changes
+Permanent</h3>
+<p>To ensure a custom umask applies automatically whenever a user logs
+in, the command can be declared inside user profile configuration
+files:</p>
+<ul>
+<li><strong>Per-user:</strong> Add <code>umask 027</code> (or your
+chosen value) to <code>~/.bashrc</code>, <code>~/.bash_profile</code>,
+or <code>~/.profile</code>.</li>
+<li><strong>System-wide:</strong> Modify default mask settings in
+<code>/etc/profile</code>, <code>/etc/bash.bashrc</code>, or
+<code>/etc/login.defs</code> (via the <code>UMASK</code> parameter),
+which establishes system-wide security baselines for all accounts.</li>
+</ul></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

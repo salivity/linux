@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How Valve Proton Runs Windows Games on Linux - linux</title>
+    <meta name="description" content="Proton is an open-source compatibility layer developed by Valve Software, built to seamlessly run Windows-based video games on Linux operating systems, including SteamOS on the Steam Deck. Rather than emulating an entire Windows operating system, Proton">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-valve-proton-runs-windows-games-on-linux">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How Valve Proton Runs Windows Games on Linux - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-valve-proton-runs-windows-games-on-linux" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="Proton is an open-source compatibility layer developed by Valve Software, built to seamlessly run Windows-based video games on Linux operating systems, including SteamOS on the Steam Deck. Rather than emulating an entire Windows operating system, Proton" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-valve-proton-runs-windows-games-on-linux">How Valve Proton
+Runs Windows Games on Linux</h1>
+<p>Proton is an open-source compatibility layer developed by Valve
+Software, built to seamlessly run Windows-based video games on Linux
+operating systems, including SteamOS on the Steam Deck. Rather than
+emulating an entire Windows operating system, Proton dynamically
+translates Windows-specific system, audio, and graphics calls into
+native Linux instructions in real time. This article breaks down the
+underlying architecture of Proton, detailing how it bridges the gap
+between Windows APIs and Linux to achieve near-native gaming
+performance.</p>
+<h2 id="the-foundation-a-tailored-fork-of-wine">The Foundation: A
+Tailored Fork of Wine</h2>
+<p>At its core, Proton is built upon Wine (a recursive acronym for "Wine
+Is Not an Emulator"). Wine reimplements the Win32 and Win64 Application
+Programming Interfaces (APIs) directly in Linux user space.</p>
+<p>When a Windows executable (.exe) launches, it expects standard
+Windows structures, memory handling, dynamic link libraries (DLLs), and
+system calls. Wine intercepts these requests and recreates the
+corresponding environment using Linux system calls and POSIX standards.
+Proton builds heavily upon Wine, integrating game-specific patches,
+performance optimizations, and automated runtime management directly
+into the Steam client.</p>
+<h2 id="graphics-translation-converting-directx-to-vulkan">Graphics
+Translation: Converting DirectX to Vulkan</h2>
+<p>The most resource-intensive component of gaming is graphics
+rendering. Windows games predominantly rely on Microsoft's proprietary
+DirectX APIs (Direct3D), which do not natively exist on Linux. Proton
+solves this barrier by translating DirectX commands into Vulkan, a
+high-performance, cross-platform graphics API natively supported by
+Linux GPU drivers.</p>
+<p>Proton relies on two major translation layers:</p>
+<ul>
+<li><strong>DXVK:</strong> Translates Direct3D 9, 10, and 11 calls into
+Vulkan. DXVK captures the draw calls, state changes, and shaders
+intended for DirectX and maps them directly to Vulkan equivalents with
+minimal overhead.</li>
+<li><strong>VKD3D-Proton:</strong> A specialized fork of the VKD3D
+project that translates modern Direct3D 12 calls to Vulkan. Because
+DirectX 12 and Vulkan are both modern, low-level APIs that expose
+explicit GPU control, VKD3D-Proton maps features like pipeline state
+objects and descriptor sets with exceptional efficiency.</li>
+</ul>
+<p>To prevent in-game micro-stuttering caused by compiling shaders in
+real time, Steam uses Proton to download pre-compiled shader caches,
+allowing translated shaders to execute immediately.</p>
+<h2 id="audio-and-media-handling">Audio and Media Handling</h2>
+<p>Windows games frequently use proprietary Microsoft frameworks to
+decode cutscenes and output sound. Proton includes integrated libraries
+to manage these media layers:</p>
+<ul>
+<li><strong>Audio (FAudio):</strong> Windows uses APIs like XAudio2 and
+DirectSound. Proton incorporates FAudio, an open-source reimplementation
+of the XAudio2 libraries, which routes sound through PulseAudio or
+PipeWire on Linux.</li>
+<li><strong>Video Playback:</strong> Many PC games rely on Microsoft
+Media Foundation or DirectShow to stream intro videos and cutscenes.
+Proton incorporates custom wrappers and GStreamer pipelines to decode
+and display these video formats natively.</li>
+</ul>
+<h2 id="controller-and-input-mapping">Controller and Input Mapping</h2>
+<p>Windows titles routinely use XInput or DirectInput to interface with
+gamepads, mice, and keyboards. Proton bridges these calls to Linux input
+subsystems such as <code>evdev</code> and <code>hidraw</code>, often
+passing through the Steam Input configuration layer. This allows games
+to receive standardized input data regardless of whether the user plays
+on an Xbox controller, PlayStation DualSense, or the built-in Steam Deck
+controls.</p>
+<h2 id="performance-optimization-esync-and-fsync">Performance
+Optimization: Esync and Fsync</h2>
+<p>Historically, translating Windows multi-threading synchronization
+primitives to Linux introduced significant CPU bottlenecks. Windows
+applications frequently rely on event handles to synchronize threads,
+which default Wine implementations processed through a centralized
+server process (<code>wineserver</code>).</p>
+<p>Proton bypasses this bottleneck using:</p>
+<ul>
+<li><strong>Esync (Eventfd Synchronization):</strong> Replaces
+<code>wineserver</code> synchronization calls with Linux
+<code>eventfd</code> file descriptors, drastically reducing CPU
+overhead.</li>
+<li><strong>Fsync (Futex Synchronization):</strong> Replaces
+synchronization calls with native Linux kernel <code>futex</code> (fast
+user-space mutex) system calls, enabling thread synchronization to match
+native Windows speeds.</li>
+</ul>
+<h2 id="anti-cheat-and-drm-compatibility">Anti-Cheat and DRM
+Compatibility</h2>
+<p>Modern multiplayer games frequently utilize kernel-level anti-cheat
+solutions like Easy Anti-Cheat (EAC) or BattlEye, which historically
+blocked Linux systems. Valve collaborated with anti-cheat providers to
+introduce Proton-compatible bridges. These allow the anti-cheat services
+to run in user space alongside Proton while still verifying binary
+integrity and network communications, allowing protected multiplayer
+games to function on Linux without requiring kernel-level drivers.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

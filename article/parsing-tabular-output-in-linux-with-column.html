@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Parsing Tabular Output in Linux With column - linux</title>
+    <meta name="description" content="The Linux column command, provided by the util-linux package, is a dedicated command-line utility designed to format unstructured text, delimited streams, and lists into neatly aligned tabular structures. This article explains how the Linux operating sys">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/parsing-tabular-output-in-linux-with-column">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Parsing Tabular Output in Linux With column - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/parsing-tabular-output-in-linux-with-column" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="The Linux column command, provided by the util-linux package, is a dedicated command-line utility designed to format unstructured text, delimited streams, and lists into neatly aligned tabular structures. This article explains how the Linux operating sys" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="parsing-tabular-output-in-linux-with-column">Parsing Tabular
+Output in Linux With column</h1>
+<p>The Linux <code>column</code> command, provided by the
+<code>util-linux</code> package, is a dedicated command-line utility
+designed to format unstructured text, delimited streams, and lists into
+neatly aligned tabular structures. This article explains how the Linux
+operating system uses the <code>column</code> command to process tabular
+data, covering its core parsing flags, delimiter handling, header
+injection, and modern structured output generation like JSON.</p>
+<h2 id="core-mechanics-of-the-column-command">Core Mechanics of the
+column Command</h2>
+<p>The <code>column</code> utility reads from standard input (stdin) or
+a specified file and dynamically calculates whitespace padding to align
+text along vertical axes. By default, it organizes input lines into
+multiple columns to fit the width of the terminal.</p>
+<p>To display standard terminal commands in a clean table, pipe output
+directly into <code>column</code>:</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">mount</span> <span class="kw">|</span> <span class="ex">column</span> <span class="at">-t</span></span></code></pre></div>
+<p>The <code>-t</code> (table) option tells <code>column</code> to
+determine the number of columns the input contains and generate an
+aligned table rather than simply wrapping words across the screen.</p>
+<h2 id="parsing-delimited-data">Parsing Delimited Data</h2>
+<p>Raw system data often relies on delimiters such as commas, tabs, or
+colons. The <code>column</code> command manages these formats using two
+primary flags:</p>
+<ul>
+<li><strong>Input Delimiter (<code>-s</code>)</strong>: Defines the
+character or string used to separate fields in the raw input.</li>
+<li><strong>Output Delimiter (<code>-o</code>)</strong>: Specifies the
+string inserted between columns in the rendered table (defaults to two
+spaces).</li>
+</ul>
+<h3 id="example-parsing-colon-separated-files">Example: Parsing
+Colon-Separated Files</h3>
+<p>System files like <code>/etc/passwd</code> use colons to separate
+user attributes. To parse this into an aligned table:</p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="ex">column</span> <span class="at">-s</span> <span class="st">&quot;:&quot;</span> <span class="at">-t</span> /etc/passwd</span></code></pre></div>
+<h3 id="example-customizing-output-delimiters">Example: Customizing
+Output Delimiters</h3>
+<p>To retain a specific separator (such as a vertical pipe
+<code>|</code>) while standardizing spacing, combine <code>-s</code>
+with <code>-o</code>:</p>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="ex">column</span> <span class="at">-s</span> <span class="st">&quot;,&quot;</span> <span class="at">-o</span> <span class="st">&quot; | &quot;</span> <span class="at">-t</span> data.csv</span></code></pre></div>
+<h2 id="adding-and-managing-column-headers">Adding and Managing Column
+Headers</h2>
+<p>Linux users can assign readable column labels directly through the
+command line without modifying the underlying raw data.</p>
+<p>The <code>-N</code> option defines a comma-separated list of column
+names:</p>
+<div class="sourceCode" id="cb4"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span> /etc/group <span class="kw">|</span> <span class="ex">column</span> <span class="at">-s</span> <span class="st">&quot;:&quot;</span> <span class="at">-t</span> <span class="at">-N</span> <span class="st">&quot;Group Name,Password,GID,Users&quot;</span></span></code></pre></div>
+<p>To underline or format these headers visually in terminal
+environments, the <code>-H</code> option can hide specific headers or
+apply standard table formatting styles supported by the terminal.</p>
+<h2 id="column-alignment-and-truncation">Column Alignment and
+Truncation</h2>
+<p>Modern implementations of <code>column</code> allow control over text
+alignment per column:</p>
+<ul>
+<li><strong>Right Alignment (<code>-R</code>)</strong>: Useful for
+numeric data. Specify column numbers or names to right-align them.</li>
+</ul>
+<div class="sourceCode" id="cb5"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span> disk_usage.txt <span class="kw">|</span> <span class="ex">column</span> <span class="at">-t</span> <span class="at">-R</span> 2,3,4</span></code></pre></div>
+<ul>
+<li><strong>Text Wrapping and Limits (<code>-W</code>)</strong>: Wraps
+text inside designated columns instead of extending beyond terminal
+boundaries.</li>
+</ul>
+<div class="sourceCode" id="cb6"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="ex">column</span> <span class="at">-t</span> <span class="at">-W</span> Description data.txt</span></code></pre></div>
+<h2 id="modern-script-integration-json-output">Modern Script
+Integration: JSON Output</h2>
+<p>Recent versions of the <code>util-linux</code> suite allow
+<code>column</code> to export structured JSON using the <code>-J</code>
+flag. When combined with <code>-t</code> and <code>-N</code>,
+<code>column</code> converts raw delimited streams into structured data
+suitable for automated parsing by tools like <code>jq</code> or external
+APIs:</p>
+<div class="sourceCode" id="cb7"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span> /etc/passwd <span class="kw">|</span> <span class="ex">column</span> <span class="at">-s</span> <span class="st">&quot;:&quot;</span> <span class="at">-t</span> <span class="at">-N</span> <span class="st">&quot;user,pass,uid,gid,comment,home,shell&quot;</span> <span class="at">-J</span></span></code></pre></div>
+<p>This bridge between unstructured shell streams and modern data
+interchange formats makes <code>column</code> an effective tool for both
+visual inspection and data pipeline normalization in Linux.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linux ARP Command for LAN Cache Inspection - linux</title>
+    <meta name="description" content="This article provides an overview of the arp command in the Linux operating system, focusing on its role in viewing and managing the local Address Resolution Protocol (ARP) cache. It explains how the ARP cache maps network-layer addresses to link-layer p">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/linux-arp-command-for-lan-cache-inspection">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Linux ARP Command for LAN Cache Inspection - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/linux-arp-command-for-lan-cache-inspection" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="This article provides an overview of the arp command in the Linux operating system, focusing on its role in viewing and managing the local Address Resolution Protocol (ARP) cache. It explains how the ARP cache maps network-layer addresses to link-layer p" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="linux-arp-command-for-lan-cache-inspection">Linux ARP Command
+for LAN Cache Inspection</h1>
+<p>This article provides an overview of the <code>arp</code> command in
+the Linux operating system, focusing on its role in viewing and managing
+the local Address Resolution Protocol (ARP) cache. It explains how the
+ARP cache maps network-layer addresses to link-layer physical addresses,
+details standard syntax and options for inspecting this table, and
+highlights its significance in diagnosing local network connectivity
+issues and security threats.</p>
+<p>The Address Resolution Protocol (ARP) bridges the gap between Layer 3
+(IPv4 addresses) and Layer 2 (MAC addresses) of the OSI model. When a
+Linux system communicates with another device on the same local area
+network (LAN), it requires the target device's physical MAC address. To
+avoid broadcasting an ARP request for every packet, the kernel stores
+recent IP-to-MAC translations in memory, known as the ARP cache. The
+<code>arp</code> command is a dedicated networking utility used to
+inspect, modify, and manage this cache.</p>
+<h3 id="viewing-the-arp-cache">Viewing the ARP Cache</h3>
+<p>The primary purpose of the <code>arp</code> command is to inspect the
+current state of the local network mappings. Running the command without
+flags or with <code>-e</code> displays the active ARP table in standard
+format:</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">arp</span></span></code></pre></div>
+<p>To display entries in BSD-style format, use the <code>-a</code>
+option:</p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="ex">arp</span> <span class="at">-a</span></span></code></pre></div>
+<p>By default, the command attempts to resolve IP addresses into
+hostnames via reverse DNS, which can introduce delays. To display purely
+numerical IP addresses and speed up output, combine it with the
+<code>-n</code> flag:</p>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="ex">arp</span> <span class="at">-n</span></span></code></pre></div>
+<p>A typical entry in this table includes:</p>
+<ul>
+<li><strong>Address</strong>: The target IPv4 address.</li>
+<li><strong>HWtype</strong>: The hardware link-layer type (usually
+<code>ether</code> for Ethernet).</li>
+<li><strong>HWaddress</strong>: The hardware (MAC) address of the remote
+device.</li>
+<li><strong>Flags</strong>: State markers, such as <code>C</code>
+(complete/dynamic) or <code>M</code> (permanent/static).</li>
+<li><strong>Iface</strong>: The local network interface (e.g.,
+<code>eth0</code>, <code>wlan0</code>) associated with the mapping.</li>
+</ul>
+<h3 id="cache-management-and-manipulation">Cache Management and
+Manipulation</h3>
+<p>Beyond passive inspection, the <code>arp</code> utility provides
+administrative controls to modify entries manually:</p>
+<ul>
+<li><strong>Adding Static Mappings</strong>: Administrators can map an
+IP directly to a MAC address using
+<code>arp -s &lt;IP&gt; &lt;MAC&gt;</code>. Static mappings remain fixed
+and cannot be overwritten by automatic network broadcasts.</li>
+<li><strong>Deleting Stale Entries</strong>: If a network card is
+replaced or an IP address is reassigned, old entries can cause dropped
+packets. Removing an invalid record is done via
+<code>arp -d &lt;IP&gt;</code>.</li>
+</ul>
+<h3 id="practical-diagnostics-and-security">Practical Diagnostics and
+Security</h3>
+<p>Inspecting the ARP cache serves several critical functions during
+system administration:</p>
+<ul>
+<li><strong>Layer 2 Verification</strong>: Checking the table confirms
+whether a host has physically responded to network requests. If an IP
+shows an incomplete hardware address, the target device is either
+offline, blocking traffic, or isolated by a VLAN/subnet
+configuration.</li>
+<li><strong>Detecting ARP Spoofing</strong>: In an ARP poisoning attack,
+a malicious actor sends forged ARP replies to link their MAC address
+with a legitimate IP, such as the default gateway. Regularly inspecting
+the ARP table helps identify duplicate MAC addresses assigned to
+multiple distinct IP addresses.</li>
+</ul>
+<p>While modern Linux distributions often utilize the newer
+<code>ip neighbor</code> command from the <code>iproute2</code> suite,
+the traditional <code>arp</code> command remains a widely used,
+foundational tool for rapid LAN troubleshooting and cache
+verification.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

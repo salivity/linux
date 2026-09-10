@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Using the Linux lsscsi Command to View SCSI Devices - linux</title>
+    <meta name="description" content="The lsscsi command is a dedicated Linux utility designed to scan the sysfs virtual file system and provide a clean, human-readable summary of all attached SCSI devices and their attributes. This article explains the primary purpose of the lsscsi command,">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/using-the-linux-lsscsi-command-to-view-scsi-devices">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Using the Linux lsscsi Command to View SCSI Devices - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/using-the-linux-lsscsi-command-to-view-scsi-devices" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="The lsscsi command is a dedicated Linux utility designed to scan the sysfs virtual file system and provide a clean, human-readable summary of all attached SCSI devices and their attributes. This article explains the primary purpose of the lsscsi command," />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="using-the-linux-lsscsi-command-to-view-scsi-devices">Using the
+Linux lsscsi Command to View SCSI Devices</h1>
+<p>The <code>lsscsi</code> command is a dedicated Linux utility designed
+to scan the <code>sysfs</code> virtual file system and provide a clean,
+human-readable summary of all attached SCSI devices and their
+attributes. This article explains the primary purpose of the
+<code>lsscsi</code> command, how to interpret its default output, and
+how to utilize common flags to troubleshoot storage hardware, map device
+paths, and inspect storage transport protocols.</p>
+<h3 id="purpose-of-the-lsscsi-command">Purpose of the lsscsi
+Command</h3>
+<p>Modern Linux systems treat a wide range of storage
+interfaces—including traditional SCSI, SAS, SATA, USB storage, and Fibre
+Channel—as SCSI devices through the kernel's SCSI subsystem. The primary
+purpose of <code>lsscsi</code> is to translate the complex directory
+structure in <code>/sys/bus/scsi/devices/</code> into a concise,
+organized list.</p>
+<p>System administrators rely on <code>lsscsi</code> to quickly answer
+critical storage questions:</p>
+<ul>
+<li>Which physical disk corresponds to which <code>/dev/sd*</code>
+device node?</li>
+<li>What are the SCSI addresses (Host, Channel, Target, LUN) for
+connected drives?</li>
+<li>Which storage vendor, model, and firmware revisions are active?</li>
+<li>What transport layer (e.g., ATA, FC, SAS) connects the device to the
+host?</li>
+</ul>
+<h3 id="reading-the-default-output">Reading the Default Output</h3>
+<p>Running the <code>lsscsi</code> command without additional arguments
+outputs one line per SCSI device. A typical output resembles the
+following:</p>
+<pre class="text"><code>[0:0:0:0]    disk    ATA      Crucial_CT500MX5 023   /dev/sda 
+[1:0:0:0]    cd/dvd  PLDS     DVD-RW DH16AFSH  BL11  /dev/sr0 
+[6:0:0:0]    disk    SanDisk  Ultra USB 3.0    1.00  /dev/sdb </code></pre>
+<p>The output consists of five primary columns:</p>
+<ol type="1">
+<li><strong>SCSI Address (HCTL Tuple):</strong> The bracketed numbers
+<code>[Host:Channel:Target:LUN]</code> pinpoint the exact location in
+the SCSI hierarchy.
+<ul>
+<li><strong>Host:</strong> The host adapter (HBA) number.</li>
+<li><strong>Channel:</strong> The bus channel on the controller.</li>
+<li><strong>Target:</strong> The device ID assigned by the
+controller.</li>
+<li><strong>LUN:</strong> The Logical Unit Number within the
+target.</li>
+</ul></li>
+<li><strong>Device Type:</strong> The SCSI peripheral device type, such
+as <code>disk</code>, <code>cd/dvd</code>, or <code>tape</code>.</li>
+<li><strong>Vendor:</strong> The manufacturer name reported by the
+device firmware.</li>
+<li><strong>Model and Revision:</strong> The product model string
+followed by the active firmware revision number.</li>
+<li><strong>Device Node:</strong> The Linux device path in the
+<code>/dev</code> filesystem used for mounting and partition
+management.</li>
+</ol>
+<h3 id="essential-command-options">Essential Command Options</h3>
+<p>While the standard output is useful for basic inventory,
+<code>lsscsi</code> includes specific flags to display extended hardware
+details:</p>
+<ul>
+<li><strong>Show Device Capacities (<code>-s</code>):</strong> Appending
+<code>-s</code> displays the storage capacity of any detected disks
+alongside the device node.
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="ex">lsscsi</span> <span class="at">-s</span></span></code></pre></div></li>
+<li><strong>Inspect Transport Protocols (<code>-t</code>):</strong> The
+<code>-t</code> flag exposes transport information, revealing target
+port identifiers, SAS addresses, or World Wide Names (WWNs) for Fibre
+Channel connections.
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="ex">lsscsi</span> <span class="at">-t</span></span></code></pre></div></li>
+<li><strong>Display Generic SCSI Nodes (<code>-g</code>):</strong>
+Adding <code>-g</code> shows the associated <code>/dev/sg*</code> (SCSI
+Generic) device node, which is essential for issuing low-level SCSI
+commands via tools like <code>sg3_utils</code> or <code>smartctl</code>.
+<div class="sourceCode" id="cb4"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="ex">lsscsi</span> <span class="at">-g</span></span></code></pre></div></li>
+<li><strong>Detailed Sysfs Paths (<code>-v</code> or
+<code>-vv</code>):</strong> Verbose flags map each device directly to
+its corresponding directory in <code>/sys</code>, simplifying deep
+kernel-level troubleshooting.</li>
+</ul>
+<h3 id="why-use-lsscsi-over-alternative-commands">Why Use lsscsi Over
+Alternative Commands</h3>
+<p>Commands like <code>lsblk</code> and <code>fdisk -l</code> excel at
+showing block layers, partition tables, and filesystem mount points.
+However, they abstract away much of the underlying SCSI topology. The
+<code>lsscsi</code> utility focuses entirely on the controller-to-device
+relationship, making it the most direct and efficient tool for
+diagnosing controller mapping issues, multipath configurations, and
+storage fabric connections.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

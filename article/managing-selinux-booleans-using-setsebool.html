@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Managing SELinux Booleans Using setsebool - linux</title>
+    <meta name="description" content="Security-Enhanced Linux (SELinux) booleans act as dynamic switches that enable or disable specific policy rules at runtime without requiring custom policy compilation. The Linux operating system manages these toggles primarily through the setsebool utili">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/managing-selinux-booleans-using-setsebool">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Managing SELinux Booleans Using setsebool - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/managing-selinux-booleans-using-setsebool" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="Security-Enhanced Linux (SELinux) booleans act as dynamic switches that enable or disable specific policy rules at runtime without requiring custom policy compilation. The Linux operating system manages these toggles primarily through the setsebool utili" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="managing-selinux-booleans-using-setsebool">Managing SELinux
+Booleans Using setsebool</h1>
+<p>Security-Enhanced Linux (SELinux) booleans act as dynamic switches
+that enable or disable specific policy rules at runtime without
+requiring custom policy compilation. The Linux operating system manages
+these toggles primarily through the <code>setsebool</code> utility,
+allowing administrators to modify system behavior—such as permitting a
+web server to connect to a remote database or access user home
+directories. This guide explains how SELinux booleans work, how to view
+their current states, and how to use <code>setsebool</code> to apply
+both temporary and persistent policy modifications.</p>
+<h3 id="understanding-selinux-booleans">Understanding SELinux
+Booleans</h3>
+<p>In SELinux, a boolean is a simple conditional rule represented as
+either <code>on</code> (1, true) or <code>off</code> (0, false).
+Booleans provide a modular way to tune access controls. Instead of
+writing and compiling a new policy module to allow a service to perform
+an uncommon action, administrators can simply flip a predefined boolean
+flag.</p>
+<h3 id="checking-current-boolean-states">Checking Current Boolean
+States</h3>
+<p>Before modifying a boolean, administrators use the
+<code>getsebool</code> command to inspect its current status:</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co"># View the state of a specific boolean</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="ex">getsebool</span> httpd_can_network_connect_db</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="co"># View all available booleans and their states</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="ex">getsebool</span> <span class="at">-a</span></span></code></pre></div>
+<p>To view descriptions of what each boolean controls, the
+<code>semanage boolean -l</code> command provides detailed documentation
+along with the current and default states.</p>
+<h3 id="applying-temporary-changes-with-setsebool">Applying Temporary
+Changes with setsebool</h3>
+<p>When troubleshooting or testing, changes can be made strictly in
+system memory. These changes take effect immediately but revert to their
+previous configuration when the system reboots.</p>
+<p>To temporarily change a boolean value, pass the boolean name and the
+desired state (<code>on</code>, <code>off</code>, <code>1</code>, or
+<code>0</code>) to <code>setsebool</code>:</p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> setsebool httpd_can_network_connect_db on</span></code></pre></div>
+<p>In this mode, the Linux kernel updates the active SELinux policy
+loaded in RAM. The policy files stored on the disk remain untouched.</p>
+<h3 id="applying-persistent-changes-with-the--p-flag">Applying
+Persistent Changes with the -P Flag</h3>
+<p>To ensure that a boolean setting survives a system reboot, the
+<code>-P</code> (persistent) flag must be included.</p>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> setsebool <span class="at">-P</span> httpd_can_network_connect_db on</span></code></pre></div>
+<p>When the <code>-P</code> flag is supplied:</p>
+<ol type="1">
+<li><strong>Memory Update:</strong> The kernel updates the active policy
+immediately, just as it does in temporary mode.</li>
+<li><strong>Policy Store Update:</strong> The command updates the
+SELinux policy store located on the disk (typically under
+<code>/etc/selinux/targeted/active/</code> or
+<code>/var/lib/selinux/</code>).</li>
+<li><strong>Recompilation:</strong> The system rebuilds the policy
+binary to ensure the new default state is loaded automatically during
+subsequent system boots.</li>
+</ol>
+<p>Because rebuilding the policy store requires disk I/O and
+cryptographic validation, executing <code>setsebool -P</code> takes a
+few seconds longer than a non-persistent command.</p>
+<h3 id="verifying-changes">Verifying Changes</h3>
+<p>After executing the command, verify that the new state is active:</p>
+<div class="sourceCode" id="cb4"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="ex">getsebool</span> httpd_can_network_connect_db</span></code></pre></div>
+<p>If the change was persistent,
+<code>semanage boolean -l | grep httpd_can_network_connect_db</code>
+will show the updated value in both the "Current" and "Default"
+columns.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

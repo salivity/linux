@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Automating Let's Encrypt SSL on Linux with Certbot - linux</title>
+    <meta name="description" content="This article explains how the Linux operating system utilizes the Certbot client to automate the procurement, deployment, and renewal of Let's Encrypt SSL/TLS certificates. By leveraging the Automated Certificate Management Environment (ACME) protocol al">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/automating-let-s-encrypt-ssl-on-linux-with-certbot">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Automating Let's Encrypt SSL on Linux with Certbot - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/automating-let-s-encrypt-ssl-on-linux-with-certbot" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="This article explains how the Linux operating system utilizes the Certbot client to automate the procurement, deployment, and renewal of Let's Encrypt SSL/TLS certificates. By leveraging the Automated Certificate Management Environment (ACME) protocol al" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="automating-lets-encrypt-ssl-on-linux-with-certbot">Automating
+Let's Encrypt SSL on Linux with Certbot</h1>
+<p>This article explains how the Linux operating system utilizes the
+Certbot client to automate the procurement, deployment, and renewal of
+Let's Encrypt SSL/TLS certificates. By leveraging the Automated
+Certificate Management Environment (ACME) protocol alongside native
+Linux service management tools like systemd and cron, administrators can
+maintain encrypted HTTPS connections with minimal manual
+intervention.</p>
+<h3 id="the-role-of-certbot-and-the-acme-protocol">The Role of Certbot
+and the ACME Protocol</h3>
+<p>Let's Encrypt is a free, automated, and open Certificate Authority
+(CA). To verify that a requester actually controls the domain they are
+attempting to secure, Let's Encrypt relies on the ACME protocol.
+Certbot, developed by the Electronic Frontier Foundation (EFF), acts as
+an ACME client natively running on Linux.</p>
+<p>When executed on a Linux host, Certbot automatically completes domain
+validation challenges:</p>
+<ul>
+<li><strong>HTTP-01 Challenge:</strong> Certbot creates a temporary
+cryptographic token in the web root directory
+(<code>/.well-known/acme-challenge/</code>), which the Let's Encrypt
+validation servers query over port 80 to verify domain control.</li>
+<li><strong>DNS-01 Challenge:</strong> Certbot adds a temporary TXT
+record to the domain's DNS zone, typically used for wildcard
+certificates.</li>
+</ul>
+<p>Once the challenge is verified, Let's Encrypt signs the certificate,
+and Certbot downloads the certificate chain directly to the Linux
+filesystem (typically under <code>/etc/letsencrypt/live/</code>).</p>
+<h3 id="native-web-server-integration">Native Web Server
+Integration</h3>
+<p>Certbot provides dedicated plugins for common Linux web servers, such
+as Apache and Nginx:</p>
+<ol type="1">
+<li><strong>Detection:</strong> The client parses existing configuration
+files (e.g., in <code>/etc/nginx/sites-available/</code> or
+<code>/etc/apache2/sites-available/</code>) to identify configured
+virtual hosts and server names.</li>
+<li><strong>Reconfiguration:</strong> Upon successfully obtaining a
+certificate, Certbot modifies the configuration to enable HTTPS on port
+443, sets the correct directives for the certificate and private key
+paths, and optionally inserts 301 redirects from HTTP to HTTPS.</li>
+<li><strong>Security Standards:</strong> Certbot configures
+standardized, secure cryptographic settings, including modern TLS
+protocol versions and cipher suites, reducing vulnerabilities associated
+with outdated protocols.</li>
+</ol>
+<p>For environments running non-standard servers or reverse proxies,
+Certbot provides a <code>standalone</code> mode (spinning up its own
+temporary web server) and a <code>webroot</code> mode (placing challenge
+files into existing directories without altering server
+configurations).</p>
+<h3 id="automated-renewal-via-systemd-and-cron">Automated Renewal via
+Systemd and Cron</h3>
+<p>Let's Encrypt certificates are valid for 90 days. Linux relies on
+background schedulers to ensure certificates are automatically renewed
+before expiration.</p>
+<p>When installed via modern package managers—most notably Snap, which
+is the officially recommended method across distributions such as
+Ubuntu, Debian, and CentOS—Certbot automatically provisions a systemd
+timer (<code>certbot.timer</code>) or a cron job
+(<code>/etc/cron.d/certbot</code>).</p>
+<p>The automation routine works as follows:</p>
+<ul>
+<li>The scheduled task executes <code>certbot renew</code> twice
+daily.</li>
+<li>Certbot checks all certificates managed on the machine. If a
+certificate is within 30 days of expiration, Certbot initiates the
+renewal process over the ACME protocol.</li>
+<li><strong>Hooks and Service Reloads:</strong> Certbot utilizes renewal
+hooks (deploy hooks) to automatically reload services (e.g.,
+<code>systemctl reload nginx</code>) once new certificates are written,
+ensuring the active server daemon serves the updated certificate without
+manual restarts or downtime.</li>
+</ul></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

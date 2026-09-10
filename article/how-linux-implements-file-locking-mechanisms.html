@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How Linux Implements File Locking Mechanisms - linux</title>
+    <meta name="description" content="File locking in Linux is a synchronization mechanism designed to prevent race conditions and data corruption when multiple processes access the same file concurrently. The Linux operating system implements this functionality at the kernel level using bot">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-linux-implements-file-locking-mechanisms">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How Linux Implements File Locking Mechanisms - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-linux-implements-file-locking-mechanisms" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="File locking in Linux is a synchronization mechanism designed to prevent race conditions and data corruption when multiple processes access the same file concurrently. The Linux operating system implements this functionality at the kernel level using bot" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-linux-implements-file-locking-mechanisms">How Linux
+Implements File Locking Mechanisms</h1>
+<p>File locking in Linux is a synchronization mechanism designed to
+prevent race conditions and data corruption when multiple processes
+access the same file concurrently. The Linux operating system implements
+this functionality at the kernel level using both advisory and mandatory
+locking paradigms, exposed to userspace through key system calls
+including <code>flock()</code>, <code>fcntl()</code>, and
+<code>lockf()</code>. These mechanisms allow applications to negotiate
+shared or exclusive access to entire files or specific byte ranges,
+coordinating input/output operations while maintaining system stability
+and performance.</p>
+<h3 id="advisory-vs-mandatory-locking">Advisory vs. Mandatory
+Locking</h3>
+<p>Linux supports two distinct locking philosophies:</p>
+<ul>
+<li><strong>Advisory Locking:</strong> This is the default and most
+widely used model in Linux. Advisory locks are cooperative; they are
+only effective if all participating processes query and respect the lock
+before accessing the file. If an uncooperative process ignores the lock
+and issues a standard <code>read()</code> or <code>write()</code> call,
+the kernel will permit the operation.</li>
+<li><strong>Mandatory Locking:</strong> Under this model, the kernel
+enforces the lock on every read and write attempt, blocking unauthorized
+access even from processes that do not explicitly check for locks.
+Historically, Linux enabled mandatory locking on file systems mounted
+with the <code>mand</code> option for files configured with specific
+permission bits (set-group-ID enabled, group-execute disabled). However,
+because mandatory locking is prone to race conditions, denial-of-service
+vulnerabilities, and deadlocks, it has been deprecated and largely
+removed from modern Linux kernels (starting with kernel 5.15).</li>
+</ul>
+<h3 id="core-system-calls-for-file-locking">Core System Calls for File
+Locking</h3>
+<p>Linux provides several programmatic interfaces to manage file
+locks:</p>
+<h4 id="1-flock">1. <code>flock()</code></h4>
+<p>Originating from BSD, <code>flock()</code> applies locks to whole
+files only. It accepts two primary lock modes:</p>
+<ul>
+<li><strong>Shared Lock (<code>LOCK_SH</code>):</strong> Allows multiple
+processes to read the file simultaneously.</li>
+<li><strong>Exclusive Lock (<code>LOCK_EX</code>):</strong> Restricts
+access to a single process for write operations.</li>
+</ul>
+<p><code>flock()</code> locks are associated with the underlying open
+file table entry (the <code>struct file</code> in the kernel), rather
+than the process or the inode alone. This means that if a file
+descriptor is duplicated via <code>fork()</code> or <code>dup()</code>,
+the child or duplicate shares the same lock reference.</p>
+<h4 id="2-fcntl-posix-locks">2. <code>fcntl()</code> (POSIX Locks)</h4>
+<p>POSIX record locking via the <code>fcntl()</code> system call
+provides fine-grained control, allowing processes to lock arbitrary byte
+ranges within a file rather than the entire file.</p>
+<p>Traditional POSIX locks possess unique ownership semantics:</p>
+<ul>
+<li>Locks are associated with both the process ID (<code>PID</code>) and
+the file's <code>inode</code>.</li>
+<li>If a process closes <em>any</em> file descriptor pointing to a file,
+<em>all</em> POSIX locks held by that process on that file are
+immediately released.</li>
+<li>POSIX locks are not inherited across a <code>fork()</code>.</li>
+</ul>
+<p>To resolve the limitation where closing one descriptor drops all
+locks across the process (which poses issues in multi-threaded
+programs), modern Linux kernels introduce <strong>Open File Description
+(OFD) locks</strong> via <code>fcntl()</code>. OFD locks combine
+byte-range precision with <code>flock()</code> inheritance semantics,
+binding the lock to the open file description rather than the
+<code>PID</code>.</p>
+<h4 id="3-lockf">3. <code>lockf()</code></h4>
+<p>The <code>lockf()</code> function is a standard C library interface
+that acts as a simplified wrapper around <code>fcntl()</code>. It
+operates strictly on byte ranges starting from the current file
+offset.</p>
+<h3 id="kernel-implementation-details">Kernel Implementation
+Details</h3>
+<p>Under the hood, the Linux Virtual File System (VFS) handles file
+locking using internal data structures:</p>
+<ul>
+<li><strong><code>struct file_lock</code>:</strong> When a process
+requests a lock, the kernel allocates a <code>struct file_lock</code>
+instance containing metadata such as the lock type
+(<code>F_RDLCK</code>, <code>F_WRLCK</code>), the byte range
+(<code>fl_start</code>, <code>fl_end</code>), the owning process or file
+description, and wait queues.</li>
+<li><strong>Inode Tracking:</strong> The kernel attaches active locks to
+linked lists stored inside the file's <code>struct inode</code>
+(specifically <code>i_flctx</code> via the file-lock context). When a
+new lock is requested, the kernel traverses this list to verify that the
+request does not conflict with existing locks.</li>
+<li><strong>Wait Queues and Blocking:</strong> If a process requests a
+conflicting lock without the non-blocking flag (<code>LOCK_NB</code>),
+the kernel places the calling task into a sleep state on a wait queue
+until the conflicting lock is released via <code>flock()</code> or
+<code>fcntl()</code>.</li>
+<li><strong>Deadlock Detection:</strong> For POSIX locks, the Linux
+kernel maintains a dependency graph of processes waiting for locks. If
+granting a lock or putting a process to sleep would result in a circular
+wait condition, the kernel aborts the request and returns the
+<code>EDEADLK</code> error code to the caller.</li>
+</ul></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

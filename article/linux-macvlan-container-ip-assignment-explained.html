@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linux MACVLAN Container IP Assignment Explained - linux</title>
+    <meta name="description" content="MACVLAN is a Linux kernel networking feature that allows a single physical network interface to be subdivided into multiple virtual interfaces, each with its own unique MAC address and direct IP assignment on the underlying physical local area network (L">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/linux-macvlan-container-ip-assignment-explained">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Linux MACVLAN Container IP Assignment Explained - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/linux-macvlan-container-ip-assignment-explained" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="MACVLAN is a Linux kernel networking feature that allows a single physical network interface to be subdivided into multiple virtual interfaces, each with its own unique MAC address and direct IP assignment on the underlying physical local area network (L" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="linux-macvlan-container-ip-assignment-explained">Linux MACVLAN
+Container IP Assignment Explained</h1>
+<p>MACVLAN is a Linux kernel networking feature that allows a single
+physical network interface to be subdivided into multiple virtual
+interfaces, each with its own unique MAC address and direct IP
+assignment on the underlying physical local area network (LAN). When
+applied to container networking, MACVLAN bypasses default container
+bridge and Network Address Translation (NAT) models, placing containers
+directly onto the host's physical L2 network. This guide explains the
+internal Linux mechanisms that enable MACVLAN interface creation,
+network namespace movement, and container IP allocation.</p>
+<h3 id="the-macvlan-kernel-module">The MACVLAN Kernel Module</h3>
+<p>At the kernel level, the MACVLAN driver acts as a virtual multiplexer
+sitting directly above a physical Ethernet interface (the "parent"
+device, such as <code>eth0</code>). Rather than relying on a traditional
+Linux software bridge (<code>br0</code>) that requires MAC learning and
+packet replication, the MACVLAN driver intercepts packets at the data
+link layer (Layer 2).</p>
+<p>When a MACVLAN interface is instantiated, the kernel registers a
+unique, distinct MAC address for that sub-interface with the network
+driver. The parent device is placed into promiscuous mode or leverages
+hardware-level MAC address filtering (if supported by the Network
+Interface Card) to listen for frames addressed to any of its child MAC
+addresses.</p>
+<h3 id="moving-interfaces-into-container-namespaces">Moving Interfaces
+into Container Namespaces</h3>
+<p>Linux isolates container networking using network namespaces
+(<code>netns</code>). To assign an interface directly to a container,
+the container runtime (such as Docker or containerd) performs the
+following low-level sequence using the Netlink API:</p>
+<ol type="1">
+<li><strong>Interface Creation:</strong> A new MACVLAN sub-interface is
+created in the host's root network namespace using the
+<code>ip link add link &lt;parent&gt; name &lt;sub-interface&gt; type macvlan</code>
+command.</li>
+<li><strong>Namespace Migration:</strong> The created interface is moved
+into the target container's network namespace using
+<code>ip link set &lt;sub-interface&gt; netns &lt;container-pid&gt;</code>.</li>
+<li><strong>Activation:</strong> Inside the target namespace, the
+interface is typically renamed to standard convention (like
+<code>eth0</code>) and brought up.</li>
+</ol>
+<p>Once inside the namespace, the container possesses an independent
+network stack with full access to send and receive frames directly
+through the host's physical NIC.</p>
+<h3 id="ip-address-assignment">IP Address Assignment</h3>
+<p>Because a MACVLAN interface functions as a dedicated endpoint on the
+physical L2 broadcast domain, container IP addresses can be assigned in
+two ways:</p>
+<ul>
+<li><strong>Static Allocation via IPAM:</strong> The container runtime's
+IP Address Management (IPAM) driver statically configures an IPv4/IPv6
+address, subnet, and default gateway directly on the interface inside
+the namespace. The default gateway is typically the physical router on
+the local LAN, not the host machine.</li>
+<li><strong>External DHCP:</strong> Since the container's virtual
+interface has a valid, distinct MAC address, a DHCP client running
+inside the container (or managed by a CNI plugin) can broadcast DHCP
+requests to the local physical network. An external network DHCP server
+handles lease allocation just as it would for a physical server.</li>
+</ul>
+<h3 id="operating-modes-and-traffic-handling">Operating Modes and
+Traffic Handling</h3>
+<p>The Linux kernel processes MACVLAN traffic differently depending on
+the configured mode:</p>
+<ul>
+<li><strong>Bridge Mode (Most Common):</strong> The MACVLAN driver
+maintains an internal MAC lookup table. Frames routed between containers
+attached to the same parent interface are switched directly in kernel
+memory without hitting the physical wire. Frames addressed outside the
+host are emitted straight onto the physical network.</li>
+<li><strong>VEPA (Virtual Ethernet Port Aggregator):</strong> All
+traffic, even between local containers on the same host, is forced out
+through the physical switch port. The upstream switch must support
+"hairpin" mode to bounce traffic back to the host.</li>
+<li><strong>Private Mode:</strong> Containers on the same parent cannot
+communicate with each other, even if upstream switching allows it.</li>
+<li><strong>Passthru Mode:</strong> Gives a single container exclusive
+control over the physical interface, binding one MAC directly to the
+parent.</li>
+</ul>
+<h3 id="host-to-container-isolation">Host-to-Container Isolation</h3>
+<p>By design in the Linux kernel, the host cannot communicate directly
+with its own MACVLAN-based containers over the parent interface. The
+kernel's egress routing logic drops packets destined for a MAC address
+residing on a sub-interface of the transmitting device. To resolve this,
+network administrators must create a separate MACVLAN interface
+specifically for the host, route traffic through it, and allow the
+kernel's L2 switching to bridge the connection between the host
+sub-interface and the container sub-interfaces.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

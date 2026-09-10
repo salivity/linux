@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Understanding IOMMU Groups for Linux PCIe Passthrough - linux</title>
+    <meta name="description" content="This article provides an overview of Input-Output Memory Management Unit (IOMMU) groups and their critical role in configuring PCIe passthrough within the Linux operating system. It details how IOMMU hardware enforces isolation boundaries between devices">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/understanding-iommu-groups-for-linux-pcie-passthrough">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Understanding IOMMU Groups for Linux PCIe Passthrough - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/understanding-iommu-groups-for-linux-pcie-passthrough" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="This article provides an overview of Input-Output Memory Management Unit (IOMMU) groups and their critical role in configuring PCIe passthrough within the Linux operating system. It details how IOMMU hardware enforces isolation boundaries between devices" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1
+id="understanding-iommu-groups-for-linux-pcie-passthrough">Understanding
+IOMMU Groups for Linux PCIe Passthrough</h1>
+<p>This article provides an overview of Input-Output Memory Management
+Unit (IOMMU) groups and their critical role in configuring PCIe
+passthrough within the Linux operating system. It details how IOMMU
+hardware enforces isolation boundaries between devices, why this
+isolation directly determines whether a device can be safely passed to a
+virtual machine (VM), and how system hardware topology dictates device
+grouping.</p>
+<h3 id="what-is-an-iommu-group">What Is an IOMMU Group?</h3>
+<p>An IOMMU acts as a memory management unit for Direct Memory Access
+(DMA)-capable I/O buses, translating device-visible virtual addresses to
+physical memory addresses. In Linux, the kernel organizes hardware into
+"IOMMU groups." An IOMMU group represents the smallest set of hardware
+devices that can be isolated from all other devices in the system.</p>
+<p>Devices end up in the same group when the hardware cannot guarantee
+that their transactions can be separated safely. If two PCIe devices
+share a bus or lack proper Access Control Services (ACS) support on the
+PCIe root port or switch, they can theoretically snoop on or modify each
+other's traffic without the CPU or IOMMU intercepting it. Consequently,
+the Linux kernel combines them into a single IOMMU group to reflect this
+shared trust boundary.</p>
+<h3 id="the-significance-for-pcie-passthrough">The Significance for PCIe
+Passthrough</h3>
+<p>When performing PCIe passthrough (commonly via VFIO in KVM/QEMU), the
+hypervisor grants a guest operating system direct, low-level control
+over physical hardware, such as a GPU or NVMe drive. IOMMU groups are
+significant for three key reasons:</p>
+<ol type="1">
+<li><p><strong>All-or-Nothing Device Assignment</strong> The primary
+rule of VFIO passthrough is that isolation boundaries cannot be split.
+If you want to pass a GPU to a virtual machine, every other device
+inside that GPU’s IOMMU group must either be passed to the same VM or
+bound to a stub driver (like <code>vfio-pci</code>) to prevent
+host-level access. You cannot leave one device in the group under the
+host kernel’s control while passing another to a guest. Doing so creates
+a security vulnerability where the guest could potentially execute
+malicious DMA requests through the shared bus to compromise host
+memory.</p></li>
+<li><p><strong>Hardware and Data Integrity</strong> By ensuring that all
+devices within a single group are assigned together, the IOMMU protects
+host memory from errant or malicious DMA operations. This protects
+against host system crashes, data corruption, and unauthorized access to
+hypervisor memory by a compromised guest.</p></li>
+<li><p><strong>Dependency on Motherboard and CPU Architecture</strong>
+IOMMU groupings are largely determined by the physical design of the
+motherboard, the CPU PCIe lane layout, and the chipset's support for
+PCIe Access Control Services (ACS). High-end desktop (HEDT) and server
+platforms typically feature extensive ACS support, resulting in clean,
+one-device-per-group mappings. Consumer-grade platforms often bundle
+multiple PCIe slots, onboard audio, USB controllers, and SATA
+controllers into the same IOMMU group, limiting passthrough
+flexibility.</p></li>
+</ol>
+<h3 id="dealing-with-suboptimal-iommu-groups">Dealing with Suboptimal
+IOMMU Groups</h3>
+<p>If a target device shares an IOMMU group with essential host
+components (such as the primary system storage or network interface),
+passthrough becomes impossible without structural changes. Users
+typically resolve this by:</p>
+<ul>
+<li><strong>Moving the PCIe Card:</strong> Relocating the target card to
+a PCIe slot wired directly to the CPU's primary lanes rather than slots
+routed through the motherboard chipset.</li>
+<li><strong>Toggling BIOS Settings:</strong> Enabling features like VT-d
+(Intel) or AMD-Vi, along with SR-IOV and ACS, to allow the kernel to
+delineate boundaries properly.</li>
+<li><strong>ACS Override Patch:</strong> A kernel-level modification
+that artificially splits IOMMU groups by ignoring missing hardware ACS
+capabilities. While this enables passthrough for problematic hardware
+topologies, it bypasses the physical isolation guarantees of the IOMMU
+and carries inherent stability and security risks.</li>
+</ul></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

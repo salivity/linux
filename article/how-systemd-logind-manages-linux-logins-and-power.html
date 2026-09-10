@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How systemd-logind Manages Linux Logins and Power - linux</title>
+    <meta name="description" content="The systemd-logind daemon is a core system service in modern Linux distributions responsible for tracking user logins, managing active user sessions, and handling physical power events. By integrating directly with the Pluggable Authentication Modules (P">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-systemd-logind-manages-linux-logins-and-power">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How systemd-logind Manages Linux Logins and Power - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-systemd-logind-manages-linux-logins-and-power" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="The systemd-logind daemon is a core system service in modern Linux distributions responsible for tracking user logins, managing active user sessions, and handling physical power events. By integrating directly with the Pluggable Authentication Modules (P" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-systemd-logind-manages-linux-logins-and-power">How
+systemd-logind Manages Linux Logins and Power</h1>
+<p>The <code>systemd-logind</code> daemon is a core system service in
+modern Linux distributions responsible for tracking user logins,
+managing active user sessions, and handling physical power events. By
+integrating directly with the Pluggable Authentication Modules (PAM)
+architecture and the kernel's ACPI subsystem,
+<code>systemd-logind</code> ensures that user environments are isolated,
+system resources are allocated properly, and hardware interactions like
+pressing the power button or closing a laptop lid are safely and
+predictably executed.</p>
+<h2 id="core-responsibilities-of-systemd-logind">Core Responsibilities
+of systemd-logind</h2>
+<p>The <code>systemd-logind</code> service runs in the background as a
+system daemon and exposes a comprehensive D-Bus API. Its primary
+responsibilities include:</p>
+<ul>
+<li>Tracking user seats, sessions, and individual user states.</li>
+<li>Enforcing access policies to hardware devices for unprivileged
+sessions.</li>
+<li>Allocating per-user and per-session control groups (cgroups).</li>
+<li>Listening to and acting upon system power keys and hardware
+switches.</li>
+<li>Providing an inhibitor lock mechanism to prevent disruptions during
+critical operations.</li>
+</ul>
+<h2 id="managing-user-logins-and-sessions">Managing User Logins and
+Sessions</h2>
+<p>When a user logs into a Linux machine—whether through a graphical
+display manager (such as GDM or SDDM), a virtual console (TTY), or an
+SSH session—the PAM stack triggers the <code>pam_systemd</code> module.
+This module registers the new session with
+<code>systemd-logind</code>.</p>
+<h3 id="1-multi-seat-and-multi-session-management">1. Multi-Seat and
+Multi-Session Management</h3>
+<p>In Linux, a "seat" refers to a collection of hardware (displays,
+keyboards, mice) assigned to a single workplace.
+<code>systemd-logind</code> dynamically assigns hardware devices to
+specific seats and tracks which session is currently active on each
+seat. This allows multiple local users to work simultaneously on
+dedicated sets of hardware without permission conflicts.</p>
+<h3 id="2-device-access-without-root-privileges">2. Device Access
+Without Root Privileges</h3>
+<p>Historically, X11 or display servers required root privileges to open
+graphics devices (<code>/dev/dri/card*</code>) and input devices
+(<code>/dev/input/*</code>). With <code>systemd-logind</code>, the
+daemon securely opens file descriptors for these devices and passes them
+over D-Bus to unprivileged graphical servers (such as Wayland
+compositors or rootless Xorg). When a session switches to the
+background, <code>systemd-logind</code> revokes device access, ensuring
+security between switching users.</p>
+<h3 id="3-session-lifecycle-and-isolation">3. Session Lifecycle and
+Isolation</h3>
+<p>For every logged-in user, <code>systemd-logind</code> creates a user
+slice in <code>systemd</code>'s cgroup hierarchy
+(<code>user-&lt;UID&gt;.slice</code>) and starts an isolated background
+instance of <code>systemd --user</code>. This architecture isolates
+background user processes from system-level services, enforces resource
+limits, and ensures that lingering background jobs can be terminated
+cleanly upon logout if configured. Users and administrators can inspect
+and interact with these sessions using the <code>loginctl</code>
+command-line utility.</p>
+<h2 id="managing-power-keys-and-hardware-events">Managing Power Keys and
+Hardware Events</h2>
+<p>In addition to login management, <code>systemd-logind</code> serves
+as the primary handler for low-level ACPI events emitted by physical
+buttons and hardware sensors.</p>
+<h3 id="1-handling-button-events">1. Handling Button Events</h3>
+<p>When the Linux kernel detects a hardware event, it emits an input
+event to userspace. <code>systemd-logind</code> listens to these input
+devices directly and triggers predefined actions. Common events handled
+by the daemon include:</p>
+<ul>
+<li><strong>Power Key (<code>HandlePowerKey</code>)</strong>: Typically
+triggers a graceful system shutdown or power-off.</li>
+<li><strong>Suspend Key (<code>HandleSuspendKey</code>)</strong>:
+Suspends the system to RAM.</li>
+<li><strong>Hibernate Key (<code>HandleHibernateKey</code>)</strong>:
+Suspends the system to disk.</li>
+<li><strong>Lid Switch (<code>HandleLidSwitch</code>)</strong>: Suspends
+laptops when the display lid is closed.</li>
+<li><strong>Lid Switch on External Power
+(<code>HandleLidSwitchExternalPower</code>)</strong>: Allows alternate
+behavior when connected to an external power supply or dock.</li>
+</ul>
+<p>These behaviors are configured in
+<code>/etc/systemd/logind.conf</code>. Available actions for these
+triggers include <code>ignore</code>, <code>poweroff</code>,
+<code>reboot</code>, <code>halt</code>, <code>kexec</code>,
+<code>suspend</code>, <code>hibernate</code>, <code>hybrid-sleep</code>,
+<code>suspend-then-hibernate</code>, and <code>lock</code>.</p>
+<h3 id="2-inhibitor-locks">2. Inhibitor Locks</h3>
+<p>To avoid unwanted shutdowns or sleep cycles,
+<code>systemd-logind</code> implements an inhibitor lock mechanism.
+Applications can request an inhibitor lock over D-Bus to temporarily
+block or delay specific power actions. For example:</p>
+<ul>
+<li>A package manager can take a <code>shutdown</code> inhibitor lock to
+prevent the system from powering down during a system upgrade.</li>
+<li>A media player can take a <code>sleep</code> inhibitor lock to
+prevent a laptop from suspending while a video is playing.</li>
+<li>A CD/DVD burning utility can inhibit sleep to prevent data
+corruption.</li>
+</ul>
+<p>If an action is triggered while an inhibitor lock is active,
+<code>systemd-logind</code> will delay the action until the lock is
+released or a predefined timeout expires.</p>
+<h3 id="3-desktop-environment-integration">3. Desktop Environment
+Integration</h3>
+<p>Modern desktop environments, such as GNOME and KDE Plasma,
+communicate with <code>systemd-logind</code> rather than implementing
+low-level power handling themselves. When a user changes power
+management settings in a desktop control center, the desktop environment
+either configures its own response and instructs
+<code>systemd-logind</code> to ignore the event, or asks
+<code>systemd-logind</code> to execute the suspension or shutdown
+directly on its behalf.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

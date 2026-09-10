@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How Linux CPU Cgroups Limit Process Usage - linux</title>
+    <meta name="description" content="Control Groups (cgroups) are a core Linux kernel feature designed to isolate, allocate, and monitor system resources among groups of processes. When managing CPU utilization, the kernel combines cgroup accounting with scheduler logic—specifically the C">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-linux-cpu-cgroups-limit-process-usage">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How Linux CPU Cgroups Limit Process Usage - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-linux-cpu-cgroups-limit-process-usage" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="Control Groups (cgroups) are a core Linux kernel feature designed to isolate, allocate, and monitor system resources among groups of processes. When managing CPU utilization, the kernel combines cgroup accounting with scheduler logic—specifically the C" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-linux-cpu-cgroups-limit-process-usage">How Linux CPU Cgroups
+Limit Process Usage</h1>
+<p>Control Groups (cgroups) are a core Linux kernel feature designed to
+isolate, allocate, and monitor system resources among groups of
+processes. When managing CPU utilization, the kernel combines cgroup
+accounting with scheduler logic—specifically the Completely Fair
+Scheduler (CFS)—to enforce both proportional time-sharing and strict
+processing ceilings. This mechanism ensures that high-priority workloads
+remain responsive while preventing misbehaving or resource-heavy
+processes from starving the rest of the system.</p>
+<h3 id="core-scheduler-mechanisms">Core Scheduler Mechanisms</h3>
+<p>The Linux kernel relies on two primary mechanisms within the CPU
+controller to limit usage: <strong>proportional shares</strong> (soft
+limits) and <strong>bandwidth control</strong> (hard limits).</p>
+<h4 id="1-proportional-bandwidth-shares-and-weights">1. Proportional
+Bandwidth (Shares and Weights)</h4>
+<p>Proportional sharing determines how CPU time is divided when multiple
+processes are actively competing for cycles. If the system is idle, a
+process using this mechanism can consume up to 100% of available CPU
+capacity.</p>
+<ul>
+<li><strong>cgroups v1 (<code>cpu.shares</code>):</strong> The default
+share value is typically 1024. If Group A has 1024 shares and Group B
+has 2048 shares, Group B is entitled to twice as much CPU time as Group
+A under 100% system utilization.</li>
+<li><strong>cgroups v2 (<code>cpu.weight</code>):</strong> Uses an
+integer scale between 1 and 10,000 (defaulting to 100). The kernel
+divides the sum of weights among active cgroups to allocate proportional
+CPU slices during contention.</li>
+</ul>
+<h4 id="2-cfs-bandwidth-control-hard-limits">2. CFS Bandwidth Control
+(Hard Limits)</h4>
+<p>CFS bandwidth control prevents a process from exceeding a specified
+absolute threshold, regardless of whether spare CPU capacity exists on
+the host. This mechanism operates on two main parameters:
+<strong>period</strong> and <strong>quota</strong>.</p>
+<ul>
+<li><strong>Period:</strong> A sliding tracking window measured in
+microseconds (typically 100,000 microseconds or 100 ms).</li>
+<li><strong>Quota:</strong> The maximum amount of time within that
+single period that the cgroup is allowed to spend running on the
+CPU.</li>
+</ul>
+<p>In <strong>cgroups v1</strong>, these are configured using:</p>
+<ul>
+<li><code>cpu.cfs_period_us</code>: Sets the duration of the cycle
+(e.g., <code>100000</code>).</li>
+<li><code>cpu.cfs_quota_us</code>: Sets the allowed runtime (e.g.,
+<code>50000</code> limits the group to 50ms per 100ms, effectively
+capping it at 50% of a single CPU core. Setting it to
+<code>200000</code> allows it to use up to 2 full CPU cores).</li>
+</ul>
+<p>In <strong>cgroups v2</strong>, these parameters are consolidated
+into a single file called <code>cpu.max</code>:</p>
+<ul>
+<li>The format is <code>[quota] [period]</code>. For instance, writing
+<code>50000 100000</code> limits the group to half a core, while
+<code>max 100000</code> removes the ceiling.</li>
+</ul>
+<h3 id="the-throttling-process">The Throttling Process</h3>
+<p>When a hard limit is configured, the kernel enforces it via
+<strong>throttling</strong>:</p>
+<ol type="1">
+<li><strong>Accounting:</strong> Each time a thread from the target
+cgroup is scheduled to run, the kernel tracks the CPU time it
+accumulates via timer interrupts and context switches.</li>
+<li><strong>Quota Depletion:</strong> Once the aggregate runtime of all
+threads in the cgroup reaches the assigned quota before the period
+expires, the kernel flags the cgroup as throttled.</li>
+<li><strong>Descheduling:</strong> Throttled processes are immediately
+removed from the CFS runqueue. Even if the system has idle cores, these
+processes cannot execute any instructions.</li>
+<li><strong>Replenishment:</strong> When the next period begins (e.g.,
+at the next 100ms interval), a timer interrupt resets the used quota,
+the cgroup transitions back to an unthrottled state, and its threads are
+requeued for execution.</li>
+</ol>
+<p>Throttling statistics are recorded in <code>cpu.stat</code>, allowing
+administrators and container engines to track metrics such as
+<code>nr_throttled</code> (number of periods throttled) and
+<code>throttled_time</code> (total time spent blocked).</p>
+<h3 id="processor-pinning-with-the-cpuset-subsystem">Processor Pinning
+with the Cpuset Subsystem</h3>
+<p>In addition to bandwidth-based throttling, Linux provides the
+<code>cpuset</code> cgroup controller. While the standard CPU controller
+dictates <em>how much</em> processor time a process receives,
+<code>cpuset</code> restricts <em>where</em> that execution occurs:</p>
+<ul>
+<li><strong><code>cpuset.cpus</code>:</strong> Restricts the group to
+specific physical or logical CPU cores (e.g., <code>0-3</code> binds
+execution strictly to cores 0 through 3).</li>
+<li><strong><code>cpuset.mems</code>:</strong> Enforces memory
+allocation affinity to specific NUMA nodes.</li>
+</ul>
+<p>Combining CFS bandwidth control with <code>cpuset</code> isolates
+processes both temporally (limiting total execution time) and spatially
+(confining execution to designated hardware units), providing
+deterministic resource controls across modern Linux environments.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

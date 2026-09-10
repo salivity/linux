@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How ltrace Works to Trace Dynamic Library Calls in Linux - linux</title>
+    <meta name="description" content="This article provides an in-depth explanation of how the Linux operating system implements the ltrace utility to intercept and display dynamic library calls. It covers the core mechanisms powering the tool, including the role of the Executable and Linkab">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-ltrace-works-to-trace-dynamic-library-calls-in-linux">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How ltrace Works to Trace Dynamic Library Calls in Linux - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-ltrace-works-to-trace-dynamic-library-calls-in-linux" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="This article provides an in-depth explanation of how the Linux operating system implements the ltrace utility to intercept and display dynamic library calls. It covers the core mechanisms powering the tool, including the role of the Executable and Linkab" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-ltrace-works-to-trace-dynamic-library-calls-in-linux">How
+ltrace Works to Trace Dynamic Library Calls in Linux</h1>
+<p>This article provides an in-depth explanation of how the Linux
+operating system implements the <code>ltrace</code> utility to intercept
+and display dynamic library calls. It covers the core mechanisms
+powering the tool, including the role of the Executable and Linkable
+Format (ELF), the Procedure Linkage Table (PLT), the <code>ptrace</code>
+system call, software breakpoint injection, and symbol resolution during
+process execution.</p>
+<h3 id="the-role-of-elf-plt-and-dynamic-linking">The Role of ELF, PLT,
+and Dynamic Linking</h3>
+<p>To understand how <code>ltrace</code> intercepts function calls, one
+must first understand dynamic linking on Linux. When a dynamically
+linked program calls a shared library function (such as
+<code>printf()</code> from <code>libc.so</code>), the application does
+not contain the target memory address at compile time. Instead, it
+relies on two ELF sections:</p>
+<ul>
+<li><strong>Procedure Linkage Table (PLT):</strong> Executable stubs
+that jump to target addresses or invoke the dynamic linker
+(<code>ld.so</code>) to resolve them.</li>
+<li><strong>Global Offset Table (GOT):</strong> A table of absolute
+addresses populated at runtime by the dynamic linker.</li>
+</ul>
+<p>When code calls an external function, it calls the function's
+corresponding PLT entry (e.g., <code>printf@plt</code>).
+<code>ltrace</code> leverages this predictable structure to identify
+where dynamic library calls are dispatched.</p>
+<h3 id="process-attachment-via-ptrace">Process Attachment via
+<code>ptrace</code></h3>
+<p><code>ltrace</code> operates as a debugger. When you execute a
+command through <code>ltrace</code> or attach to an existing process
+using <code>-p &lt;PID&gt;</code>, it utilizes the Linux
+<code>ptrace</code> system call (<code>PTRACE_ATTACH</code> or
+<code>PTRACE_TRACEME</code>).</p>
+<p>The <code>ptrace</code> API allows <code>ltrace</code> to:</p>
+<ul>
+<li>Control the execution state of the traced process (tracee).</li>
+<li>Read and write the tracee’s memory space.</li>
+<li>Inspect and modify CPU registers.</li>
+<li>Receive notification signals whenever the tracee changes state or
+encounters an exception.</li>
+</ul>
+<h3 id="inspecting-dynamic-symbols">Inspecting Dynamic Symbols</h3>
+<p>Before the target process runs its main execution loop,
+<code>ltrace</code> parses the target binary's ELF structures.
+Specifically, it inspects the dynamic symbol table
+(<code>.dynsym</code>) and relocation entries (<code>.rel.plt</code> or
+<code>.rela.plt</code>).</p>
+<p>By mapping the symbols to their respective PLT offsets,
+<code>ltrace</code> builds an internal dictionary of:</p>
+<ul>
+<li>The memory address of each PLT stub.</li>
+<li>The human-readable name of the function (e.g., <code>malloc</code>,
+<code>fopen</code>).</li>
+<li>The expected function signatures (argument types and return types),
+typically read from configuration files in <code>/etc/ltrace.conf</code>
+or <code>~/.ltrace.conf</code>.</li>
+</ul>
+<h3 id="injecting-breakpoints-into-the-plt">Injecting Breakpoints into
+the PLT</h3>
+<p>Once the PLT addresses are known, <code>ltrace</code> intercepts
+calls by inserting software breakpoints:</p>
+<ol type="1">
+<li><strong>Reading Original Bytes:</strong> <code>ltrace</code> uses
+<code>ptrace(PTRACE_PEEKTEXT, ...)</code> to read the instruction bytes
+at the beginning of each PLT entry.</li>
+<li><strong>Writing Breakpoints:</strong> It replaces the first byte of
+each entry with a breakpoint instruction using
+<code>ptrace(PTRACE_POKETEXT, ...)</code>. On x86 and x86_64
+architectures, this is the single-byte <code>int 3</code> instruction
+(<code>0xCC</code>).</li>
+</ol>
+<p>Because PLT stubs reside in the memory space of the executable,
+replacing their entry points ensures that any dynamic call made by the
+binary executes the breakpoint before jumping to the actual shared
+library.</p>
+<h3 id="handling-the-trap-and-inspecting-arguments">Handling the Trap
+and Inspecting Arguments</h3>
+<p>When the tracee executes an intercepted library call, the CPU
+encounters the <code>int 3</code> instruction. This causes a software
+trap, transitioning execution to the Linux kernel:</p>
+<ol type="1">
+<li><strong>Signal Delivery:</strong> The kernel halts the tracee and
+sends a <code>SIGTRAP</code> signal to the tracer
+(<code>ltrace</code>).</li>
+<li><strong>Identification:</strong> <code>ltrace</code> intercepts the
+signal via <code>waitpid()</code>. It reads the tracee’s instruction
+pointer (e.g., <code>RIP</code> on x86_64) to determine which address
+triggered the trap.</li>
+<li><strong>Argument Decoding:</strong> By querying the process
+registers using <code>ptrace(PTRACE_GETREGS, ...)</code>,
+<code>ltrace</code> reads the arguments passed to the function according
+to the target architecture's calling convention (System V AMD64 ABI on
+standard x86_64 Linux, which uses registers <code>RDI</code>,
+<code>RSI</code>, <code>RDX</code>, <code>RCX</code>, <code>R8</code>,
+and <code>R9</code>).</li>
+</ol>
+<h3 id="capturing-return-values-and-resuming">Capturing Return Values
+and Resuming</h3>
+<p>To capture the return value of a library function,
+<code>ltrace</code> cannot simply let the program run freely after
+logging the entry:</p>
+<ol type="1">
+<li><strong>Return Address Detection:</strong> <code>ltrace</code>
+inspects the top of the stack to identify the return address where the
+dynamic library will jump after finishing execution.</li>
+<li><strong>Return Breakpoint:</strong> It places a temporary breakpoint
+at that return address.</li>
+<li><strong>Restoring and Continuing:</strong> <code>ltrace</code>
+temporarily restores the original byte at the PLT entry, sets the
+instruction pointer back by one byte to point to the restored
+instruction, and uses <code>ptrace(PTRACE_SINGLESTEP, ...)</code> or
+<code>ptrace(PTRACE_CONT, ...)</code> to resume execution into the
+dynamic library.</li>
+<li><strong>Logging the Return:</strong> When the library function
+completes, it hits the return breakpoint. <code>ltrace</code> receives
+another <code>SIGTRAP</code>, reads the return value from the
+architecture's return register (such as <code>RAX</code>), cleans up the
+temporary breakpoint, and prints the result to standard error.</li>
+</ol></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

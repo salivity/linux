@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linux Traffic Control: How tc Shapes Bandwidth - linux</title>
+    <meta name="description" content="The Linux Traffic Control (tc) subsystem regulates the flow of network packets by scheduling, prioritizing, policing, and shaping traffic as it traverses the kernel's networking stack. Bandwidth shaping is primarily achieved on egress by delaying or queu">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/linux-traffic-control-how-tc-shapes-bandwidth">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Linux Traffic Control: How tc Shapes Bandwidth - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/linux-traffic-control-how-tc-shapes-bandwidth" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="The Linux Traffic Control (tc) subsystem regulates the flow of network packets by scheduling, prioritizing, policing, and shaping traffic as it traverses the kernel's networking stack. Bandwidth shaping is primarily achieved on egress by delaying or queu" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="linux-traffic-control-how-tc-shapes-bandwidth">Linux Traffic
+Control: How tc Shapes Bandwidth</h1>
+<p>The Linux Traffic Control (<code>tc</code>) subsystem regulates the
+flow of network packets by scheduling, prioritizing, policing, and
+shaping traffic as it traverses the kernel's networking stack. Bandwidth
+shaping is primarily achieved on egress by delaying or queuing outbound
+packets using specialized algorithms known as Queueing Disciplines
+(qdiscs), supported by classes and filters. By intercepting packets
+before they reach the network interface card (NIC), <code>tc</code>
+ensures that transmission rates adhere to administrator-defined limits,
+mitigating network congestion and eliminating bufferbloat.</p>
+<h3 id="the-three-core-components-qdiscs-classes-and-filters">The Three
+Core Components: Qdiscs, Classes, and Filters</h3>
+<p>The architecture of <code>tc</code> relies on three foundational
+elements that structure how network packets are categorized and
+scheduled:</p>
+<ol type="1">
+<li><strong>Queueing Disciplines (qdiscs):</strong> A qdisc represents
+the algorithm applied to a network interface's packet queue. Qdiscs can
+be classless (applied universally to all traffic, such as
+<code>pfifo_fast</code>, <code>fq_codel</code>, or <code>tbf</code>) or
+classful (capable of containing nested sub-queues with different rules,
+such as <code>htb</code> or <code>cbq</code>).</li>
+<li><strong>Classes:</strong> Classes exist within classful qdiscs to
+partition total bandwidth into multiple virtual channels. Each class can
+be assigned specific parameters, such as a guaranteed minimum rate, a
+maximum burst rate, and a priority level.</li>
+<li><strong>Filters (Classifiers):</strong> Filters inspect incoming or
+outgoing packets using criteria like source/destination IP addresses,
+port numbers, or protocol types (often utilizing <code>u32</code>
+matching or <code>ebpf</code>). When a filter matches a packet, it
+directs that packet to the appropriate class for processing.</li>
+</ol>
+<h3 id="the-token-bucket-mechanism-for-shaping">The Token Bucket
+Mechanism for Shaping</h3>
+<p>True traffic shaping involves delaying packets rather than simply
+discarding them (the latter being traffic policing). The <code>tc</code>
+subsystem accomplishes this using the Token Bucket algorithm, commonly
+implemented via the Token Bucket Filter (<code>tbf</code>) or
+Hierarchical Token Bucket (<code>htb</code>).</p>
+<p>In this model, a virtual bucket continuously accumulates tokens at a
+fixed, configured rate (representing allowed bandwidth). Each token
+grants permission to transmit a specific number of bytes:</p>
+<ul>
+<li>When a packet arrives for transmission, the kernel checks whether
+sufficient tokens exist to cover the packet's byte size.</li>
+<li>If enough tokens are present, the corresponding tokens are deducted,
+and the packet is immediately sent to the network driver.</li>
+<li>If there are insufficient tokens, the packet is held in a buffer
+until new tokens accumulate at the defined rate.</li>
+<li>If the buffer fills completely before tokens become available,
+excess packets are dropped to prevent memory exhaustion.</li>
+</ul>
+<p>Hierarchical Token Bucket (<code>htb</code>) expands on this concept
+by allowing idle classes to lend unused tokens to other classes under
+heavy load, maximizing total link utilization while maintaining hard
+rate ceilings.</p>
+<h3 id="egress-vs-ingress-shaping">Egress vs. Ingress Shaping</h3>
+<p>Bandwidth shaping inherently requires control over when a packet is
+transmitted, making it natively suited for outbound (egress) interfaces.
+At the egress point, the Linux kernel holds packets in system memory
+buffers and feeds them to the hardware device ring buffer strictly
+according to the qdisc's scheduler.</p>
+<p>Because Linux cannot directly control the rate at which external
+systems transmit inbound (ingress) traffic, standard qdiscs cannot delay
+incoming packets. To apply full bandwidth shaping to ingress traffic,
+<code>tc</code> typically redirects incoming packets to an Intermediate
+Functional Block (<code>ifb</code>) pseudo-device. Once redirected, the
+incoming traffic is treated as egress traffic on the <code>ifb</code>
+device, allowing the full suite of classful schedulers and token-bucket
+algorithms to shape the flow before it reaches higher-layer
+applications.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

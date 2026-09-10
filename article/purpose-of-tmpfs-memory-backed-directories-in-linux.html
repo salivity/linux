@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Purpose of tmpfs Memory-Backed Directories in Linux - linux</title>
+    <meta name="description" content="This article explains the purpose, mechanics, and advantages of the tmpfs file system in the Linux operating system. It covers how tmpfs utilizes volatile system memory and swap space to create high-speed, temporary directories, the operational problems">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/purpose-of-tmpfs-memory-backed-directories-in-linux">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Purpose of tmpfs Memory-Backed Directories in Linux - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/purpose-of-tmpfs-memory-backed-directories-in-linux" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="This article explains the purpose, mechanics, and advantages of the tmpfs file system in the Linux operating system. It covers how tmpfs utilizes volatile system memory and swap space to create high-speed, temporary directories, the operational problems" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="purpose-of-tmpfs-memory-backed-directories-in-linux">Purpose of
+tmpfs Memory-Backed Directories in Linux</h1>
+<p>This article explains the purpose, mechanics, and advantages of the
+<code>tmpfs</code> file system in the Linux operating system. It covers
+how <code>tmpfs</code> utilizes volatile system memory and swap space to
+create high-speed, temporary directories, the operational problems it
+solves compared to traditional disk storage, and the practical scenarios
+where it delivers the greatest performance and security benefits.</p>
+<h2 id="what-is-tmpfs">What Is tmpfs?</h2>
+<p><code>tmpfs</code> (temporary file system) is a Linux file system
+mechanism designed to store files directly in volatile memory rather
+than on persistent block storage devices such as hard drives or
+solid-state disks. While traditional file systems interact with physical
+disk blocks, <code>tmpfs</code> stores everything in kernel internal
+caches and dynamically pages to swap space if physical RAM runs low.</p>
+<p>Unlike traditional RAM disks (<code>ramfs</code>), which allocate a
+fixed chunk of physical memory regardless of utilization,
+<code>tmpfs</code> allocates memory dynamically. It consumes only the
+exact amount of memory needed for the files currently stored inside it,
+releasing that memory back to the operating system when files are
+removed.</p>
+<h2 id="core-purposes-of-tmpfs">Core Purposes of tmpfs</h2>
+<h3 id="1-eliminating-disk-io-bottlenecks">1. Eliminating Disk I/O
+Bottlenecks</h3>
+<p>The primary purpose of using <code>tmpfs</code> is performance.
+Direct read and write operations against physical RAM operate at orders
+of magnitude higher throughput and significantly lower latency than
+standard NVMe or SATA drives. By placing frequently modified temporary
+files in a <code>tmpfs</code> mount, processes can execute read and
+write operations near hardware memory speeds without being constrained
+by disk controller queues.</p>
+<h3 id="2-reducing-wear-on-physical-storage-media">2. Reducing Wear on
+Physical Storage Media</h3>
+<p>Solid-state drives (SSDs) and flash-based memory devices (such as SD
+cards in embedded systems) have finite write endurance. Applications
+that constantly generate, update, and delete transient files—such as
+temporary caches, session stores, or build artifacts—can rapidly degrade
+storage media. Storing these transient files in <code>tmpfs</code>
+avoids unnecessary disk write cycles, substantially extending hardware
+lifespan.</p>
+<h3 id="3-automatic-lifecycle-management-and-ephemeral-security">3.
+Automatic Lifecycle Management and Ephemeral Security</h3>
+<p>Data stored in a <code>tmpfs</code> mount is volatile: it exists only
+as long as the system remains powered and the file system remains
+mounted. When the system shuts down, reboots, or the mount point is
+detached, the data is entirely destroyed. This makes <code>tmpfs</code>
+ideal for sensitive transient data, such as shared memory segments,
+cryptographic keys, or runtime state descriptors, ensuring no traces are
+left behind on persistent disk tracks.</p>
+<h3 id="4-efficient-resource-allocation">4. Efficient Resource
+Allocation</h3>
+<p>Every <code>tmpfs</code> mount can be constrained by a maximum size
+limit (defaulting to 50% of available physical RAM if not specified).
+Because it does not reserve physical RAM in advance, the system remains
+free to use that memory for other processes until files are actually
+written to the directory. If memory pressure becomes extreme, the Linux
+kernel can seamlessly swap portions of the <code>tmpfs</code> data out
+to disk swap space, preventing Out-Of-Memory (OOM) crashes while
+maintaining directory availability.</p>
+<h2 id="common-implementations-and-use-cases">Common Implementations and
+Use Cases</h2>
+<ul>
+<li><strong>System Runtime Directories (<code>/run</code> and
+<code>/var/run</code>):</strong> Modern Linux distributions use
+<code>tmpfs</code> for service process IDs (PIDs), daemon sockets, and
+ephemeral state files that must never survive a reboot.</li>
+<li><strong>Temporary File Storage (<code>/tmp</code>):</strong>
+Frequently configured as <code>tmpfs</code> to ensure build jobs,
+short-lived session files, and application caches run at maximum speed
+and are automatically purged upon restart.</li>
+<li><strong>Compiler Workspaces:</strong> Compiling large codebases
+(such as C/C++ or Rust projects) generates massive quantities of
+intermediate object files. Running compilation routines inside a
+<code>tmpfs</code> mount slashes build times by removing disk write
+overhead.</li>
+<li><strong>Shared Memory Inter-Process Communication (IPC):</strong>
+Linux uses <code>tmpfs</code> under the hood at <code>/dev/shm</code> to
+facilitate POSIX shared memory, enabling multiple processes to
+communicate rapidly via the same memory space using standard file system
+abstractions.</li>
+</ul>
+<h2 id="basic-usage">Basic Usage</h2>
+<p>A <code>tmpfs</code> directory can be mounted instantly using the
+<code>mount</code> command with a specified size limit:</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">mount</span> <span class="at">-t</span> tmpfs <span class="at">-o</span> size=2G tmpfs /mnt/ramcache</span></code></pre></div>
+<p>This allocates a mount point at <code>/mnt/ramcache</code> capable of
+holding up to 2 gigabytes of data in memory, actively expanding and
+shrinking as files are written and removed.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

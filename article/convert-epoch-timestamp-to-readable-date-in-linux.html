@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Convert Epoch Timestamp to Readable Date in Linux - linux</title>
+    <meta name="description" content="In the Linux operating system, Unix epoch timestamps—which count the number of seconds elapsed since January 1, 1970 (UTC)—can be converted into human-readable date and time formats using the native date command. By passing the @ symbol followed by t">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/convert-epoch-timestamp-to-readable-date-in-linux">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Convert Epoch Timestamp to Readable Date in Linux - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/convert-epoch-timestamp-to-readable-date-in-linux" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="In the Linux operating system, Unix epoch timestamps—which count the number of seconds elapsed since January 1, 1970 (UTC)—can be converted into human-readable date and time formats using the native date command. By passing the @ symbol followed by t" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="convert-epoch-timestamp-to-readable-date-in-linux">Convert Epoch
+Timestamp to Readable Date in Linux</h1>
+<p>In the Linux operating system, Unix epoch timestamps—which count the
+number of seconds elapsed since January 1, 1970 (UTC)—can be converted
+into human-readable date and time formats using the native
+<code>date</code> command. By passing the <code>@</code> symbol followed
+by the timestamp to the <code>-d</code> or <code>--date</code> flag,
+Linux parses the numeric value and translates it into a standard
+calendar date, allowing users to customize timezones and output formats
+directly from the command line.</p>
+<h3 id="the-basic-conversion-syntax">The Basic Conversion Syntax</h3>
+<p>The GNU <code>date</code> utility found in most Linux distributions
+uses the <code>-d</code> (or <code>--date</code>) option to accept input
+strings. To specify an epoch timestamp, prefix the numeric value with
+the <code>@</code> symbol:</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">date</span> <span class="at">-d</span> @1704067200</span></code></pre></div>
+<p><strong>Output:</strong></p>
+<pre class="text"><code>Mon Jan  1 00:00:00 UTC 2024</code></pre>
+<p><em>(Note: The actual output time zone will default to your system's
+configured local timezone.)</em></p>
+<h3 id="converting-to-utc">Converting to UTC</h3>
+<p>By default, the <code>date</code> command displays the converted
+epoch time according to the local timezone configured on your system. To
+view the timestamp in Coordinated Universal Time (UTC), add the
+<code>-u</code> (or <code>--utc</code>) flag:</p>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">date</span> <span class="at">-u</span> <span class="at">-d</span> @1704067200</span></code></pre></div>
+<h3 id="customizing-the-output-format">Customizing the Output
+Format</h3>
+<p>The <code>date</code> command allows formatting the output using
+format specifiers prefixed by a <code>+</code> sign. This allows you to
+extract specific date components or adhere to standard formats like ISO
+8601.</p>
+<ul>
+<li><p><strong>Standard Date and Time (YYYY-MM-DD
+HH:MM:SS):</strong></p>
+<div class="sourceCode" id="cb4"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">date</span> <span class="at">-d</span> @1704067200 +<span class="st">&quot;%Y-%m-%d %H:%M:%S&quot;</span></span></code></pre></div>
+<p><strong>Output:</strong> <code>2024-01-01 00:00:00</code></p></li>
+<li><p><strong>Date Only:</strong></p>
+<div class="sourceCode" id="cb5"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">date</span> <span class="at">-d</span> @1704067200 +<span class="st">&quot;%F&quot;</span></span></code></pre></div>
+<p><strong>Output:</strong> <code>2024-01-01</code></p></li>
+<li><p><strong>Time with Timezone:</strong></p>
+<div class="sourceCode" id="cb6"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">date</span> <span class="at">-d</span> @1704067200 +<span class="st">&quot;%T %Z&quot;</span></span></code></pre></div>
+<p><strong>Output:</strong> <code>00:00:00 UTC</code></p></li>
+</ul>
+<h3 id="handling-milliseconds">Handling Milliseconds</h3>
+<p>The standard <code>date</code> command expects epoch values in
+seconds. If you have a 13-digit millisecond timestamp (common in web
+applications), you must convert it to seconds before passing it to
+<code>date</code>. This can be done in Bash using arithmetic
+expansion:</p>
+<div class="sourceCode" id="cb7"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="va">epoch_ms</span><span class="op">=</span>1704067200000</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="fu">date</span> <span class="at">-d</span> @<span class="va">$((epoch_ms</span> <span class="op">/</span> <span class="dv">1000</span><span class="va">))</span></span></code></pre></div>
+<h3 id="bsdmacos-differences">BSD/macOS Differences</h3>
+<p>While GNU <code>date</code> is standard across Linux, macOS and BSD
+variants use a different syntax for epoch conversion. On BSD systems,
+the <code>-r</code> flag is used instead:</p>
+<div class="sourceCode" id="cb8"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="fu">date</span> <span class="at">-r</span> 1704067200</span></code></pre></div></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

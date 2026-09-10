@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Void Linux XBPS Package Manager Explained - linux</title>
+    <meta name="description" content="The X Binary Package System (XBPS) is the native, bespoke package manager designed specifically for Void Linux, distinguishing the distribution from mainstream Linux ecosystems. Rather than relying on established package management tools like APT, Pacman">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/void-linux-xbps-package-manager-explained">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Void Linux XBPS Package Manager Explained - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/void-linux-xbps-package-manager-explained" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="The X Binary Package System (XBPS) is the native, bespoke package manager designed specifically for Void Linux, distinguishing the distribution from mainstream Linux ecosystems. Rather than relying on established package management tools like APT, Pacman" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="void-linux-xbps-package-manager-explained">Void Linux XBPS
+Package Manager Explained</h1>
+<p>The X Binary Package System (XBPS) is the native, bespoke package
+manager designed specifically for Void Linux, distinguishing the
+distribution from mainstream Linux ecosystems. Rather than relying on
+established package management tools like APT, Pacman, or RPM, Void
+Linux utilizes XBPS to handle binary package deployment, dependency
+resolution, and system maintenance. This article examines the core role
+of XBPS, its architectural design, its relationship with source
+compilation, and how its distinct features define the Void Linux user
+experience.</p>
+<h3 id="built-from-scratch-for-independent-design">Built from Scratch
+for Independent Design</h3>
+<p>Unlike distributions that inherit their core tooling from upstream
+predecessors, Void Linux is an independent distribution. XBPS was
+created from scratch in C to serve this independent vision. It is
+engineered with minimal external dependencies, resulting in a
+lightweight footprint and exceptionally fast execution times. Because it
+is written natively for Void, XBPS avoids legacy bloat and aligns
+directly with the operating system's philosophy of simplicity and
+speed.</p>
+<h3 id="modular-command-structure">Modular Command Structure</h3>
+<p>XBPS differs from monolithic tools like <code>pacman</code> or
+<code>zypper</code> by separating its functionality into focused,
+discrete utilities. Each command handles a specific aspect of package
+management:</p>
+<ul>
+<li><strong><code>xbps-install</code></strong>: Downloads and installs
+binary packages, synchronizes remote repositories, and updates the
+system.</li>
+<li><strong><code>xbps-query</code></strong>: Searches local and remote
+package databases, inspects package metadata, and lists
+dependencies.</li>
+<li><strong><code>xbps-remove</code></strong>: Uninstalls packages and
+purges unneeded orphan dependencies.</li>
+<li><strong><code>xbps-reconfigure</code></strong>: Triggers
+post-installation configuration scripts for packages or updates the
+bootloader and kernel configurations.</li>
+<li><strong><code>xbps-pkgdb</code></strong>: Inspects, checks, and
+repairs the internal package database.</li>
+</ul>
+<p>This modular separation provides clean, predictable administration
+through standard Unix command-line piping and scripting.</p>
+<h3 id="native-support-for-alternative-c-libraries">Native Support for
+Alternative C Libraries</h3>
+<p>One of the most unique aspects of Void Linux is its first-class
+support for both the standard GNU C Library (<code>glibc</code>) and the
+lightweight <code>musl</code> libc. XBPS was architected from the ground
+up to understand and manage separate binary architectures seamlessly.
+Repositories and package dependencies are handled natively based on the
+system's libc variant, ensuring system integrity across diverse hardware
+platforms without requiring external workarounds.</p>
+<h3 id="integration-with-source-packages-via-xbps-src">Integration with
+Source Packages via <code>xbps-src</code></h3>
+<p>While XBPS primarily handles pre-compiled binary packages, it
+integrates tightly with <code>xbps-src</code>, the source package
+management system. Maintained in the <code>xbps-packages</code>
+repository, <code>xbps-src</code> uses structured build templates to
+compile software from source inside isolated chroot environments. Once a
+build completes, <code>xbps-src</code> produces a native
+<code>.xbps</code> binary package that the regular
+<code>xbps-install</code> utility can install and track. This bridge
+gives users the control of a source-based distribution while retaining
+the stability and speed of a binary-managed system.</p>
+<h3 id="transactional-safety-and-state-tracking">Transactional Safety
+and State Tracking</h3>
+<p>XBPS emphasizes transactional integrity. Package installations and
+removals track dependency trees and system state strictly to prevent
+partial or broken upgrades. If an operation fails during execution, XBPS
+aims to leave the system in a consistent state. Additionally, XBPS
+tracks file modifications, allowing users to preserve customized system
+configuration files during upgrades without silent overwrites.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SELinux Permissive vs Enforcing Mode Explained - linux</title>
+    <meta name="description" content="Security-Enhanced Linux (SELinux) is a mandatory access control (MAC) architecture integrated into the Linux kernel to limit access rights for users, applications, and system resources. Managing SELinux effectively requires understanding its operational">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/selinux-permissive-vs-enforcing-mode-explained">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="SELinux Permissive vs Enforcing Mode Explained - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/selinux-permissive-vs-enforcing-mode-explained" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="Security-Enhanced Linux (SELinux) is a mandatory access control (MAC) architecture integrated into the Linux kernel to limit access rights for users, applications, and system resources. Managing SELinux effectively requires understanding its operational" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="selinux-permissive-vs-enforcing-mode-explained">SELinux
+Permissive vs Enforcing Mode Explained</h1>
+<p>Security-Enhanced Linux (SELinux) is a mandatory access control (MAC)
+architecture integrated into the Linux kernel to limit access rights for
+users, applications, and system resources. Managing SELinux effectively
+requires understanding its operational modes, specifically enforcing and
+permissive. This article provides a direct comparison between SELinux
+permissive and enforcing modes, explaining how each functions, their
+security implications, and when to use them during system
+administration.</p>
+<h3 id="enforcing-mode">Enforcing Mode</h3>
+<p>Enforcing mode is the default and standard operational state for
+SELinux in production environments. In this mode:</p>
+<ul>
+<li><strong>Policy Enforcement:</strong> The system actively enforces
+the loaded SELinux security policies.</li>
+<li><strong>Access Denials:</strong> Any action, access request, or
+system call that violates the configured policy is immediately
+blocked.</li>
+<li><strong>Logging:</strong> Access Vector Cache (AVC) denial messages
+are generated and recorded in the audit log (typically
+<code>/var/log/audit/audit.log</code>) whenever a violation occurs.</li>
+<li><strong>Security Impact:</strong> It provides the highest level of
+security by strictly containing processes, mitigating unauthorized
+privilege escalation, and defending against zero-day exploits.</li>
+</ul>
+<h3 id="permissive-mode">Permissive Mode</h3>
+<p>Permissive mode acts as a diagnostic and development state. In this
+mode:</p>
+<ul>
+<li><strong>No Blocking:</strong> The system evaluates SELinux policies,
+but it does not block unauthorized actions. Processes that violate the
+policy are allowed to run normally.</li>
+<li><strong>Logging:</strong> Even though access is granted, the system
+still logs AVC denials in the audit log exactly as it would in enforcing
+mode.</li>
+<li><strong>Security Impact:</strong> It does not provide real-time
+protection. The system defaults back to traditional discretionary access
+control (DAC) mechanisms, such as standard Linux file permissions (read,
+write, execute).</li>
+<li><strong>Primary Purpose:</strong> It is used primarily for
+troubleshooting, policy development, and determining what permissions an
+application requires before switching to enforcing mode.</li>
+</ul>
+<h3 id="key-differences-summary">Key Differences Summary</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Feature</th>
+<th style="text-align: left;">Enforcing Mode</th>
+<th style="text-align: left;">Permissive Mode</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>Policy Action</strong></td>
+<td style="text-align: left;">Blocks unauthorized actions</td>
+<td style="text-align: left;">Allows unauthorized actions</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Audit Logging</strong></td>
+<td style="text-align: left;">Logs all policy violations</td>
+<td style="text-align: left;">Logs all policy violations</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>System Security</strong></td>
+<td style="text-align: left;">Mandatory Access Control active</td>
+<td style="text-align: left;">Protection disabled (DAC only)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Ideal Environment</strong></td>
+<td style="text-align: left;">Production systems</td>
+<td style="text-align: left;">Testing, staging, and debugging</td>
+</tr>
+</tbody>
+</table>
+<h3 id="managing-selinux-modes">Managing SELinux Modes</h3>
+<p>To determine the current operational mode on a system, run:</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">getenforce</span></span></code></pre></div>
+<p>To switch temporarily between modes without rebooting:</p>
+<ul>
+<li><strong>Switch to Permissive:</strong>
+<code>sudo setenforce 0</code></li>
+<li><strong>Switch to Enforcing:</strong>
+<code>sudo setenforce 1</code></li>
+</ul>
+<p>To set the mode permanently, edit the configuration file at
+<code>/etc/selinux/config</code> and change the <code>SELINUX</code>
+directive to either <code>SELINUX=enforcing</code> or
+<code>SELINUX=permissive</code>. Persisting changes via the
+configuration file ensures the desired security state remains active
+across system reboots.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

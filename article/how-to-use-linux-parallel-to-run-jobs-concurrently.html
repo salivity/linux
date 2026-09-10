@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How to Use Linux Parallel to Run Jobs Concurrently - linux</title>
+    <meta name="description" content="The GNU parallel command in Linux is a command-line utility designed to execute tasks simultaneously across multi-core processors, reducing the overall execution time of batch operations. By splitting standard input or argument lists across multiple CPU">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-to-use-linux-parallel-to-run-jobs-concurrently">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How to Use Linux Parallel to Run Jobs Concurrently - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-to-use-linux-parallel-to-run-jobs-concurrently" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="The GNU parallel command in Linux is a command-line utility designed to execute tasks simultaneously across multi-core processors, reducing the overall execution time of batch operations. By splitting standard input or argument lists across multiple CPU" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-to-use-linux-parallel-to-run-jobs-concurrently">How to Use
+Linux Parallel to Run Jobs Concurrently</h1>
+<p>The GNU <code>parallel</code> command in Linux is a command-line
+utility designed to execute tasks simultaneously across multi-core
+processors, reducing the overall execution time of batch operations. By
+splitting standard input or argument lists across multiple CPU cores,
+<code>parallel</code> serves as a high-performance alternative to
+traditional shell loops and tools like <code>xargs</code>. This article
+explains how the Linux operating system uses GNU <code>parallel</code>,
+its underlying execution mechanisms, and the practical syntax needed to
+run jobs concurrently.</p>
+<h2 id="understanding-gnu-parallel">Understanding GNU Parallel</h2>
+<p>GNU <code>parallel</code> operates by reading items from standard
+input (stdin) or argument lists, wrapping each item into a separate
+shell command, and launching these commands as independent processes.
+Instead of processing items sequentially one after another, it
+automatically discovers the number of available CPU cores and spawns one
+worker process per CPU thread by default. This ensures the operating
+system utilizes available hardware resources without overburdening the
+CPU scheduler.</p>
+<h2 id="core-execution-mechanics">Core Execution Mechanics</h2>
+<p>When a user invokes <code>parallel</code>, the utility manages
+concurrency through three primary phases:</p>
+<ol type="1">
+<li><strong>Input Splitting and Tokenization:</strong> The command
+divides the input data into individual arguments based on delimiters
+(typically newlines). It places these arguments into placeholders,
+represented by <code>{}</code> by default.</li>
+<li><strong>Process Orchestration:</strong> The tool monitors the active
+process table. As soon as a process finishes execution, GNU
+<code>parallel</code> immediately launches the next queued task to keep
+all configured CPU threads saturated.</li>
+<li><strong>Output Aggregation:</strong> Running multiple commands
+simultaneously usually results in scrambled terminal output. GNU
+<code>parallel</code> buffers stdout and stderr for each job, printing
+the complete output only when an individual job terminates. This
+guarantees deterministic, uncorrupted logs.</li>
+</ol>
+<h2 id="basic-syntax-and-usage">Basic Syntax and Usage</h2>
+<p>The most direct way to pass arguments to <code>parallel</code> is
+using the <code>:::</code> separator:</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">parallel</span> gzip ::: file1.txt file2.txt file3.txt</span></code></pre></div>
+<p>In this command, <code>gzip</code> runs against
+<code>file1.txt</code>, <code>file2.txt</code>, and
+<code>file3.txt</code> simultaneously, provided there are at least three
+available CPU threads.</p>
+<p>You can also pipe input directly from files or command outputs:</p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span> urls.txt <span class="kw">|</span> <span class="ex">parallel</span> curl <span class="at">-O</span> {}</span></code></pre></div>
+<p>Here, <code>{}</code> is automatically replaced by each line from
+<code>urls.txt</code>.</p>
+<h2 id="controlling-concurrency-levels">Controlling Concurrency
+Levels</h2>
+<p>While <code>parallel</code> defaults to running one job per CPU core,
+you can manually control how many tasks execute at the same time using
+the <code>-j</code> or <code>--jobs</code> flag:</p>
+<ul>
+<li><strong>Fixed number of jobs:</strong> Specifying <code>-j 4</code>
+forces the system to run exactly four jobs simultaneously, regardless of
+core count.</li>
+<li><strong>Proportional to CPU cores:</strong> Setting
+<code>-j +2</code> instructs the system to run two more jobs than the
+number of detected CPU cores. Setting <code>-j 50%</code> utilizes half
+of the available cores.</li>
+<li><strong>Infinite concurrency:</strong> Specifying <code>-j 0</code>
+runs all jobs at once without limiting concurrency, which should be used
+with caution to prevent resource exhaustion.</li>
+</ul>
+<h2 id="managing-arguments-and-output-ordering">Managing Arguments and
+Output Ordering</h2>
+<p>When operations depend on strict sequencing or require complex
+parameters, GNU <code>parallel</code> provides built-in modifiers:</p>
+<ul>
+<li><strong><code>--keep-order</code> (<code>-k</code>):</strong> Forces
+<code>parallel</code> to output results in the exact order of the input
+list, even if a later job finishes ahead of an earlier one.</li>
+<li><strong>Argument Modifiers:</strong> Placeholders can strip
+extensions (<code>{.}</code>) or extract directory names
+(<code>{//}</code>). For example:
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="ex">parallel</span> convert {} {.}.png ::: <span class="pp">*</span>.jpg</span></code></pre></div></li>
+<li><strong>Multiple Inputs:</strong> Using multiple <code>:::</code>
+separators creates a Cartesian product of the inputs:
+<div class="sourceCode" id="cb4"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="ex">parallel</span> echo {1} and {2} ::: A B ::: 1 2</span></code></pre></div>
+This runs four jobs: <code>A and 1</code>, <code>A and 2</code>,
+<code>B and 1</code>, and <code>B and 2</code>.</li>
+</ul>
+<h2 id="why-linux-uses-parallel-over-standard-shell-loops">Why Linux
+Uses Parallel Over Standard Shell Loops</h2>
+<p>Standard <code>for</code> or <code>while</code> loops in Bash execute
+commands sequentially in a single thread. While appending an ampersand
+(<code>&amp;</code>) to a command pushes it into the background, doing
+so inside a large loop creates thousands of simultaneous processes,
+leading to CPU thrashing, memory exhaustion, and potential system
+crashes. GNU <code>parallel</code> acts as a managed queue, continuously
+maintaining a stable workload that maximizes CPU throughput while
+keeping system memory and processor load within predictable limits.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

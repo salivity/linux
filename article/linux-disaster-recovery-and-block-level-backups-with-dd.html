@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linux Disaster Recovery and Block-Level Backups with dd - linux</title>
+    <meta name="description" content="This article explores how Linux facilitates disaster recovery through raw, block-level backups using the native dd (Data Duplicator) utility. It covers the mechanics of byte-for-byte imaging, the exact commands required to capture and restore entire driv">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/linux-disaster-recovery-and-block-level-backups-with-dd">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Linux Disaster Recovery and Block-Level Backups with dd - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/linux-disaster-recovery-and-block-level-backups-with-dd" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="This article explores how Linux facilitates disaster recovery through raw, block-level backups using the native dd (Data Duplicator) utility. It covers the mechanics of byte-for-byte imaging, the exact commands required to capture and restore entire driv" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="linux-disaster-recovery-and-block-level-backups-with-dd">Linux
+Disaster Recovery and Block-Level Backups with dd</h1>
+<p>This article explores how Linux facilitates disaster recovery through
+raw, block-level backups using the native <code>dd</code> (Data
+Duplicator) utility. It covers the mechanics of byte-for-byte imaging,
+the exact commands required to capture and restore entire drives,
+methods for compressing and transferring images over a network, and
+critical operational practices to prevent data corruption during the
+recovery process.</p>
+<h2 id="what-is-a-block-level-backup">What Is a Block-Level Backup?</h2>
+<p>A block-level backup captures the exact sequence of storage blocks
+directly from a storage device, bypassing the filesystem layer entirely.
+Unlike file-level backup tools (such as <code>rsync</code> or
+<code>tar</code>) that read individual files through the operating
+system's virtual file system, a block-level utility copies the
+underlying 1s and 0s.</p>
+<p>This means a block-level image retains everything:</p>
+<ul>
+<li>The Master Boot Record (MBR) or GUID Partition Table (GPT).</li>
+<li>Partition layouts and boundaries.</li>
+<li>Filesystem metadata, access control lists (ACLs), and extended
+attributes.</li>
+<li>System bootloaders (such as GRUB).</li>
+<li>Unallocated or deleted disk space.</li>
+</ul>
+<p>Because the entire environment—including the operating system state,
+kernel modules, and boot configurations—is captured intact, these
+backups serve as an ideal foundation for bare-metal disaster
+recovery.</p>
+<h2 id="how-dd-works-in-linux">How <code>dd</code> Works in Linux</h2>
+<p>In Linux, hardware devices are exposed as block device files inside
+the <code>/dev</code> directory (e.g., <code>/dev/sda</code>,
+<code>/dev/nvme0n1</code>). The <code>dd</code> utility reads from an
+input source (<code>if=</code>) and writes to an output target
+(<code>of=</code>). When applied to device files, <code>dd</code>
+operates in a sequential, low-level manner across the disk sectors.</p>
+<h3 id="basic-syntax-and-important-flags">Basic Syntax and Important
+Flags</h3>
+<ul>
+<li><code>if=</code>: The input file or block device (e.g.,
+<code>if=/dev/sda</code>).</li>
+<li><code>of=</code>: The output file or destination device (e.g.,
+<code>of=/dev/sdb</code> or <code>of=/mnt/backups/disk.img</code>).</li>
+<li><code>bs=</code>: Block size. Dictates how much data is read and
+written at one time (e.g., <code>bs=64K</code> or <code>bs=4M</code>).
+Larger block sizes reduce system call overhead and significantly
+increase throughput.</li>
+<li><code>status=progress</code>: Periodically outputs transfer rates
+and bytes copied to standard output.</li>
+<li><code>conv=sync,noerror</code>: Instructs <code>dd</code> not to
+stop on read errors (<code>noerror</code>) and to pad failed input
+blocks with null bytes (<code>sync</code>) to preserve partition
+offsets.</li>
+</ul>
+<h2 id="creating-block-level-backups">Creating Block-Level Backups</h2>
+<h3 id="1-full-disk-image-to-a-file">1. Full Disk Image to a File</h3>
+<p>To back up an entire system drive to an external storage mount:</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">dd</span> if=/dev/sda of=/mnt/backup_storage/system_backup.img bs=4M status=progress conv=noerror,sync</span></code></pre></div>
+<h3 id="2-compressed-disk-image">2. Compressed Disk Image</h3>
+<p>Because <code>dd</code> copies empty sectors, raw images are
+identical in size to the source drive. Piping the output to a
+compression utility like <code>gzip</code> or <code>zstd</code>
+drastically reduces the required storage space:</p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">dd</span> if=/dev/sda bs=4M status=progress conv=noerror,sync <span class="kw">|</span> <span class="fu">gzip</span> <span class="at">-c</span> <span class="op">&gt;</span> /mnt/backup_storage/system_backup.img.gz</span></code></pre></div>
+<h3 id="3-remote-disk-image-over-ssh">3. Remote Disk Image Over SSH</h3>
+<p>For offsite disaster recovery setups, you can stream a block-level
+image across the network without saving it locally first:</p>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">dd</span> if=/dev/sda bs=4M status=progress conv=noerror,sync <span class="kw">|</span> <span class="fu">ssh</span> user@remote_server <span class="st">&quot;gzip -c &gt; /backups/system_backup.img.gz&quot;</span></span></code></pre></div>
+<h2 id="the-disaster-recovery-process">The Disaster Recovery
+Process</h2>
+<p>Disaster recovery with <code>dd</code> involves writing the raw image
+back to replacement hardware. Because the host system may be inoperable,
+restoration typically begins by booting the machine using a Linux Live
+USB or recovery environment.</p>
+<h3 id="restoring-from-an-uncompressed-image">Restoring from an
+Uncompressed Image</h3>
+<p>To restore a saved image directly to a disk (e.g.,
+<code>/dev/sda</code>):</p>
+<div class="sourceCode" id="cb4"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">dd</span> if=/mnt/backup_storage/system_backup.img of=/dev/sda bs=4M status=progress</span></code></pre></div>
+<h3 id="restoring-from-a-compressed-image">Restoring from a Compressed
+Image</h3>
+<p>To decompress and write back to the target disk simultaneously:</p>
+<div class="sourceCode" id="cb5"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">gunzip</span> <span class="at">-c</span> /mnt/backup_storage/system_backup.img.gz <span class="kw">|</span> <span class="fu">dd</span> of=/dev/sda bs=4M status=progress</span></code></pre></div>
+<p>Once the operation completes, the target disk has an identical
+partition map, bootloader, and filesystem structure. A machine reboot
+will directly boot into the restored operating system.</p>
+<h2 id="critical-considerations-and-best-practices">Critical
+Considerations and Best Practices</h2>
+<ol type="1">
+<li><strong>Filesystem Consistency:</strong> Running <code>dd</code> on
+an actively mounted, write-heavy filesystem can produce an inconsistent
+"dirty" backup because blocks may change mid-read. For clean disaster
+recovery images, always unmount filesystems, boot into a live
+environment to take the image, or utilize LVM (Logical Volume Manager)
+read-only snapshots prior to running <code>dd</code>.</li>
+<li><strong>Drive Sizing Constraints:</strong> The target drive during a
+restore must be equal to or larger than the original source drive. If
+the destination is even one sector smaller, the backup will be
+truncated, damaging partition boundaries and filesystems.</li>
+<li><strong>Execution Safety:</strong> The <code>dd</code> command will
+overwrite any designated output target without confirmation. Entering
+the wrong drive identifier (e.g., confusing <code>/dev/sda</code> with
+<code>/dev/sdb</code>) can result in irreversible data loss. Always
+verify block devices using <code>lsblk</code> or <code>fdisk -l</code>
+prior to execution.</li>
+</ol></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linux Process Memory Allocation Explained - linux</title>
+    <meta name="description" content="The Linux operating system manages memory allocation for user processes through a sophisticated combination of virtual memory abstraction, user-space allocators, and kernel-level paging mechanisms. When a program requests memory, the kernel does not imme">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/linux-process-memory-allocation-explained">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Linux Process Memory Allocation Explained - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/linux-process-memory-allocation-explained" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="The Linux operating system manages memory allocation for user processes through a sophisticated combination of virtual memory abstraction, user-space allocators, and kernel-level paging mechanisms. When a program requests memory, the kernel does not imme" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="linux-process-memory-allocation-explained">Linux Process Memory
+Allocation Explained</h1>
+<p>The Linux operating system manages memory allocation for user
+processes through a sophisticated combination of virtual memory
+abstraction, user-space allocators, and kernel-level paging mechanisms.
+When a program requests memory, the kernel does not immediately assign
+physical RAM; instead, it establishes virtual address mappings and
+delays physical allocation until the memory is actively accessed. This
+article explains how user processes request memory, how the kernel
+bridges virtual and physical memory via page tables, and how mechanisms
+like demand paging and overcommit maintain system stability.</p>
+<h2 id="virtual-address-space-layout">Virtual Address Space Layout</h2>
+<p>Every user process in Linux operates within its own isolated Virtual
+Address Space (VAS), shielded from other processes. On a standard 64-bit
+architecture, this space is logically divided into distinct
+segments:</p>
+<ul>
+<li><strong>Text (Code) Segment:</strong> Contains the executable
+machine code, mapped as read-only to prevent modification.</li>
+<li><strong>Data and BSS Segments:</strong> Store initialized and
+uninitialized global and static variables.</li>
+<li><strong>Heap:</strong> Grows dynamically upward toward higher memory
+addresses for runtime allocations.</li>
+<li><strong>Memory Mapping Segment:</strong> Houses shared libraries,
+mapped files, and anonymous memory mappings created during
+execution.</li>
+<li><strong>Stack:</strong> Grows downward toward lower memory addresses
+to manage local function variables, arguments, and return
+addresses.</li>
+</ul>
+<p>Because each process operates in this virtual abstraction, memory
+addresses referenced by a program do not correspond directly to physical
+RAM locations.</p>
+<h2 id="user-space-allocation-the-role-of-glibc">User-Space Allocation:
+The Role of <code>glibc</code></h2>
+<p>User applications rarely interact with the Linux kernel directly for
+every memory request. Instead, standard libraries like GNU C Library
+(<code>glibc</code>) provide memory management functions such as
+<code>malloc()</code>, <code>calloc()</code>, <code>realloc()</code>,
+and <code>free()</code>.</p>
+<p>Calling <code>malloc()</code> directs the user-space allocator to
+check its internal memory pools for an available chunk of the requested
+size. If suitable memory is found, it is returned without kernel
+intervention, reducing expensive context switches. If the existing pool
+is exhausted or the requested allocation is large, the allocator
+requests memory from the kernel using one of two primary system
+calls:</p>
+<ul>
+<li><strong><code>brk()</code> / <code>sbrk()</code>:</strong> Adjusts
+the program break point, moving the boundary of the heap segment upward
+to provide contiguous space for small-to-medium allocations.</li>
+<li><strong><code>mmap()</code>:</strong> Creates a new, independent
+virtual memory mapping in the memory mapping segment. Allocators
+typically use anonymous <code>mmap()</code> calls for allocations
+exceeding a specific threshold (commonly 128 KB by default in
+<code>glibc</code>).</li>
+</ul>
+<h2 id="demand-paging-and-page-faults">Demand Paging and Page
+Faults</h2>
+<p>Linux employs a strategy called <strong>demand paging</strong> (or
+lazy allocation). When the kernel extends the heap with
+<code>brk()</code> or creates a mapping with <code>mmap()</code>, it
+merely reserves entries in the process's virtual memory structures
+(<code>vm_area_struct</code>). Physical memory (RAM) is not yet
+assigned.</p>
+<ol type="1">
+<li><strong>Virtual Reservation:</strong> The process receives a valid
+virtual memory pointer, but no physical page frame is assigned.</li>
+<li><strong>Access Attempt:</strong> When the process attempts to read
+from or write to that virtual address, the CPU’s Memory Management Unit
+(MMU) checks the page table and discovers no physical translation
+exists.</li>
+<li><strong>Page Fault Trigger:</strong> The MMU generates a hardware
+interrupt known as a <strong>page fault</strong>.</li>
+<li><strong>Handling the Fault:</strong> The kernel's page fault handler
+verifies that the address is within a valid virtual memory area:
+<ul>
+<li><strong>Minor Page Fault:</strong> If the address is valid, the
+kernel allocates a 4 KB physical memory frame, updates the process's
+page table to point to it, and clears the page.</li>
+<li><strong>Major Page Fault:</strong> If the memory resides on disk
+(such as a file mapping or swapped-out page), the kernel initiates disk
+I/O to load the data into RAM.</li>
+<li><strong>Segmentation Fault:</strong> If the address is invalid or
+violates permissions (e.g., writing to a read-only segment), the kernel
+sends a <code>SIGSEGV</code> signal, terminating the process.</li>
+</ul></li>
+<li><strong>Execution Resumes:</strong> The CPU restarts the instruction
+that caused the fault, now successfully reading or writing to physical
+RAM.</li>
+</ol>
+<h2 id="translation-via-page-tables-and-the-mmu">Translation via Page
+Tables and the MMU</h2>
+<p>To map virtual addresses to physical addresses, Linux uses
+multi-level page tables (typically 4-level or 5-level paging on modern
+64-bit systems). The CPU hardware traverses these tables via the MMU to
+resolve addresses.</p>
+<p>Because reading multi-level tables in RAM for every memory access
+introduces latency, the CPU caches recent translations in a hardware
+cache called the <strong>Translation Lookaside Buffer (TLB)</strong>.
+When a TLB hit occurs, address translation completes in a single CPU
+cycle.</p>
+<h2 id="memory-overcommit-and-the-oom-killer">Memory Overcommit and the
+OOM Killer</h2>
+<p>By default, Linux permits <strong>memory overcommit</strong>,
+granting virtual memory requests that exceed total physical RAM and swap
+space combined. This design accounts for the fact that processes
+routinely reserve far more virtual memory than they actively write
+to.</p>
+<p>If processes concurrently access their allocated memory and physical
+resources become completely exhausted, the kernel cannot fulfill pending
+page faults. To prevent total system freeze, the kernel invokes the
+<strong>Out-Of-Memory (OOM) Killer</strong>. The OOM Killer evaluates
+running processes based on memory footprint, runtime, and the process
+<code>oom_score</code>, selecting and terminating a candidate process
+with <code>SIGKILL</code> to reclaim physical memory for the rest of the
+system.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linux Directory Permissions: Read, Write, Execute - linux</title>
+    <meta name="description" content="In the Linux operating system, standard file permissions—read, write, and execute—behave significantly differently when applied to directories compared to regular files. While file permissions control access to file content and execution capability,">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/linux-directory-permissions-read-write-execute">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Linux Directory Permissions: Read, Write, Execute - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/linux-directory-permissions-read-write-execute" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="In the Linux operating system, standard file permissions—read, write, and execute—behave significantly differently when applied to directories compared to regular files. While file permissions control access to file content and execution capability," />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="linux-directory-permissions-read-write-execute">Linux Directory
+Permissions: Read, Write, Execute</h1>
+<p>In the Linux operating system, standard file permissions—read, write,
+and execute—behave significantly differently when applied to directories
+compared to regular files. While file permissions control access to file
+content and execution capability, directory permissions control how
+users interact with the directory's internal table of contents and
+traverse the filesystem hierarchy. Understanding the distinction between
+these permissions is critical for properly securing files, managing
+access control, and troubleshooting file management issues.</p>
+<h3 id="the-read-permission-r">The Read Permission (<code>r</code>)</h3>
+<p>On a directory, the read permission controls the ability to view the
+directory contents.</p>
+<ul>
+<li><strong>What it allows:</strong> A user with read access can list
+the names of files and subdirectories located within the directory (for
+example, using the <code>ls</code> command).</li>
+<li><strong>What it does not allow:</strong> Read permission alone does
+not allow the user to view file metadata (such as file sizes, ownership,
+or timestamps), nor does it allow accessing or modifying the files
+inside. If a user runs <code>ls -l</code> on a directory with read
+permission but without execute permission, the filenames may appear, but
+metadata fields will display question marks (<code>?</code>), and access
+will be denied.</li>
+</ul>
+<h3 id="the-write-permission-w">The Write Permission
+(<code>w</code>)</h3>
+<p>The write permission grants the ability to modify the contents of the
+directory itself.</p>
+<ul>
+<li><strong>What it allows:</strong> A user can create new files, delete
+existing files, and rename files within the directory.</li>
+<li><strong>Important behavior:</strong> In Linux, file deletion and
+creation are directory-level actions, not file-level actions. If a user
+has write and execute access to a directory, they can delete any file
+within it, even if they do not own the file or lack write permissions to
+the file itself (unless the sticky bit is applied).</li>
+<li><strong>Dependency:</strong> Write permission on a directory is
+ineffective without execute permission. A user cannot create or delete
+files without the ability to traverse into the directory.</li>
+</ul>
+<h3 id="the-execute-permission-x">The Execute Permission
+(<code>x</code>)</h3>
+<p>For directories, the execute permission is often referred to as the
+"search" or "traverse" permission.</p>
+<ul>
+<li><strong>What it allows:</strong> The execute permission allows a
+user to pass through (traverse) the directory to access its
+subdirectories and files, or change into it using the <code>cd</code>
+command. It also allows the system to read the metadata (inodes, file
+size, permissions) of files within the directory.</li>
+<li><strong>Direct file access:</strong> If a user knows the exact name
+of a file and has the appropriate permissions on that file, having only
+execute access (without read access) on the parent directory allows them
+to open, read, or edit that file. However, they will not be able to list
+the directory using <code>ls</code> to find out what files are
+there.</li>
+</ul>
+<h3 id="common-permission-combinations">Common Permission
+Combinations</h3>
+<ul>
+<li><strong>Execute only (<code>--x</code>):</strong> The user can
+<code>cd</code> into the directory or access a known file path directly,
+but cannot list files using <code>ls</code>.</li>
+<li><strong>Read only (<code>r--</code>):</strong> The user can see the
+list of file names, but cannot <code>cd</code> into the directory,
+cannot read file metadata (<code>ls -l</code> will fail), and cannot
+access the files.</li>
+<li><strong>Read and Execute (<code>r-x</code>):</strong> The standard
+"read-only" state for a directory. The user can view files, view file
+details (<code>ls -l</code>), <code>cd</code> into the directory, and
+read files (subject to individual file permissions).</li>
+<li><strong>Read, Write, and Execute (<code>rwx</code>):</strong> Full
+control. The user can enter, list, read, create, rename, and delete any
+files within the directory.</li>
+</ul></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

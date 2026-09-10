@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linux Find Command: Searching Directories Explained - linux</title>
+    <meta name="description" content="The find command in the Linux operating system is a powerful utility designed to walk directory hierarchies recursively, searching for files and folders that match specific, user-defined criteria. This article explains the primary functions of the find c">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/linux-find-command-searching-directories-explained">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Linux Find Command: Searching Directories Explained - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/linux-find-command-searching-directories-explained" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="The find command in the Linux operating system is a powerful utility designed to walk directory hierarchies recursively, searching for files and folders that match specific, user-defined criteria. This article explains the primary functions of the find c" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="linux-find-command-searching-directories-explained">Linux Find
+Command: Searching Directories Explained</h1>
+<p>The <code>find</code> command in the Linux operating system is a
+powerful utility designed to walk directory hierarchies recursively,
+searching for files and folders that match specific, user-defined
+criteria. This article explains the primary functions of the
+<code>find</code> command, details how it evaluates directory trees in
+real-time, highlights its most common filtering criteria—such as file
+names, sizes, permissions, and timestamps—and demonstrates how to
+execute automated actions on the search results.</p>
+<h3 id="real-time-directory-traversal">Real-Time Directory
+Traversal</h3>
+<p>Unlike indexing utilities such as <code>locate</code>, which query a
+pre-built database, <code>find</code> dynamically scans the live
+filesystem starting from a designated directory. It descends through
+subdirectories recursively, evaluating every file system object it
+encounters against the conditions supplied in the command line.</p>
+<h3 id="basic-syntax">Basic Syntax</h3>
+<p>The standard structure for executing the <code>find</code> command
+is:</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">find</span> <span class="pp">[</span><span class="ss">starting_point</span><span class="pp">]</span> <span class="pp">[</span><span class="ss">options</span><span class="pp">]</span> <span class="pp">[</span><span class="ss">search_criteria</span><span class="pp">]</span> <span class="pp">[</span><span class="ss">action</span><span class="pp">]</span></span></code></pre></div>
+<ul>
+<li><strong>Starting point:</strong> The path where the search begins
+(e.g., <code>/home</code>, <code>/var/log</code>, or <code>.</code> for
+the current directory).</li>
+<li><strong>Options:</strong> Flags that govern how directories are
+read, such as handling symbolic links or limiting directory depth.</li>
+<li><strong>Search criteria:</strong> Tests used to match files (e.g.,
+name, size, type).</li>
+<li><strong>Action:</strong> What to do with the matches (default is
+<code>-print</code>, which displays the path to the screen).</li>
+</ul>
+<h3 id="core-search-functions">Core Search Functions</h3>
+<h4 id="1-searching-by-name-and-type">1. Searching by Name and Type</h4>
+<p>The command allows users to isolate items based on their names or
+filesystem type.</p>
+<ul>
+<li><strong>Filter by name:</strong> Use <code>-name</code>
+(case-sensitive) or <code>-iname</code> (case-insensitive).
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">find</span> /var/www <span class="at">-name</span> <span class="st">&quot;index.html&quot;</span></span></code></pre></div></li>
+<li><strong>Filter by file type:</strong> Use <code>-type</code> to
+separate directories (<code>d</code>), regular files (<code>f</code>),
+or symbolic links (<code>l</code>).
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">find</span> /etc <span class="at">-type</span> d</span></code></pre></div></li>
+</ul>
+<h4 id="2-searching-by-file-size">2. Searching by File Size</h4>
+<p>You can locate files based on storage thresholds using
+<code>-size</code> with units like <code>k</code> (kilobytes),
+<code>M</code> (megabytes), or <code>G</code> (gigabytes). Prefixes like
+<code>+</code> (greater than) and <code>-</code> (less than) define the
+range.</p>
+<div class="sourceCode" id="cb4"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">find</span> /home <span class="at">-type</span> f <span class="at">-size</span> +100M</span></code></pre></div>
+<h4 id="3-searching-by-timestamps">3. Searching by Timestamps</h4>
+<p>The <code>find</code> command tracks three timestamps: access time
+(<code>-atime</code>), modification time (<code>-mtime</code>), and
+metadata change time (<code>-ctime</code>).</p>
+<ul>
+<li>To locate files modified within the last 7 days:
+<div class="sourceCode" id="cb5"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">find</span> /var/log <span class="at">-type</span> f <span class="at">-mtime</span> <span class="at">-7</span></span></code></pre></div></li>
+<li>To locate files modified more than 30 days ago:
+<div class="sourceCode" id="cb6"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">find</span> /tmp <span class="at">-type</span> f <span class="at">-mtime</span> +30</span></code></pre></div></li>
+</ul>
+<h4 id="4-searching-by-permissions-and-ownership">4. Searching by
+Permissions and Ownership</h4>
+<p>Systems administrators frequently use <code>find</code> to detect
+security misconfigurations by evaluating ownership and access modes.</p>
+<ul>
+<li><strong>By owner:</strong> <code>-user username</code></li>
+<li><strong>By permissions:</strong> <code>-perm 777</code> (exact
+match) or <code>-perm -644</code> (has at least these permissions).
+<div class="sourceCode" id="cb7"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">find</span> /home <span class="at">-user</span> john <span class="at">-perm</span> 644</span></code></pre></div></li>
+</ul>
+<h3 id="controlling-search-depth">Controlling Search Depth</h3>
+<p>To prevent long execution times or excessive resource usage on large
+storage volumes, the search depth can be bounded:</p>
+<ul>
+<li><code>-maxdepth N</code>: Specifies the maximum number of directory
+levels to descend.</li>
+<li><code>-mindepth N</code>: Ignores matches above the specified
+level.</li>
+</ul>
+<div class="sourceCode" id="cb8"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="fu">find</span> / <span class="at">-maxdepth</span> 2 <span class="at">-name</span> <span class="st">&quot;*.conf&quot;</span></span></code></pre></div>
+<h3 id="performing-actions-on-discovered-files">Performing Actions on
+Discovered Files</h3>
+<p>Beyond locating directories and files, <code>find</code> can
+manipulate the results directly:</p>
+<ul>
+<li><strong>Delete matches:</strong> The <code>-delete</code> flag
+removes matched files automatically.</li>
+<li><strong>Execute commands:</strong> The <code>-exec</code> flag runs
+an arbitrary Linux command on each result. The syntax <code>{}</code>
+represents the current file path, and <code>\;</code> terminates the
+command.</li>
+</ul>
+<div class="sourceCode" id="cb9"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="fu">find</span> /tmp <span class="at">-type</span> f <span class="at">-name</span> <span class="st">&quot;*.tmp&quot;</span> <span class="at">-exec</span> rm <span class="at">-f</span> {} <span class="dt">\;</span></span></code></pre></div></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

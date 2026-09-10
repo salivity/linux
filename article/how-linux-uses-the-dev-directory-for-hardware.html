@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How Linux Uses the /dev Directory for Hardware - linux</title>
+    <meta name="description" content="In the Linux operating system, hardware devices are represented as special files within the /dev (device) directory. This article explains how Linux applies the foundational "everything is a file" philosophy to hardware abstraction, the differences betwe">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-linux-uses-the-dev-directory-for-hardware">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How Linux Uses the /dev Directory for Hardware - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-linux-uses-the-dev-directory-for-hardware" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="In the Linux operating system, hardware devices are represented as special files within the /dev (device) directory. This article explains how Linux applies the foundational "everything is a file" philosophy to hardware abstraction, the differences betwe" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-linux-uses-the-dev-directory-for-hardware">How Linux Uses
+the /dev Directory for Hardware</h1>
+<p>In the Linux operating system, hardware devices are represented as
+special files within the <code>/dev</code> (device) directory. This
+article explains how Linux applies the foundational "everything is a
+file" philosophy to hardware abstraction, the differences between block,
+character, and pseudo-devices, how the kernel identifies hardware
+through major and minor numbers, and how dynamic managers like
+<code>udev</code> keep the directory up to date.</p>
+<h2 id="the-everything-is-a-file-abstraction">The "Everything Is a File"
+Abstraction</h2>
+<p>Linux abstracts physical and virtual hardware components into the
+filesystem hierarchy via the <code>/dev</code> directory. Instead of
+requiring applications to use specialized, low-level hardware APIs,
+Linux exposes hardware devices as device nodes (or device files).
+Standard system calls used for regular files—such as
+<code>read()</code>, <code>write()</code>, and <code>open()</code>—can
+interact directly with hardware through these nodes, with the Linux
+kernel translating those requests into driver-specific actions.</p>
+<h2 id="device-types-in-dev">Device Types in <code>/dev</code></h2>
+<p>Files inside <code>/dev</code> do not consume physical storage space
+on a disk; instead, they serve as access portals to device drivers.
+These files primarily fall into three categories:</p>
+<ul>
+<li><strong>Block Devices:</strong> These devices transfer data in
+fixed-sized blocks and support random access and data caching. Common
+block devices include hard drives, solid-state drives, and flash media.
+For example, <code>/dev/sda</code> represents the first detected
+SATA/SCSI drive, while <code>/dev/nvme0n1</code> represents an NVMe
+drive.</li>
+<li><strong>Character Devices:</strong> These devices transfer data as
+an unbuffered, sequential stream of individual characters or bytes.
+Character devices do not support random access. Examples include serial
+ports, keyboards, terminal interfaces (such as <code>/dev/tty</code>),
+and sound cards.</li>
+<li><strong>Pseudo-Devices:</strong> Linux also hosts virtual devices
+within <code>/dev</code> that provide system utilities without
+representing physical components. Examples include
+<code>/dev/null</code> (discards all written data),
+<code>/dev/zero</code> (provides an endless stream of null bytes), and
+<code>/dev/urandom</code> (provides cryptographically secure
+pseudorandom numbers).</li>
+</ul>
+<h2 id="major-and-minor-numbers">Major and Minor Numbers</h2>
+<p>When viewing device files using <code>ls -l /dev</code>, the file
+listing displays two numbers separated by a comma where a standard
+file's size would normally appear:</p>
+<ol type="1">
+<li><strong>Major Number:</strong> Identifies the specific device driver
+within the kernel responsible for handling communication with the
+hardware.</li>
+<li><strong>Minor Number:</strong> Distinguishes between specific
+individual devices or partitions managed by that same driver.</li>
+</ol>
+<p>For instance, <code>/dev/sda1</code> and <code>/dev/sda2</code> share
+the same major number because they utilize the same storage driver, but
+they have distinct minor numbers to indicate separate partitions on that
+drive.</p>
+<h2 id="dynamic-device-management-with-devtmpfs-and-udev">Dynamic Device
+Management with devtmpfs and udev</h2>
+<p>In modern Linux distributions, the <code>/dev</code> directory is not
+a static set of files stored on the root partition. It is mounted as an
+in-memory virtual filesystem called <code>devtmpfs</code>.</p>
+<p>When new hardware is connected (such as plugging in a USB drive), the
+kernel detects the event and creates a base device node in
+<code>devtmpfs</code>. Simultaneously, the user-space device manager,
+<code>udev</code>, receives a kernel event. The <code>udev</code> daemon
+applies user-defined rules to assign persistent names, manage access
+permissions, and generate user-friendly symbolic links (such as those
+found in <code>/dev/disk/by-uuid/</code> or
+<code>/dev/disk/by-id/</code>). When hardware is unplugged, the kernel
+and <code>udev</code> remove the corresponding device nodes
+automatically.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How Linux fdisk Partitions Raw Block Devices - linux</title>
+    <meta name="description" content="This article explores how the standard Linux fdisk utility partitions raw block devices, covering its interaction with low-level storage architectures, the mechanics of manipulating partition tables in memory, and the process of updating the Linux kernel">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-linux-fdisk-partitions-raw-block-devices">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How Linux fdisk Partitions Raw Block Devices - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-linux-fdisk-partitions-raw-block-devices" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="This article explores how the standard Linux fdisk utility partitions raw block devices, covering its interaction with low-level storage architectures, the mechanics of manipulating partition tables in memory, and the process of updating the Linux kernel" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-linux-fdisk-partitions-raw-block-devices">How Linux fdisk
+Partitions Raw Block Devices</h1>
+<p>This article explores how the standard Linux <code>fdisk</code>
+utility partitions raw block devices, covering its interaction with
+low-level storage architectures, the mechanics of manipulating partition
+tables in memory, and the process of updating the Linux kernel to
+recognize new storage boundaries.</p>
+<h2 id="understanding-raw-block-devices">Understanding Raw Block
+Devices</h2>
+<p>In Linux, a raw block device is an unformatted physical or virtual
+storage drive represented as a special device file in the
+<code>/dev</code> directory, such as <code>/dev/sda</code> for SATA/SCSI
+drives or <code>/dev/nvme0n1</code> for NVMe drives. These devices
+transfer data in fixed-size blocks—typically 512 bytes or 4096 bytes
+(4Kn)—without any inherent logical organization, filesystems, or
+partition boundaries.</p>
+<h2 id="the-role-of-partition-tables">The Role of Partition Tables</h2>
+<p>To segment a raw block device into discrete logical sections, a
+partition table must be written to its designated sectors. The two
+primary partition table formats are:</p>
+<ul>
+<li><strong>Master Boot Record (MBR):</strong> Resides in the first
+sector (LBA 0) of the disk, supporting up to four primary partitions and
+disks up to 2TB.</li>
+<li><strong>GUID Partition Table (GPT):</strong> Part of the UEFI
+specification, GPT places its header at LBA 1 (with a protective MBR at
+LBA 0) and maintains a backup header at the end of the disk, supporting
+partitions larger than 2TB and significantly more partition
+entries.</li>
+</ul>
+<p>While historically associated strictly with MBR, modern versions of
+<code>fdisk</code> support both MBR and GPT partition schemes.</p>
+<h2 id="in-memory-partition-editing">In-Memory Partition Editing</h2>
+<p>When <code>fdisk</code> is launched against a device path (for
+example, <code>fdisk /dev/sdb</code>), it opens the target device
+descriptor with read and write permissions. Instead of modifying the
+physical disk immediately with every user action:</p>
+<ol type="1">
+<li><strong>Reading Existing Tables:</strong> <code>fdisk</code> reads
+the first few sectors of the disk to identify an existing MBR or GPT
+header.</li>
+<li><strong>In-Memory Representation:</strong> It loads the partition
+map into system RAM.</li>
+<li><strong>Staging Changes:</strong> Operations such as creating a new
+partition (<code>n</code>), changing a partition type (<code>t</code>),
+or deleting an entry (<code>d</code>) merely alter this in-memory data
+structure. No persistent alterations are committed to the hardware
+during this interactive phase.</li>
+</ol>
+<h2 id="committing-changes-to-the-block-device">Committing Changes to
+the Block Device</h2>
+<p>When the user enters the write command (<code>w</code>),
+<code>fdisk</code> translates the staged memory structures into raw
+binary data formatted according to the chosen scheme (MBR or GPT).</p>
+<ol type="1">
+<li><strong>Writing Sectors:</strong> <code>fdisk</code> writes the
+calculated sector offsets, sizes, partition types, and unique
+identifiers directly to the appropriate sectors (e.g., LBA 0 for MBR, or
+LBAs 1–33 and the end of the disk for GPT).</li>
+<li><strong>Preserving Data Areas:</strong> Crucially,
+<code>fdisk</code> only touches the partition table areas. It does not
+overwrite the actual payload data blocks within the partitions, nor does
+it create filesystems.</li>
+</ol>
+<h2 id="informing-the-linux-kernel">Informing the Linux Kernel</h2>
+<p>Once the physical sectors are written, the Linux kernel must be
+informed of the change so it can expose the new partitions to user
+space:</p>
+<ol type="1">
+<li><strong>The <code>BLKRRPART</code> ioctl:</strong>
+<code>fdisk</code> issues an <code>ioctl</code> system call using the
+<code>BLKRRPART</code> (Block Reread Partition Table) request to the raw
+device file descriptor.</li>
+<li><strong>Kernel Reparsing:</strong> The kernel reads the newly
+updated partition tables directly from the storage controller.</li>
+<li><strong>Device Node Creation:</strong> The kernel updates its
+internal partition maps and emits <code>uevents</code>. The
+<code>udev</code> daemon captures these events and dynamically creates
+corresponding device nodes in <code>/dev</code>, such as
+<code>/dev/sdb1</code> and <code>/dev/sdb2</code>.</li>
+</ol>
+<p>If an existing partition on the block device is currently mounted or
+in use, the <code>ioctl</code> call fails with a busy warning. In this
+scenario, the disk headers are updated, but the kernel continues using
+the old table until the system is rebooted or the table is manually
+refreshed using tools like <code>partx</code> or
+<code>blockdev</code>.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

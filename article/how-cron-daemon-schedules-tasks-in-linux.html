@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How Cron Daemon Schedules Tasks in Linux - linux</title>
+    <meta name="description" content="This article provides an overview of how the cron daemon automates tasks in Linux, explaining the background process, crontab syntax, and the step-by-step execution cycle used to run scheduled commands reliably. The cron daemon, commonly named crond or c">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-cron-daemon-schedules-tasks-in-linux">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How Cron Daemon Schedules Tasks in Linux - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-cron-daemon-schedules-tasks-in-linux" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="This article provides an overview of how the cron daemon automates tasks in Linux, explaining the background process, crontab syntax, and the step-by-step execution cycle used to run scheduled commands reliably. The cron daemon, commonly named crond or c" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-cron-daemon-schedules-tasks-in-linux">How Cron Daemon
+Schedules Tasks in Linux</h1>
+<p>This article provides an overview of how the cron daemon automates
+tasks in Linux, explaining the background process, crontab syntax, and
+the step-by-step execution cycle used to run scheduled commands
+reliably.</p>
+<h3 id="the-cron-daemon-architecture">The Cron Daemon Architecture</h3>
+<p>The cron daemon, commonly named <code>crond</code> or
+<code>cron</code>, is a background utility that initializes during the
+Linux boot sequence and runs continuously as a system service. Its sole
+purpose is to execute unattended maintenance jobs, system scripts, and
+user commands at specified intervals. Rather than consuming CPU cycles
+with real-time tracking, the daemon relies on an event loop tied to the
+system clock.</p>
+<h3 id="the-crontab-configuration">The Crontab Configuration</h3>
+<p>Tasks are defined in configuration tables known as "crontabs." Linux
+categorizes these into two primary types:</p>
+<ol type="1">
+<li><strong>User Crontabs:</strong> Stored in spool directories
+(typically <code>/var/spool/cron/</code> or
+<code>/var/spool/cron/crontabs/</code>), managed by individual users via
+the <code>crontab -e</code> command without requiring direct root
+access.</li>
+<li><strong>System Crontabs:</strong> Located in
+<code>/etc/crontab</code> and the <code>/etc/cron.d/</code> directory,
+these files contain an extra field specifying the user account that
+should execute the command. Additionally, directories like
+<code>/etc/cron.hourly</code>, <code>/etc/cron.daily</code>,
+<code>/etc/cron.weekly</code>, and <code>/etc/cron.monthly</code> handle
+pre-packaged scripts run by tools like <code>anacron</code> or standard
+cron jobs.</li>
+</ol>
+<p>Each entry in a standard user crontab follows a five-field
+time-and-date format followed by the command:</p>
+<pre class="text"><code>* * * * * command_to_execute
+- - - - -
+| | | | |
+| | | | +-- Day of the week (0 - 7, where Sunday is 0 or 7)
+| | | +---- Month (1 - 12)
+| | +------ Day of the month (1 - 31)
+| +-------- Hour (0 - 23)
++---------- Minute (0 - 59)</code></pre>
+<p>Operators such as asterisks (wildcard), commas (value lists), hyphens
+(ranges), and slashes (step values) allow for granular frequency
+definitions.</p>
+<h3 id="the-execution-cycle">The Execution Cycle</h3>
+<p>The cron daemon operates on a 60-second polling cycle:</p>
+<ol type="1">
+<li><strong>Sleep and Wake:</strong> The daemon sleeps until the top of
+the minute, synchronized with system time.</li>
+<li><strong>Directory and Modtime Checks:</strong> Upon waking, it
+inspects <code>/etc/crontab</code>, <code>/etc/cron.d/</code>, and the
+user spool directories to detect any file modifications since the last
+check. If a file has been modified, it reloads the table into memory
+without requiring a service restart.</li>
+<li><strong>Time Matching:</strong> The daemon checks the current system
+minute, hour, day, month, and day-of-week against the loaded
+entries.</li>
+<li><strong>Process Forking:</strong> When a crontab entry matches the
+current time, the daemon forks a child process to execute the specified
+command. It changes the user and group ID of the process to match the
+crontab owner.</li>
+<li><strong>Output Handling:</strong> The command runs in a subshell
+(typically <code>/bin/sh</code>). Standard output (<code>stdout</code>)
+and standard error (<code>stderr</code>) are captured and, by default,
+sent via local mail to the crontab owner unless explicitly redirected to
+a file or <code>/dev/null</code>.</li>
+</ol>
+<h3 id="execution-environment-and-security">Execution Environment and
+Security</h3>
+<p>Cron jobs execute in a restricted, non-interactive environment.
+Environment variables common to interactive shells, such as extended
+<code>$PATH</code> definitions, aliases, and custom variables, are not
+loaded by default. Commands must either use absolute paths or define
+required environment variables at the top of the crontab file.</p>
+<p>Access to the scheduling system is managed through
+<code>/etc/cron.allow</code> and <code>/etc/cron.deny</code>. If
+<code>cron.allow</code> exists, only users listed within it can create
+schedules. If only <code>cron.deny</code> exists, any user not listed in
+the file is permitted to use the service.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

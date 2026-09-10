@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How Linux Restricted Shell (rbash) Limits Users - linux</title>
+    <meta name="description" content="A restricted shell, commonly implemented as rbash, is a specialized mode of the GNU Bash shell designed to establish a controlled execution environment on Linux systems. By disabling specific built-in shell capabilities—such as changing directories, mo">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-linux-restricted-shell-rbash-limits-users">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How Linux Restricted Shell (rbash) Limits Users - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-linux-restricted-shell-rbash-limits-users" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="A restricted shell, commonly implemented as rbash, is a specialized mode of the GNU Bash shell designed to establish a controlled execution environment on Linux systems. By disabling specific built-in shell capabilities—such as changing directories, mo" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-linux-restricted-shell-rbash-limits-users">How Linux
+Restricted Shell (rbash) Limits Users</h1>
+<p>A restricted shell, commonly implemented as <code>rbash</code>, is a
+specialized mode of the GNU Bash shell designed to establish a
+controlled execution environment on Linux systems. By disabling specific
+built-in shell capabilities—such as changing directories, modifying
+critical environment variables, and executing commands outside
+designated directories—the operating system prevents unauthorized system
+navigation and command execution. This article explains how the Linux
+operating system enforces these constraints, how administrators
+configure them, and the critical security factors involved in
+maintaining an effective <code>rbash</code> environment.</p>
+<h2 id="invocation-and-detection-of-restricted-mode">Invocation and
+Detection of Restricted Mode</h2>
+<p>Linux initiates restricted mode in one of two primary ways:</p>
+<ol type="1">
+<li><strong>Direct Invocation:</strong> Executing the standard Bash
+binary with the <code>-r</code> flag (<code>bash -r</code>).</li>
+<li><strong>Binary or Symlink Naming:</strong> Running Bash through a
+symbolic link named <code>rbash</code> (e.g.,
+<code>/bin/rbash -&gt; /bin/bash</code>).</li>
+</ol>
+<p>When Bash launches, it inspects argument zero (<code>argv[0]</code>).
+If the command name starts with <code>rbash</code>, or if the
+<code>-r</code> flag is present, Bash sets an internal flag that locks
+down specific operational features before executing any user input.</p>
+<h2 id="core-restrictions-enforced-by-rbash">Core Restrictions Enforced
+by rbash</h2>
+<p>Once restricted mode is active, the shell disables operations that
+would typically allow a user to explore or manipulate the underlying
+operating system:</p>
+<ul>
+<li><strong>Directory Navigation:</strong> The <code>cd</code> (change
+directory) command is disabled. Users cannot leave the working directory
+assigned to them upon login.</li>
+<li><strong>Path-Based Execution:</strong> Users cannot run commands
+containing a slash (<code>/</code>). This stops users from bypassing the
+restricted environment by typing absolute paths (like
+<code>/bin/sh</code> or <code>/usr/bin/python</code>) or relative paths
+(like <code>../../bin/ls</code>).</li>
+<li><strong>Environment Variable Protection:</strong> Users cannot unset
+or modify core environment variables, specifically <code>PATH</code>,
+<code>SHELL</code>, <code>ENV</code>, and <code>BASH_ENV</code>. This
+prevents users from redirecting the shell to lookup binaries in
+unauthorized directories.</li>
+<li><strong>Redirection Restrictions:</strong> Redirection operators
+that write to files (<code>&gt;</code>, <code>&gt;|</code>,
+<code>&gt;&gt;</code>, and <code>&lt;&gt;</code>) are disabled. This
+stops users from overwriting startup files or writing malicious scripts
+to disk.</li>
+<li><strong>Shell Function and Option Lockdown:</strong> The
+<code>set +r</code> or <code>set +o restricted</code> commands cannot be
+used to disable restricted mode from within the shell session.</li>
+</ul>
+<h2 id="configuration-and-the-confinement-workflow">Configuration and
+the Confinement Workflow</h2>
+<p>To confine a user, a system administrator typically assigns
+<code>/bin/rbash</code> as the user's default shell in
+<code>/etc/passwd</code>. Confinement is managed through the user's
+<code>PATH</code> configuration:</p>
+<ol type="1">
+<li><strong>Custom Binary Directory:</strong> The administrator creates
+a dedicated, secure directory (such as
+<code>/home/username/bin</code>).</li>
+<li><strong>Selective Command Availability:</strong> The administrator
+symlinks only safe, approved binaries into that directory (e.g.,
+<code>clear</code>, <code>who</code>, or custom scripts).</li>
+<li><strong>Environment Lockdown:</strong> In the user's read-only
+<code>.bash_profile</code> or <code>.bashrc</code>, the administrator
+sets <code>PATH=$HOME/bin</code> and exports it.</li>
+</ol>
+<p>Because <code>rbash</code> users cannot use slashes in commands and
+cannot modify <code>PATH</code>, they can only execute the specific
+programs present in <code>/home/username/bin</code>.</p>
+<h2 id="security-limitations-and-escape-vectors">Security Limitations
+and Escape Vectors</h2>
+<p>While <code>rbash</code> restricts shell built-ins, it does not
+provide kernel-level isolation, sandboxing, or the complete filesystem
+virtualization of a chroot jail or container. The security of
+<code>rbash</code> relies entirely on the binaries placed in the user's
+<code>PATH</code>.</p>
+<p>If a permitted binary provides an internal shell escape or
+file-editing capability—such as <code>vim</code>, <code>less</code>,
+<code>more</code>, <code>man</code>, <code>find</code>, or scripting
+interpreters like <code>python</code> or <code>perl</code>—the user can
+spawn an unrestricted subshell (<code>/bin/sh</code>) from within that
+application, effectively bypassing all <code>rbash</code> constraints.
+Consequently, administrators must audit every binary made accessible to
+a restricted user.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Using uniq -c to Count Duplicate Lines in Linux - linux</title>
+    <meta name="description" content="This article provides a comprehensive overview of the uniq -c command in the Linux operating system, detailing its primary purpose, how it operates, and why it is a critical tool for text processing. You will learn the mechanics behind prefixing duplicat">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/using-uniq-c-to-count-duplicate-lines-in-linux">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Using uniq -c to Count Duplicate Lines in Linux - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/using-uniq-c-to-count-duplicate-lines-in-linux" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="This article provides a comprehensive overview of the uniq -c command in the Linux operating system, detailing its primary purpose, how it operates, and why it is a critical tool for text processing. You will learn the mechanics behind prefixing duplicat" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="using-uniq--c-to-count-duplicate-lines-in-linux">Using uniq -c
+to Count Duplicate Lines in Linux</h1>
+<p>This article provides a comprehensive overview of the
+<code>uniq -c</code> command in the Linux operating system, detailing
+its primary purpose, how it operates, and why it is a critical tool for
+text processing. You will learn the mechanics behind prefixing duplicate
+lines with occurrence counts, the essential requirement of sorting input
+data prior to using the command, and practical examples of combining
+<code>uniq -c</code> with other command-line utilities for data and log
+analysis.</p>
+<h3 id="the-purpose-of-uniq--c">The Purpose of <code>uniq -c</code></h3>
+<p>The primary purpose of the <code>uniq</code> command in Linux is to
+filter out repeated adjacent lines from a text file or standard input
+stream. When the <code>-c</code> (or <code>--count</code>) flag is
+added, the command changes its default behavior: instead of merely
+suppressing duplicate entries, it prefixes each unique output line with
+the number of times that specific line occurred consecutively in the
+input.</p>
+<p>This makes <code>uniq -c</code> an essential utility for frequency
+analysis, auditing log files, identifying common patterns, and
+generating summary reports directly from the terminal.</p>
+<h3 id="the-adjacency-requirement-and-the-role-of-sort">The Adjacency
+Requirement and the Role of <code>sort</code></h3>
+<p>A fundamental characteristic of the <code>uniq</code> command is that
+it only evaluates adjacent lines. It reads input sequentially and
+compares each line strictly to the one immediately preceding it. If
+identical lines are scattered throughout different parts of a file,
+<code>uniq -c</code> will treat each separated occurrence as a new,
+distinct entry rather than aggregating them into a single count.</p>
+<p>To count all duplicate lines across an entire file, the data must
+first be organized using the <code>sort</code> command. Piping the
+output of <code>sort</code> into <code>uniq -c</code> groups all
+identical lines together, allowing <code>uniq -c</code> to calculate an
+accurate total frequency for every line:</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sort</span> filename.txt <span class="kw">|</span> <span class="fu">uniq</span> <span class="at">-c</span></span></code></pre></div>
+<h3 id="basic-syntax-and-output-format">Basic Syntax and Output
+Format</h3>
+<p>The standard syntax for using <code>uniq -c</code> is:</p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">uniq</span> <span class="at">-c</span> [input_file <span class="pp">[</span><span class="ss">output_file</span><span class="pp">]</span>]</span></code></pre></div>
+<p>When executed, the output displays in two columns: the count of
+occurrences padded with spaces on the left, followed by the actual text
+content of the line on the right.</p>
+<p>For example, consider a file named <code>fruits.txt</code> with the
+following content:</p>
+<pre class="text"><code>apple
+banana
+apple
+orange
+banana
+apple</code></pre>
+<p>Running <code>sort fruits.txt | uniq -c</code> produces:</p>
+<pre class="text"><code>      3 apple
+      2 banana
+      1 orange</code></pre>
+<h3 id="common-use-cases-and-advanced-combinations">Common Use Cases and
+Advanced Combinations</h3>
+<p>The <code>uniq -c</code> command is most powerful when chained with
+other core Linux text-processing tools:</p>
+<ul>
+<li><strong>Sorting by Frequency:</strong> After counting duplicates,
+you can pipe the output into <code>sort -n</code> to sort by count in
+ascending order, or <code>sort -nr</code> to sort in descending order.
+This is commonly used to find the most frequent occurrences (such as the
+top IP addresses in a web server access log):
+<div class="sourceCode" id="cb5"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span> access.log <span class="kw">|</span> <span class="fu">awk</span> <span class="st">&#39;{print $1}&#39;</span> <span class="kw">|</span> <span class="fu">sort</span> <span class="kw">|</span> <span class="fu">uniq</span> <span class="at">-c</span> <span class="kw">|</span> <span class="fu">sort</span> <span class="at">-nr</span> <span class="kw">|</span> <span class="fu">head</span> <span class="at">-n</span> 10</span></code></pre></div></li>
+<li><strong>Case-Insensitive Counting:</strong> Combining the
+<code>-i</code> option with <code>-c</code> (<code>uniq -ci</code>)
+allows you to count occurrences while ignoring differences in character
+case (treating "Apple" and "apple" as the same entry).</li>
+<li><strong>Displaying Only Duplicates:</strong> If you only want to
+view lines that appear more than once along with their counts, pair
+<code>-c</code> with the <code>-d</code> option:
+<div class="sourceCode" id="cb6"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sort</span> filename.txt <span class="kw">|</span> <span class="fu">uniq</span> <span class="at">-cd</span></span></code></pre></div></li>
+</ul></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

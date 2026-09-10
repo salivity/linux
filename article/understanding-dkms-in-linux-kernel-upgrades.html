@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Understanding DKMS in Linux Kernel Upgrades - linux</title>
+    <meta name="description" content="Dynamic Kernel Module Support (DKMS) is an essential framework in Linux that automatically recompiles out-of-tree kernel modules whenever a new kernel version is installed. Without DKMS, updating the operating system kernel frequently breaks critical har">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/understanding-dkms-in-linux-kernel-upgrades">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Understanding DKMS in Linux Kernel Upgrades - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/understanding-dkms-in-linux-kernel-upgrades" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="Dynamic Kernel Module Support (DKMS) is an essential framework in Linux that automatically recompiles out-of-tree kernel modules whenever a new kernel version is installed. Without DKMS, updating the operating system kernel frequently breaks critical har" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="understanding-dkms-in-linux-kernel-upgrades">Understanding DKMS
+in Linux Kernel Upgrades</h1>
+<p>Dynamic Kernel Module Support (DKMS) is an essential framework in
+Linux that automatically recompiles out-of-tree kernel modules whenever
+a new kernel version is installed. Without DKMS, updating the operating
+system kernel frequently breaks critical hardware drivers—such as
+proprietary graphics cards, specialized Wi-Fi adapters, and
+virtualization software—requiring manual reinstallation. This article
+explains how DKMS functions, why it is critical during kernel upgrades,
+and how it ensures seamless system stability and continuity.</p>
+<h3 id="the-kernel-upgrade-challenge">The Kernel Upgrade Challenge</h3>
+<p>The Linux kernel does not maintain a stable internal Application
+Binary Interface (ABI). This design allows the kernel to evolve rapidly,
+optimize internal structures, and discard deprecated code. While device
+drivers included directly in the upstream kernel source tree ("in-tree"
+drivers) are automatically recompiled by distribution maintainers for
+every new kernel release, third-party or proprietary drivers
+("out-of-tree" drivers) are not.</p>
+<p>Examples of out-of-tree modules include:</p>
+<ul>
+<li>Proprietary GPU drivers (such as NVIDIA).</li>
+<li>Host modules for hypervisors (such as VirtualBox or VMware
+Workstation).</li>
+<li>Specialized network interface cards and Realtek Wi-Fi chipsets.</li>
+<li>Third-party filesystems like OpenZFS.</li>
+</ul>
+<p>When a user upgrades their kernel, the newly installed kernel lacks
+the pre-compiled binary modules that these third-party components depend
+on. Booting into the new kernel without rebuilding these modules leads
+to system failures, missing network interfaces, or dropped graphical
+interfaces (dropping to a command-line fallback).</p>
+<h3 id="how-dkms-solves-the-problem">How DKMS Solves the Problem</h3>
+<p>DKMS, originally developed by Dell, provides an automated framework
+to bridge this gap. Instead of storing pre-compiled binaries, DKMS
+stores the source code of the third-party module along with a
+configuration file (<code>dkms.conf</code>) inside
+<code>/usr/src/&lt;module&gt;-&lt;version&gt;/</code>.</p>
+<p>When a package manager (such as APT, DNF, or Pacman) installs a new
+Linux kernel and its matching header files, it triggers
+post-installation hooks. DKMS hooks into this process automatically:</p>
+<ol type="1">
+<li><strong>Detection:</strong> DKMS detects the newly installed kernel
+version and identifies all registered module source trees on the
+system.</li>
+<li><strong>Compilation:</strong> It invokes the local compiler
+(typically GCC or Clang) to build the module source code against the
+headers of the newly installed kernel.</li>
+<li><strong>Installation:</strong> Once compiled, DKMS installs the
+resulting binary module files into the appropriate
+<code>/lib/modules/&lt;kernel-version&gt;/</code> directory.</li>
+<li><strong>Registration:</strong> It updates module dependencies using
+<code>depmod</code>, ensuring the new kernel can load the drivers on the
+next system reboot.</li>
+</ol>
+<h3 id="key-significance-of-dkms">Key Significance of DKMS</h3>
+<ul>
+<li><strong>Zero-Touch Maintenance:</strong> System administrators and
+desktop users do not need to manually monitor kernel updates or manually
+download, compile, and install drivers every time the OS updates.</li>
+<li><strong>Reduced Downtime:</strong> By compiling modules before
+rebooting into the new kernel, DKMS minimizes the risk of unbootable
+systems, broken displays, or disconnected network devices.</li>
+<li><strong>Flexibility Across Multiple Kernels:</strong> If a user
+maintains multiple kernel flavors (such as generic, low-latency, or
+hardened kernels), DKMS manages compilation across all installed
+versions independently.</li>
+<li><strong>Graceful Failure Handling:</strong> If a driver fails to
+compile against a newer kernel due to an upstream API deprecation, DKMS
+reports the error during the package update phase. This alerts the
+administrator before rebooting, allowing them to remain on the working
+kernel until a patch is applied.</li>
+</ul>
+<p>DKMS remains a vital component of Linux system administration,
+allowing proprietary and third-party hardware modules to coexist
+reliably with modern continuous-update and rolling-release operating
+systems.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

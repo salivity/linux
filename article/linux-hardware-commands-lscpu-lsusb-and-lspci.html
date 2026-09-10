@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linux Hardware Commands: lscpu, lsusb, and lspci - linux</title>
+    <meta name="description" content="This article explains how to inspect and inventory system hardware on the Linux operating system using three essential terminal commands: lscpu, lspci, and lsusb. Together, these utilities allow system administrators and users to identify processor archi">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/linux-hardware-commands-lscpu-lsusb-and-lspci">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Linux Hardware Commands: lscpu, lsusb, and lspci - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/linux-hardware-commands-lscpu-lsusb-and-lspci" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="This article explains how to inspect and inventory system hardware on the Linux operating system using three essential terminal commands: lscpu, lspci, and lsusb. Together, these utilities allow system administrators and users to identify processor archi" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="linux-hardware-commands-lscpu-lsusb-and-lspci">Linux Hardware
+Commands: lscpu, lsusb, and lspci</h1>
+<p>This article explains how to inspect and inventory system hardware on
+the Linux operating system using three essential terminal commands:
+<code>lscpu</code>, <code>lspci</code>, and <code>lsusb</code>.
+Together, these utilities allow system administrators and users to
+identify processor architecture, internal PCI-connected components, and
+external or internal USB peripherals directly from the command line
+without installing third-party tools.</p>
+<h2 id="the-lscpu-command-inspecting-the-processor">The lscpu Command:
+Inspecting the Processor</h2>
+<p>The <code>lscpu</code> command gathers CPU architecture information
+from <code>sysfs</code> and <code>/proc/cpuinfo</code> and outputs it in
+a clean, human-readable format. It is the primary tool for checking the
+capabilities and topology of your system's processor.</p>
+<h3 id="what-lscpu-displays">What lscpu Displays:</h3>
+<ul>
+<li><strong>Architecture:</strong> Indicates whether the system is
+32-bit (x86), 64-bit (x86_64), ARM, etc.</li>
+<li><strong>Core and Thread Counts:</strong> Shows the number of CPU
+sockets, physical cores per socket, and threads per core
+(Hyper-Threading/SMT).</li>
+<li><strong>Clock Speeds:</strong> Reports the current, minimum, and
+maximum CPU frequency in MHz.</li>
+<li><strong>Cache Sizes:</strong> Details the capacities of L1d, L1i,
+L2, and L3 caches.</li>
+<li><strong>Virtualization Flags:</strong> Confirms hardware
+virtualization support (VT-x or AMD-V), which is necessary for running
+virtual machines.</li>
+</ul>
+<h3 id="useful-usage">Useful Usage:</h3>
+<ul>
+<li>Run <code>lscpu</code> by itself for a complete summary.</li>
+<li>Run <code>lscpu -e</code> to view an extended, tabular format
+showing how CPUs map to physical cores and NUMA nodes.</li>
+</ul>
+<hr />
+<h2 id="the-lspci-command-identifying-pci-devices">The lspci Command:
+Identifying PCI Devices</h2>
+<p>The <code>lspci</code> command queries the PCI bus to display
+information about all connected devices and controllers on the
+motherboard. Because modern motherboards use PCI and PCI Express (PCIe)
+for most high-bandwidth connections, this command reveals most internal
+hardware.</p>
+<h3 id="what-lspci-displays">What lspci Displays:</h3>
+<ul>
+<li><strong>Graphics Processing Units (GPUs):</strong> Dedicated and
+integrated video cards.</li>
+<li><strong>Network Interfaces:</strong> Ethernet adapters and Wi-Fi
+controllers.</li>
+<li><strong>Storage Controllers:</strong> SATA controllers, NVMe drives,
+and RAID controllers.</li>
+<li><strong>Audio Devices:</strong> Integrated sound cards and
+high-definition audio controllers.</li>
+<li><strong>Chipset Components:</strong> Host bridges, memory
+controllers, and PCI-to-PCI bridges.</li>
+</ul>
+<h3 id="useful-usage-1">Useful Usage:</h3>
+<ul>
+<li>Run <code>lspci</code> for a compact one-line summary of each
+detected device.</li>
+<li>Run <code>lspci -k</code> to display the specific kernel drivers and
+modules currently handling each device, which is useful for driver
+troubleshooting.</li>
+<li>Run <code>lspci -v</code> or <code>lspci -vv</code> to generate
+detailed, verbose output, including subsystem IDs, memory addresses, and
+interrupt requests (IRQs).</li>
+</ul>
+<hr />
+<h2 id="the-lsusb-command-identifying-usb-peripherals">The lsusb
+Command: Identifying USB Peripherals</h2>
+<p>The <code>lsusb</code> command interrogates the USB subsystem to list
+all USB buses and the devices attached to them. This includes external
+peripherals connected to physical ports as well as internal components
+routed over USB internally, such as integrated webcams, Bluetooth
+adapters, and fingerprint readers.</p>
+<h3 id="what-lsusb-displays">What lsusb Displays:</h3>
+<ul>
+<li><strong>Bus and Device Numbers:</strong> The logical bus and address
+assigned to each connected device.</li>
+<li><strong>Device Identification (ID):</strong> A unique alphanumeric
+string formatted as <code>VendorID:ProductID</code> (e.g.,
+<code>046d:c52b</code>). This ID helps pinpoint exact hardware revisions
+when searching for drivers.</li>
+<li><strong>Manufacturer and Device Name:</strong> The reported brand
+and model of the peripheral.</li>
+</ul>
+<h3 id="useful-usage-2">Useful Usage:</h3>
+<ul>
+<li>Run <code>lsusb</code> to see a concise list of connected USB hubs
+and devices.</li>
+<li>Run <code>lsusb -t</code> to display a physical hierarchy tree
+showing which devices are connected to which USB controllers, ports, and
+operating speeds (e.g., 480M for USB 2.0, 5G/10G for USB 3.0+).</li>
+<li>Run <code>lsusb -v -d [VendorID:ProductID]</code> (e.g.,
+<code>lsusb -v -d 046d:c52b</code>) to pull verbose descriptor data for
+a single specific device.</li>
+</ul></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

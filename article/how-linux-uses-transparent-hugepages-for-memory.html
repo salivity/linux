@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How Linux Uses Transparent HugePages for Memory - linux</title>
+    <meta name="description" content="Transparent HugePages (THP) is an automated memory management feature in the Linux kernel designed to increase hardware efficiency and reduce virtual memory translation overhead. By automatically provisioning memory in chunks significantly larger than th">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-linux-uses-transparent-hugepages-for-memory">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How Linux Uses Transparent HugePages for Memory - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-linux-uses-transparent-hugepages-for-memory" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="Transparent HugePages (THP) is an automated memory management feature in the Linux kernel designed to increase hardware efficiency and reduce virtual memory translation overhead. By automatically provisioning memory in chunks significantly larger than th" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-linux-uses-transparent-hugepages-for-memory">How Linux Uses
+Transparent HugePages for Memory</h1>
+<p>Transparent HugePages (THP) is an automated memory management feature
+in the Linux kernel designed to increase hardware efficiency and reduce
+virtual memory translation overhead. By automatically provisioning
+memory in chunks significantly larger than the standard 4KB
+architecture—typically 2MB or 1GB—Linux optimizes the Translation
+Lookaside Buffer (TLB) hit rate. This article explains how THP
+functions, why it mitigates address translation bottlenecks, and how the
+kernel actively manages large pages to balance performance against
+memory fragmentation.</p>
+<h3 id="the-virtual-memory-translation-bottleneck">The Virtual Memory
+Translation Bottleneck</h3>
+<p>Every modern operating system relies on virtual memory, abstracting
+physical RAM into contiguous address spaces for user processes. To
+access memory, the CPU's Memory Management Unit (MMU) must translate
+virtual addresses into physical addresses using page tables stored in
+RAM.</p>
+<p>To accelerate this translation process, CPUs utilize a specialized
+hardware cache called the Translation Lookaside Buffer (TLB). Because
+the TLB has a limited capacity (often only a few thousand entries),
+modern applications consuming tens or hundreds of gigabytes of RAM cause
+the TLB to fill up rapidly. When an address is not cached, a "TLB miss"
+occurs, forcing the CPU to walk the multi-level page table in physical
+memory. This process stalls execution and degrades performance on
+memory-intensive workloads.</p>
+<h3 id="how-hugepages-reduce-tlb-pressure">How HugePages Reduce TLB
+Pressure</h3>
+<p>Under the default x86-64 architecture, base pages are 4 Kilobytes
+(KB) in size. A process utilizing 1 Gigabyte (GB) of RAM requires
+262,144 individual 4KB page table entries, far exceeding the size of the
+TLB.</p>
+<p>HugePages address this issue by increasing the page size to 2
+Megabytes (MB) or 1GB:</p>
+<ul>
+<li><strong>2MB HugePage:</strong> Replaces 512 individual 4KB pages
+with a single entry.</li>
+<li><strong>1GB HugePage:</strong> Replaces 262,144 individual 4KB pages
+with a single entry.</li>
+</ul>
+<p>By drastically reducing the total number of page mappings required,
+the entire memory footprint of an application can often fit directly
+inside the TLB cache. This eliminates costly page table walks and
+significantly reduces memory latency.</p>
+<h3 id="the-role-of-transparent-hugepages">The Role of "Transparent"
+HugePages</h3>
+<p>Traditional HugePages in Linux require administrators to pre-allocate
+dedicated memory pools at boot time and require software developers to
+write code explicitly using <code>hugetlbfs</code> or the
+<code>mmap()</code> system call with <code>MAP_HUGETLB</code>.</p>
+<p>Transparent HugePages (THP) automates this entire process at the
+kernel level without requiring any modifications to user-space
+applications:</p>
+<ol type="1">
+<li><strong>Automatic Allocation:</strong> When an application requests
+dynamic memory via <code>malloc()</code> or anonymous memory mappings,
+the kernel automatically attempts to satisfy the allocation using 2MB
+contiguous physical blocks instead of 4KB pages.</li>
+<li><strong>Background Aggregation (<code>khugepaged</code>):</strong>
+Linux runs a background kernel thread named <code>khugepaged</code>.
+This daemon periodically scans active memory spaces, finds contiguous
+blocks of standard 4KB pages, and collapses them into unified 2MB
+HugePages without interrupting running processes.</li>
+<li><strong>Dynamic Splitting:</strong> If memory becomes fragmented, or
+if a process releases or frees a small sub-section of a 2MB page, the
+kernel transparently splits the HugePage back into standard 4KB pages to
+avoid wasting RAM.</li>
+</ol>
+<h3 id="performance-trade-offs-and-system-states">Performance Trade-Offs
+and System States</h3>
+<p>While THP generally enhances throughput for high-performance
+computing (HPC), virtualization hosts (KVM), and compute-bound tasks, it
+can introduce latency spikes in workloads characterized by sparse or
+highly random memory access (such as certain transactional databases
+like Redis or PostgreSQL). The overhead arises when
+<code>khugepaged</code> must aggressively compact physical memory to
+create contiguous 2MB blocks.</p>
+<p>Linux accommodates different workload profiles through three core
+configuration modes:</p>
+<ul>
+<li><strong><code>always</code>:</strong> The kernel actively attempts
+to allocate and collapse memory into THPs for all running processes
+across the system.</li>
+<li><strong><code>madvise</code>:</strong> The kernel only allocates
+HugePages to memory regions where applications explicitly request it
+using the <code>madvise(MADV_HUGEPAGE)</code> system call, balancing
+automation with targeted control.</li>
+<li><strong><code>never</code>:</strong> THP is completely disabled, and
+the kernel relies strictly on traditional 4KB pages.</li>
+</ul>
+<p>By automating the grouping of memory into large blocks, Transparent
+HugePages enables the Linux kernel to maximize modern CPU caching
+capabilities, slash address translation overhead, and deliver higher
+memory throughput without administrative friction.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

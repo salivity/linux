@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How to Repair Broken Linux OS Using chroot - linux</title>
+    <meta name="description" content="When a Linux operating system fails to boot due to a corrupted kernel, broken package updates, or bootloader issues, the chroot (change root) command provides a reliable recovery method. By booting into a live Linux USB environment, you can access the st">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-to-repair-broken-linux-os-using-chroot">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How to Repair Broken Linux OS Using chroot - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-to-repair-broken-linux-os-using-chroot" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="When a Linux operating system fails to boot due to a corrupted kernel, broken package updates, or bootloader issues, the chroot (change root) command provides a reliable recovery method. By booting into a live Linux USB environment, you can access the st" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-to-repair-broken-linux-os-using-chroot">How to Repair Broken
+Linux OS Using chroot</h1>
+<p>When a Linux operating system fails to boot due to a corrupted
+kernel, broken package updates, or bootloader issues, the
+<code>chroot</code> (change root) command provides a reliable recovery
+method. By booting into a live Linux USB environment, you can access the
+storage drives of the damaged installation and temporarily reassign the
+root directory (<code>/</code>). This article explains how
+<code>chroot</code> works, why it is essential for system rescue, and
+the exact steps to enter and repair a broken Linux installation from a
+live session.</p>
+<hr />
+<h3 id="what-does-chroot-do">What Does chroot Do?</h3>
+<p>The <code>chroot</code> command changes the apparent root directory
+for the current running process and its children. Normally, a live
+environment runs entirely in RAM with its own independent file system.
+By using <code>chroot</code>, you redirect the live environment's shell
+into the file system located on your computer's storage drive.</p>
+<p>Once inside, any command you execute—such as package managers,
+bootloader installers, or configuration scripts—acts directly upon the
+installed, broken system rather than the temporary live environment.</p>
+<h3 id="why-chroot-is-necessary-for-repairs">Why chroot Is Necessary for
+Repairs</h3>
+<p>Certain recovery tasks cannot be performed by simply mounting a drive
+and editing configuration files:</p>
+<ul>
+<li><strong>Reinstalling the Bootloader:</strong> Tools like
+<code>grub-install</code> and <code>update-grub</code> need to detect
+installed kernels and write directly to system directories and
+NVRAM.</li>
+<li><strong>Package Management:</strong> Updating or removing broken
+packages with <code>apt</code>, <code>dnf</code>, or <code>pacman</code>
+requires running the target system's package database and
+dependencies.</li>
+<li><strong>Kernel Image Generation:</strong> Rebuilding an initramfs
+(using <code>mkinitcpio</code> or <code>update-initramfs</code>)
+requires direct interaction with the system's installed modules and
+kernel versions.</li>
+<li><strong>Account Recovery:</strong> Resetting user or root passwords
+using the <code>passwd</code> command requires write access to the host
+authentication system.</li>
+</ul>
+<h3 id="how-to-use-chroot-from-a-live-environment">How to Use chroot
+from a Live Environment</h3>
+<h4 id="1-identify-and-mount-the-partitions">1. Identify and Mount the
+Partitions</h4>
+<p>Boot your machine into a live Linux distribution that shares the same
+architecture (e.g., 64-bit x86) as the installed OS. Open a terminal and
+locate your drives:</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">lsblk</span></span></code></pre></div>
+<p>Mount the root partition of your damaged operating system to
+<code>/mnt</code>:</p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> mount /dev/sdXn /mnt</span></code></pre></div>
+<p><em>(Replace <code>/dev/sdXn</code> with your actual root partition,
+such as <code>/dev/nvme0n1p2</code> or <code>/dev/sda2</code>).</em></p>
+<p>If your system uses a separate boot or EFI system partition (ESP),
+mount it as well:</p>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> mount /dev/sdX1 /mnt/boot/efi</span></code></pre></div>
+<h4 id="2-bind-essential-virtual-file-systems">2. Bind Essential Virtual
+File Systems</h4>
+<p>For commands inside the chrooted environment to interact with the
+system hardware, the running kernel must share its pseudo-filesystems
+(<code>/dev</code>, <code>/proc</code>, <code>/sys</code>, and
+<code>/run</code>) with the target directory:</p>
+<div class="sourceCode" id="cb4"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> mount <span class="at">--bind</span> /dev /mnt/dev</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> mount <span class="at">--bind</span> /dev/pts /mnt/dev/pts</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> mount <span class="at">--bind</span> /proc /mnt/proc</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> mount <span class="at">--bind</span> /sys /mnt/sys</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> mount <span class="at">--bind</span> /run /mnt/run</span></code></pre></div>
+<p>If internet access is required to download packages, copy your live
+environment's DNS configuration:</p>
+<div class="sourceCode" id="cb5"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> cp /etc/resolv.conf /mnt/etc/resolv.conf</span></code></pre></div>
+<h4 id="3-enter-the-chroot-environment">3. Enter the chroot
+Environment</h4>
+<p>Execute the <code>chroot</code> command targeting the mount
+directory:</p>
+<div class="sourceCode" id="cb6"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> chroot /mnt /bin/bash</span></code></pre></div>
+<p>Your prompt will change to reflect that you are now the root user
+inside your installed, previously unbootable operating system.</p>
+<h3 id="performing-the-repair">Performing the Repair</h3>
+<p>Now inside the target system, run the necessary repair commands
+depending on the failure:</p>
+<ul>
+<li><strong>Reinstall GRUB (UEFI):</strong>
+<div class="sourceCode" id="cb7"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="ex">grub-install</span> <span class="at">--target</span><span class="op">=</span>x86_64-efi <span class="at">--efi-directory</span><span class="op">=</span>/boot/efi <span class="at">--bootloader-id</span><span class="op">=</span>GRUB</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="ex">update-grub</span></span></code></pre></div></li>
+<li><strong>Fix Broken Packages (Debian/Ubuntu):</strong>
+<div class="sourceCode" id="cb8"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="ex">dpkg</span> <span class="at">--configure</span> <span class="at">-a</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="ex">apt</span> install <span class="at">-f</span></span></code></pre></div></li>
+<li><strong>Rebuild the Initial Ramdisk:</strong>
+<div class="sourceCode" id="cb9"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="ex">update-initramfs</span> <span class="at">-u</span> <span class="at">-k</span> all</span></code></pre></div></li>
+</ul>
+<h3 id="exiting-and-unmounting">Exiting and Unmounting</h3>
+<p>Once the repairs are complete, exit the chroot environment:</p>
+<div class="sourceCode" id="cb10"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="bu">exit</span></span></code></pre></div>
+<p>Unmount all bound filesystems cleanly before rebooting to prevent
+disk corruption:</p>
+<div class="sourceCode" id="cb11"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> umount <span class="at">-R</span> /mnt</span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> reboot</span></code></pre></div>
+<p>The system will reboot directly into the repaired Linux
+installation.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

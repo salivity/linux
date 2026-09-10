@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How Ext4 File System Manages Data in Linux - linux</title>
+    <meta name="description" content="The fourth extended filesystem (ext4) is the default and most widely adopted storage system in modern Linux distributions, engineered to organize, store, and retrieve files with high reliability and speed. This article examines the core mechanics of ext4">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-ext4-file-system-manages-data-in-linux">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How Ext4 File System Manages Data in Linux - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-ext4-file-system-manages-data-in-linux" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="The fourth extended filesystem (ext4) is the default and most widely adopted storage system in modern Linux distributions, engineered to organize, store, and retrieve files with high reliability and speed. This article examines the core mechanics of ext4" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-ext4-file-system-manages-data-in-linux">How Ext4 File System
+Manages Data in Linux</h1>
+<p>The fourth extended filesystem (ext4) is the default and most widely
+adopted storage system in modern Linux distributions, engineered to
+organize, store, and retrieve files with high reliability and speed.
+This article examines the core mechanics of ext4 data management,
+detailing how it uses block groups, inodes, extents, advanced allocation
+techniques, and journaling to maintain file system integrity and
+optimize read/write performance.</p>
+<h3 id="block-groups">Block Groups</h3>
+<p>To minimize fragmentation and reduce disk seek times, ext4 divides a
+storage partition into segments known as block groups. Rather than
+scattering file data and metadata across the entire drive, ext4 groups
+related information together. Each block group contains:</p>
+<ul>
+<li><strong>Superblock Backup:</strong> Stores critical file system
+parameters, such as total block counts and system state.</li>
+<li><strong>Group Descriptors:</strong> Tracks the locations of bitmaps
+and tables within the group.</li>
+<li><strong>Block and Inode Bitmaps:</strong> Tracks which data blocks
+and inodes are free or allocated.</li>
+<li><strong>Inode Table:</strong> Stores the actual metadata structures
+for files located in the group.</li>
+<li><strong>Data Blocks:</strong> The physical space where actual file
+payloads reside.</li>
+</ul>
+<h3 id="inodes-and-metadata-management">Inodes and Metadata
+Management</h3>
+<p>Every file and directory in ext4 is represented by an inode (index
+node). Inodes store metadata, including file size, permissions, owner,
+timestamps, and access control lists (ACLs). Crucially, inodes do not
+store the filename or the file content itself. Filenames are maintained
+in directory data blocks, which map human-readable names to their
+corresponding inode numbers. In ext4, default inodes are 256 bytes,
+providing ample room for extended attributes and timestamps accurate
+down to the nanosecond.</p>
+<h3 id="extents">Extents</h3>
+<p>Older Linux filesystems like ext3 used indirect block mapping,
+requiring individual pointers for every data block. Ext4 replaces this
+mechanism with extents. An extent represents a range of contiguous
+physical storage blocks mapped via a single descriptor (up to 128 MB per
+extent using standard 4 KB blocks). A single inode can store up to four
+extents directly. For larger files requiring more than four extents,
+ext4 organizes them into an efficient H-tree structure. This approach
+drastically reduces metadata overhead and accelerates large file read
+and write operations.</p>
+<h3 id="allocation-techniques">Allocation Techniques</h3>
+<p>Ext4 improves write performance and prevents fragmentation using two
+key allocation strategies:</p>
+<ul>
+<li><strong>Multiblock Allocation (mballoc):</strong> Instead of
+allocating storage one block at a time, ext4 allows the kernel to
+allocate multiple contiguous blocks in a single request.</li>
+<li><strong>Delayed Allocation (delalloc):</strong> When an application
+writes data, the file system caches it in RAM and delays physical block
+allocation until the data is actually flushed to the disk. This delay
+allows the allocator to aggregate writes and allocate large contiguous
+chunks of space efficiently, rather than guessing block requirements in
+advance.</li>
+</ul>
+<h3 id="journaling-and-data-integrity">Journaling and Data
+Integrity</h3>
+<p>To protect against corruption during unexpected shutdowns or power
+failures, ext4 relies on the Journaling Block Device (JBD2) layer.
+Before changes are committed to the main storage area, they are recorded
+in a dedicated journal space. Ext4 supports three journaling modes:</p>
+<ul>
+<li><strong>Ordered (Default):</strong> File metadata is written to the
+journal, but only after the actual file data is written to disk. This
+prevents stale data exposure and balances safety with performance.</li>
+<li><strong>Journal:</strong> Both metadata and file contents are
+written to the journal before being committed to storage, offering the
+highest level of integrity at the cost of slower write performance.</li>
+<li><strong>Writeback:</strong> Only metadata is journaled, with no
+strict ordering guarantees relative to data blocks, providing the
+fastest write speeds but a higher risk of data corruption following a
+crash.</li>
+</ul></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

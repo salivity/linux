@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Difference Between su and sudo in Linux - linux</title>
+    <meta name="description" content="In the Linux operating system, both su and sudo are critical command-line utilities used to execute tasks with elevated or administrative privileges. While they achieve similar administrative results, they operate on fundamentally different security mode">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/difference-between-su-and-sudo-in-linux">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Difference Between su and sudo in Linux - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/difference-between-su-and-sudo-in-linux" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="In the Linux operating system, both su and sudo are critical command-line utilities used to execute tasks with elevated or administrative privileges. While they achieve similar administrative results, they operate on fundamentally different security mode" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="difference-between-su-and-sudo-in-linux">Difference Between su
+and sudo in Linux</h1>
+<p>In the Linux operating system, both <code>su</code> and
+<code>sudo</code> are critical command-line utilities used to execute
+tasks with elevated or administrative privileges. While they achieve
+similar administrative results, they operate on fundamentally different
+security models. This article explains what each command does, compares
+how they authenticate users and manage access, highlights their security
+and logging implications, and outlines when to use each in daily
+administration.</p>
+<hr />
+<h3 id="what-is-su">What is <code>su</code>?</h3>
+<p>The <code>su</code> command stands for "substitute user" or "switch
+user." It allows you to switch from your current user account to another
+account in a new shell session. By default, running <code>su</code>
+without any arguments attempts to switch directly to the
+<code>root</code> (superuser) account.</p>
+<ul>
+<li><strong>Authentication:</strong> To use <code>su</code>, you must
+know and enter the <strong>target account's password</strong> (e.g., the
+root password).</li>
+<li><strong>Session behavior:</strong> It creates an entirely new shell
+session as the target user. Any command run afterward is executed as
+that user until you type <code>exit</code> to return to your original
+shell.</li>
+<li><strong>Environment variables:</strong> Running <code>su</code>
+preserves some of the original user's environment, whereas running
+<code>su -</code> (or <code>su -l</code>) creates a fresh login
+environment matching the target user.</li>
+</ul>
+<h3 id="what-is-sudo">What is <code>sudo</code>?</h3>
+<p>The <code>sudo</code> command stands for "superuser do." It is
+designed to run a single command with root privileges (or the privileges
+of another specified user) without switching to a persistent root
+shell.</p>
+<ul>
+<li><strong>Authentication:</strong> To use <code>sudo</code>, the user
+enters <strong>their own password</strong>, not the root password.</li>
+<li><strong>Access control:</strong> Access is managed through a central
+configuration file located at <code>/etc/sudoers</code> (edited using
+<code>visudo</code>). Administrators can grant users specific rights
+down to the individual command level.</li>
+<li><strong>Session behavior:</strong> Elevated privileges apply only to
+the command prepended with <code>sudo</code>. Once the command
+completes, the terminal immediately returns to standard user
+permissions.</li>
+</ul>
+<hr />
+<h3 id="key-differences">Key Differences</h3>
+<h4 id="1-password-management-and-security">1. Password Management and
+Security</h4>
+<ul>
+<li><strong><code>su</code>:</strong> Requires sharing the root password
+with anyone who needs administrative access. If an employee leaves or
+access must be revoked, the root password must be changed across the
+entire system.</li>
+<li><strong><code>sudo</code>:</strong> Users never need to know the
+root password. Administrative access is granted or revoked per user
+simply by modifying the <code>sudoers</code> file or managing group
+memberships (such as <code>sudo</code> or <code>wheel</code>).</li>
+</ul>
+<h4 id="2-scope-of-access">2. Scope of Access</h4>
+<ul>
+<li><strong><code>su</code>:</strong> Grants complete, unrestricted
+access to the target account. There is no native mechanism to restrict
+which commands a user can run once they have switched accounts.</li>
+<li><strong><code>sudo</code>:</strong> Implements the principle of
+least privilege. Administrators can configure permissions so that
+certain users can only run specific commands (e.g., restarting a service
+or editing a specific config file) without gaining full root
+capabilities.</li>
+</ul>
+<h4 id="3-accountability-and-logging">3. Accountability and Logging</h4>
+<ul>
+<li><strong><code>su</code>:</strong> Logging is minimal. System logs
+record that a user switched to root, but they do not track the
+individual commands executed inside the root shell.</li>
+<li><strong><code>sudo</code>:</strong> Every command executed via
+<code>sudo</code> is logged with the user's original username,
+timestamp, working directory, and the exact command executed. This
+creates a detailed audit trail.</li>
+</ul>
+<hr />
+<h3 id="comparison-table">Comparison Table</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Feature</th>
+<th style="text-align: left;"><code>su</code></th>
+<th style="text-align: left;"><code>sudo</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>Meaning</strong></td>
+<td style="text-align: left;">Substitute User / Switch User</td>
+<td style="text-align: left;">Superuser Do</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Password Required</strong></td>
+<td style="text-align: left;">Target user's password (root)</td>
+<td style="text-align: left;">Current user's password</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Scope</strong></td>
+<td style="text-align: left;">Persistent shell session</td>
+<td style="text-align: left;">Single command execution</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Granular Control</strong></td>
+<td style="text-align: left;">No (all-or-nothing access)</td>
+<td style="text-align: left;">Yes (configured via
+<code>/etc/sudoers</code>)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Command Auditing</strong></td>
+<td style="text-align: left;">Poor (only session start is logged)</td>
+<td style="text-align: left;">High (every executed command is
+logged)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Default in Modern
+Linux</strong></td>
+<td style="text-align: left;">Often disabled/root locked (e.g.,
+Ubuntu)</td>
+<td style="text-align: left;">Standard method for admin tasks</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3 id="best-practices-which-should-you-use">Best Practices: Which
+Should You Use?</h3>
+<p>Modern Linux distributions (including Ubuntu, Debian, Fedora, and
+CentOS/RHEL) recommend using <strong><code>sudo</code></strong> for
+almost all administrative work. It enforces better security hygiene,
+prevents accidental system-wide changes, preserves an audit trail, and
+eliminates the need to distribute the root password.</p>
+<p>The <code>su</code> command is generally reserved for environments
+where a dedicated, prolonged session as another user is explicitly
+required, or for legacy systems where <code>sudo</code> is not
+configured.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

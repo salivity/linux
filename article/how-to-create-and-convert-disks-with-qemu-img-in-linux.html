@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How to Create and Convert Disks with qemu-img in Linux - linux</title>
+    <meta name="description" content="The qemu-img command-line utility is a foundational component of the Linux virtualization stack, primarily used to create, convert, inspect, and modify virtual machine disk images offline. Supporting an extensive variety of formats—such as QCOW2, RAW,">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-to-create-and-convert-disks-with-qemu-img-in-linux">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How to Create and Convert Disks with qemu-img in Linux - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-to-create-and-convert-disks-with-qemu-img-in-linux" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="The qemu-img command-line utility is a foundational component of the Linux virtualization stack, primarily used to create, convert, inspect, and modify virtual machine disk images offline. Supporting an extensive variety of formats—such as QCOW2, RAW," />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-to-create-and-convert-disks-with-qemu-img-in-linux">How to
+Create and Convert Disks with qemu-img in Linux</h1>
+<p>The <code>qemu-img</code> command-line utility is a foundational
+component of the Linux virtualization stack, primarily used to create,
+convert, inspect, and modify virtual machine disk images offline.
+Supporting an extensive variety of formats—such as QCOW2, RAW, VMDK,
+VDI, and VHDX—it bridges the gap between different hypervisors and
+storage architectures. This utility enables administrators to provision
+new storage, adapt foreign disks for native Linux KVM/QEMU environments,
+resize virtual storage, and inspect image metadata without running a
+virtual machine.</p>
+<h3 id="what-is-qemu-img">What is qemu-img?</h3>
+<p><code>qemu-img</code> is a standalone storage management tool
+distributed as part of the QEMU package. In modern Linux hypervisors
+like KVM, Proxmox VE, and OpenStack, it handles the underlying storage
+primitives. Because it operates directly on disk files without mounting
+or booting them, it provides a safe, scriptable, and resource-efficient
+method for managing storage backends.</p>
+<h3 id="creating-virtual-disk-images">Creating Virtual Disk Images</h3>
+<p>One of the primary roles of <code>qemu-img</code> is provisioning
+clean, unformatted virtual drives for new virtual machines. The utility
+supports several formats, most notably:</p>
+<ul>
+<li><strong>QCOW2 (QEMU Copy-On-Write):</strong> The native format for
+QEMU/KVM. It allocates space dynamically, supports zlib or zstd
+compression, and allows for internal snapshots.</li>
+<li><strong>RAW:</strong> A simple binary image containing no metadata.
+It provides maximum I/O performance but allocates all specified space
+upfront unless created on a filesystem that supports sparse files.</li>
+</ul>
+<p>To create an empty 20 GB disk image using the QCOW2 format, run:</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">qemu-img</span> create <span class="at">-f</span> qcow2 /var/lib/libvirt/images/disk.qcow2 20G</span></code></pre></div>
+<p>Preallocation policies can also be defined during creation (such as
+<code>metadata</code> or <code>falloc</code>) to balance allocation
+speed and runtime performance.</p>
+<h3 id="converting-between-disk-formats">Converting Between Disk
+Formats</h3>
+<p>The conversion capability of <code>qemu-img</code> is vital for
+multi-hypervisor environments and cloud migrations. It allows
+administrators to import VMware (VMDK), VirtualBox (VDI), or Hyper-V
+(VHD/VHDX) disks into a KVM environment, or export KVM disks to other
+platforms.</p>
+<p>The basic syntax defines the source format (<code>-f</code>), output
+format (<code>-O</code>), source file, and destination file:</p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="ex">qemu-img</span> convert <span class="at">-f</span> vmdk <span class="at">-O</span> qcow2 source.vmdk target.qcow2</span></code></pre></div>
+<p>During conversion, <code>qemu-img</code> can also compress the output
+image to reduce network transfer times and storage consumption using the
+<code>-c</code> flag:</p>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="ex">qemu-img</span> convert <span class="at">-c</span> <span class="at">-O</span> qcow2 source.raw compressed_target.qcow2</span></code></pre></div>
+<p>The tool automatically strips out contiguous blocks of zeroes,
+functioning as an offline disk defragmenter and sparsifier during the
+conversion process.</p>
+<h3 id="inspecting-and-modifying-images">Inspecting and Modifying
+Images</h3>
+<p>Beyond creation and conversion, <code>qemu-img</code> provides
+crucial maintenance capabilities:</p>
+<ul>
+<li><strong>Image Inspection (<code>info</code>):</strong> Displays
+low-level metadata, including format, virtual size, actual disk usage,
+cluster size, and backing file chains.
+<div class="sourceCode" id="cb4"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="ex">qemu-img</span> info disk.qcow2</span></code></pre></div></li>
+<li><strong>Disk Resizing (<code>resize</code>):</strong> Increases or
+shrinks the virtual capacity of an image offline before modifying
+partitions inside the guest operating system.
+<div class="sourceCode" id="cb5"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="ex">qemu-img</span> resize disk.qcow2 +10G</span></code></pre></div></li>
+<li><strong>Consistency Checks (<code>check</code>):</strong> Scans
+QCOW2 images for internal inconsistencies, cluster leaks, or file
+corruption.
+<div class="sourceCode" id="cb6"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="ex">qemu-img</span> check disk.qcow2</span></code></pre></div></li>
+</ul>
+<p>Through these combined roles, <code>qemu-img</code> functions as the
+standard storage engine for virtual machine lifecycle management across
+enterprise Linux infrastructures.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How the ip Command Replaces ifconfig in Linux - linux</title>
+    <meta name="description" content="For decades, ifconfig was the standard tool for network interface management in Linux, but it has now been deprecated in favor of the modern ip command from the iproute2 suite. This article explains why modern distributions phased out ifconfig, the archi">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-the-ip-command-replaces-ifconfig-in-linux">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How the ip Command Replaces ifconfig in Linux - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-the-ip-command-replaces-ifconfig-in-linux" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="For decades, ifconfig was the standard tool for network interface management in Linux, but it has now been deprecated in favor of the modern ip command from the iproute2 suite. This article explains why modern distributions phased out ifconfig, the archi" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-the-ip-command-replaces-ifconfig-in-linux">How the ip
+Command Replaces ifconfig in Linux</h1>
+<p>For decades, <code>ifconfig</code> was the standard tool for network
+interface management in Linux, but it has now been deprecated in favor
+of the modern <code>ip</code> command from the <code>iproute2</code>
+suite. This article explains why modern distributions phased out
+<code>ifconfig</code>, the architectural advantages of the
+<code>ip</code> command, and how to translate legacy network tasks—such
+as viewing interfaces, managing IP addresses, controlling links, and
+handling routing tables—into the modern <code>ip</code> syntax.</p>
+<h3 id="why-ifconfig-was-deprecated">Why <code>ifconfig</code> Was
+Deprecated</h3>
+<p>The <code>ifconfig</code> utility belongs to the legacy
+<code>net-tools</code> package, which has not seen active development
+for many years. It relies on the older <code>ioctl</code> system call
+interface to communicate with the Linux kernel network stack. This
+legacy approach has distinct limitations:</p>
+<ul>
+<li><strong>Limited Feature Support:</strong> <code>ifconfig</code>
+cannot handle modern Linux networking capabilities, such as network
+namespaces, policy-based routing, Virtual Extensible LAN (VXLAN), and
+advanced traffic control.</li>
+<li><strong>Secondary IP Aliasing:</strong> When assigning multiple IP
+addresses to a single interface, <code>ifconfig</code> requires
+artificial alias names (like <code>eth0:1</code>). The modern kernel
+allows multiple addresses natively on a single interface without
+aliasing, a concept <code>ifconfig</code> cannot properly
+represent.</li>
+<li><strong>Inefficient Kernel Communication:</strong> The
+<code>ioctl</code> interface is less efficient and flexible than
+Netlink, the socket-based interface used by modern networking
+tools.</li>
+</ul>
+<h3 id="the-architecture-of-the-ip-command">The Architecture of the
+<code>ip</code> Command</h3>
+<p>The <code>ip</code> command interacts with the Linux kernel using
+Netlink sockets, allowing for bidirectional, asynchronous, and
+event-driven communication. This architecture allows administrators to
+query and modify almost any aspect of the networking subsystem through a
+unified, object-oriented syntax:</p>
+<pre class="text"><code>ip [OPTIONS] OBJECT COMMAND</code></pre>
+<p>Common objects include:</p>
+<ul>
+<li><code>link</code>: Physical or virtual network devices.</li>
+<li><code>addr</code> (or <code>address</code>): Protocol (IPv4/IPv6)
+addresses on devices.</li>
+<li><code>route</code>: Routing table entries.</li>
+<li><code>neigh</code> (or <code>neighbor</code>): ARP and Neighbor
+Discovery cache entries.</li>
+</ul>
+<h3 id="key-command-comparisons">Key Command Comparisons</h3>
+<h4 id="1-displaying-network-interfaces-and-addresses">1. Displaying
+Network Interfaces and Addresses</h4>
+<ul>
+<li><strong>Legacy:</strong> <code>ifconfig</code> or
+<code>ifconfig -a</code></li>
+<li><strong>Modern:</strong> <code>ip address show</code> (abbreviated
+as <code>ip a</code>)</li>
+</ul>
+<p>To inspect layer 2 (link state, MAC addresses) without layer 3 IP
+details:</p>
+<ul>
+<li><strong>Modern:</strong> <code>ip link show</code> (abbreviated as
+<code>ip l</code>)</li>
+</ul>
+<h4 id="2-bringing-interfaces-up-or-down">2. Bringing Interfaces Up or
+Down</h4>
+<ul>
+<li><strong>Legacy:</strong><br />
+<code>ifconfig eth0 up</code><br />
+<code>ifconfig eth0 down</code></li>
+<li><strong>Modern:</strong><br />
+<code>ip link set eth0 up</code><br />
+<code>ip link set eth0 down</code></li>
+</ul>
+<h4 id="3-assigning-and-removing-ip-addresses">3. Assigning and Removing
+IP Addresses</h4>
+<p>Under <code>ifconfig</code>, adding a second IP address required
+creating an alias. The <code>ip</code> tool assigns addresses directly
+to the device:</p>
+<ul>
+<li><strong>Legacy (Single IP):</strong><br />
+<code>ifconfig eth0 192.168.1.50 netmask 255.255.255.0</code></li>
+<li><strong>Modern (Add IP):</strong><br />
+<code>ip addr add 192.168.1.50/24 dev eth0</code></li>
+<li><strong>Modern (Delete IP):</strong><br />
+<code>ip addr del 192.168.1.50/24 dev eth0</code></li>
+</ul>
+<h4 id="4-managing-routes">4. Managing Routes</h4>
+<p>Previously, routing required a separate command (<code>route</code>).
+The <code>iproute2</code> package consolidates routing directly into the
+<code>ip</code> utility:</p>
+<ul>
+<li><strong>Legacy (View Routes):</strong> <code>route -n</code> or
+<code>netstat -rn</code></li>
+<li><strong>Modern (View Routes):</strong> <code>ip route show</code>
+(abbreviated as <code>ip r</code>)</li>
+<li><strong>Legacy (Add Default Gateway):</strong><br />
+<code>route add default gw 192.168.1.1 eth0</code></li>
+<li><strong>Modern (Add Default Gateway):</strong><br />
+<code>ip route add default via 192.168.1.1 dev eth0</code></li>
+</ul>
+<h4 id="5-managing-the-arp--neighbor-table">5. Managing the ARP /
+Neighbor Table</h4>
+<p>Handling address resolution mappings also previously required a
+standalone tool (<code>arp</code>):</p>
+<ul>
+<li><strong>Legacy:</strong> <code>arp -n</code></li>
+<li><strong>Modern:</strong> <code>ip neigh show</code> (abbreviated as
+<code>ip n</code>)</li>
+</ul>
+<h3 id="conclusion">Conclusion</h3>
+<p>The transition from <code>ifconfig</code> to <code>ip</code> replaces
+fragmented, outdated utilities with a single, high-performance tool
+designed for modern networking stacks. While legacy scripts may still
+rely on <code>ifconfig</code>, mastering the <code>ip</code> command is
+essential for working with current Linux environments, containerization,
+and advanced routing topologies.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

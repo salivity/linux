@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Using xinput to Configure Linux X11 Touchscreens - linux</title>
+    <meta name="description" content="This article provides an overview of how the Linux operating system uses the xinput utility to control and calibrate touchscreen hardware under the X11 display architecture. It covers the underlying communication between the Linux kernel, the X server, a">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/using-xinput-to-configure-linux-x11-touchscreens">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Using xinput to Configure Linux X11 Touchscreens - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/using-xinput-to-configure-linux-x11-touchscreens" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="This article provides an overview of how the Linux operating system uses the xinput utility to control and calibrate touchscreen hardware under the X11 display architecture. It covers the underlying communication between the Linux kernel, the X server, a" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="using-xinput-to-configure-linux-x11-touchscreens">Using xinput
+to Configure Linux X11 Touchscreens</h1>
+<p>This article provides an overview of how the Linux operating system
+uses the <code>xinput</code> utility to control and calibrate
+touchscreen hardware under the X11 display architecture. It covers the
+underlying communication between the Linux kernel, the X server, and
+input drivers, followed by the practical steps required to query, map,
+calibrate, and persist touchscreen settings using
+<code>xinput</code>.</p>
+<h3 id="the-architecture-kernel-to-x11">The Architecture: Kernel to
+X11</h3>
+<p>The Linux operating system processes touchscreen inputs through a
+layered architecture:</p>
+<ol type="1">
+<li><strong>Kernel Level (<code>evdev</code>):</strong> When you touch a
+physical digitizer, the hardware generates hardware interrupts handled
+by a kernel driver. The kernel exposes these interactions via the event
+device subsystem (<code>/dev/input/event*</code>).</li>
+<li><strong>X Server Driver (<code>xf86-input-libinput</code> or
+<code>evdev</code>):</strong> The X.Org Server reads these raw kernel
+events through an input driver—most commonly <code>libinput</code> on
+modern distributions. The driver normalizes raw multi-touch and absolute
+coordinate data into X11 core protocol events.</li>
+<li><strong>XInput Extension:</strong> The X server exposes these inputs
+via the X Input Extension (XInput), currently at version 2 (XI2).</li>
+<li><strong>The <code>xinput</code> Tool:</strong> The
+<code>xinput</code> command-line utility directly interfaces with the
+XInput extension, allowing users and scripts to dynamically query
+hardware states and modify driver properties at runtime without
+restarting the display server.</li>
+</ol>
+<hr />
+<h3 id="identifying-the-touchscreen">Identifying the Touchscreen</h3>
+<p>To manage a device, the X server must first identify it. Running the
+following command lists all recognized input devices, split into master
+and slave pointers/keyboards:</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">xinput</span> list</span></code></pre></div>
+<p>Look for the device name corresponding to your touchscreen digitizer
+under the <strong>Virtual core pointer</strong> hierarchy. Note either
+its full string name or its numerical <code>id</code>.</p>
+<hr />
+<h3 id="inspecting-runtime-properties">Inspecting Runtime
+Properties</h3>
+<p>Every driver exposes a set of configurable runtime parameters to the
+X server. To view the active properties of a specific touchscreen:</p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="ex">xinput</span> list-props <span class="op">&lt;</span>device-id-or-name<span class="op">&gt;</span></span></code></pre></div>
+<p>Output properties typically include:</p>
+<ul>
+<li><strong>Device Enabled:</strong> Toggles the device on
+(<code>1</code>) or off (<code>0</code>).</li>
+<li><strong>Coordinate Transformation Matrix:</strong> An affine
+transformation matrix controlling translation, scaling, and
+rotation.</li>
+<li><strong>libinput Calibration Matrix:</strong> Internal
+hardware-to-display calibration values.</li>
+<li><strong>libinput Send Events Modes:</strong> Toggles behaviors like
+disabling touch when an external mouse is attached.</li>
+</ul>
+<hr />
+<h3 id="mapping-and-rotating-with-the-transformation-matrix">Mapping and
+Rotating with the Transformation Matrix</h3>
+<p>The primary method Linux uses to align touch coordinates with display
+outputs is the <strong>Coordinate Transformation Matrix</strong>. This
+3x3 matrix maps input coordinates <span class="math inline">\((x,
+y)\)</span> to display coordinates <span class="math inline">\((x&#39;,
+y&#39;)\)</span>.</p>
+<pre><code>[ c0  c1  c2 ]
+[ c3  c4  c5 ]
+[ c6  c7  c8 ]</code></pre>
+<p>By default, the matrix is set to the identity matrix
+(<code>1 0 0 0 1 0 0 0 1</code>). You can change this using
+<code>xinput set-prop</code>:</p>
+<div class="sourceCode" id="cb4"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="ex">xinput</span> set-prop <span class="op">&lt;</span>device-id<span class="op">&gt;</span> <span class="st">&quot;Coordinate Transformation Matrix&quot;</span> c0 c1 c2 c3 c4 c5 c6 c7 c8</span></code></pre></div>
+<p>Common transformations include:</p>
+<ul>
+<li><strong>Rotate 90 degrees clockwise:</strong>
+<code>xinput set-prop &lt;device-id&gt; "Coordinate Transformation Matrix" 0 1 0 -1 0 1 0 0 1</code></li>
+<li><strong>Rotate 180 degrees:</strong>
+<code>xinput set-prop &lt;device-id&gt; "Coordinate Transformation Matrix" -1 0 1 0 -1 1 0 0 1</code></li>
+<li><strong>Rotate 270 degrees clockwise:</strong>
+<code>xinput set-prop &lt;device-id&gt; "Coordinate Transformation Matrix" 0 -1 1 1 0 0 0 0 1</code></li>
+<li><strong>Map to a specific monitor in a multi-monitor
+layout:</strong> X11 provides a helper utility,
+<code>xinput map-to-output</code>, which automatically calculates and
+applies the necessary matrix:
+<div class="sourceCode" id="cb5"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="ex">xinput</span> map-to-output <span class="op">&lt;</span>device-id<span class="op">&gt;</span> <span class="op">&lt;</span>output-name<span class="op">&gt;</span></span></code></pre></div>
+<em>(Example: <code>xinput map-to-output 11 eDP-1</code>)</em></li>
+</ul>
+<hr />
+<h3 id="real-time-event-debugging">Real-Time Event Debugging</h3>
+<p>To verify that the X server receives input coordinates and button
+clicks accurately, <code>xinput</code> can capture raw events in real
+time:</p>
+<div class="sourceCode" id="cb6"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="ex">xinput</span> test <span class="op">&lt;</span>device-id<span class="op">&gt;</span></span></code></pre></div>
+<p>Touching the screen will output real-time absolute motion events
+(<code>motion a[0]=... a[1]=...</code>) and button state
+transitions.</p>
+<hr />
+<h3 id="persisting-xinput-configurations">Persisting <code>xinput</code>
+Configurations</h3>
+<p>Changes made via the <code>xinput</code> command are stored in the X
+server's memory and are lost when the display server restarts or when
+the device is unplugged. To make configurations permanent across
+reboots, Linux supports two primary approaches:</p>
+<ol type="1">
+<li><p><strong>Xorg Configuration Files (Recommended for system-wide
+persistence):</strong><br />
+Create an <code>InputClass</code> configuration file inside
+<code>/etc/X11/xorg.conf.d/</code> (e.g.,
+<code>99-touchscreen.conf</code>):</p>
+<pre class="text"><code>Section &quot;InputClass&quot;
+    Identifier &quot;Touchscreen Calibration&quot;
+    MatchProduct &quot;Your Touchscreen Name&quot;
+    MatchDevicePath &quot;/dev/input/event*&quot;
+    Driver &quot;libinput&quot;
+    Option &quot;TransformationMatrix&quot; &quot;1 0 0 0 1 0 0 0 1&quot;
+EndSection</code></pre></li>
+<li><p><strong>Session Startup Scripts (User-level
+persistence):</strong><br />
+Add the specific <code>xinput set-prop</code> or
+<code>xinput map-to-output</code> commands to user session
+initialization files, such as <code>~/.xprofile</code>,
+<code>~/.xinitrc</code>, or the autostart utility of your desktop
+environment.</p></li>
+</ol></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

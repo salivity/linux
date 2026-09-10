@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linux Cal Command: How to Display a Terminal Calendar - linux</title>
+    <meta name="description" content="The cal command in the Linux operating system is a built-in command-line utility used to display formatted calendars directly in the terminal. This guide covers the function of the cal command, its default behavior, and practical examples using common fl">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/linux-cal-command-how-to-display-a-terminal-calendar">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Linux Cal Command: How to Display a Terminal Calendar - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/linux-cal-command-how-to-display-a-terminal-calendar" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="The cal command in the Linux operating system is a built-in command-line utility used to display formatted calendars directly in the terminal. This guide covers the function of the cal command, its default behavior, and practical examples using common fl" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="linux-cal-command-how-to-display-a-terminal-calendar">Linux Cal
+Command: How to Display a Terminal Calendar</h1>
+<p>The <code>cal</code> command in the Linux operating system is a
+built-in command-line utility used to display formatted calendars
+directly in the terminal. This guide covers the function of the
+<code>cal</code> command, its default behavior, and practical examples
+using common flags to display specific months, entire years, Julian
+dates, and multi-month views.</p>
+<h3 id="what-is-the-cal-command">What Is the cal Command?</h3>
+<p>The primary function of the <code>cal</code> (calendar) command is to
+generate a simple, text-based calendar grid within the Linux shell. It
+is lightweight, fast, and does not require a graphical user interface
+(GUI), making it ideal for system administrators and command-line power
+users who need quick date referencing.</p>
+<h3 id="basic-usage">Basic Usage</h3>
+<p>Running the <code>cal</code> command without any arguments prints the
+calendar for the current month, with the current day highlighted:</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cal</span></span></code></pre></div>
+<h3 id="viewing-a-specific-month-and-year">Viewing a Specific Month and
+Year</h3>
+<p>You can display any specific month and year by passing the month
+(1-12) and the full four-digit year as arguments:</p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cal</span> 7 2025</span></code></pre></div>
+<p><em>Note: Always specify the full four-digit year (e.g.,
+<code>2025</code> instead of <code>25</code>) to avoid generating a
+calendar for the first century CE.</em></p>
+<h3 id="viewing-an-entire-year">Viewing an Entire Year</h3>
+<p>To view the entire 12-month calendar for a given year, pass only the
+year argument:</p>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cal</span> 2025</span></code></pre></div>
+<p>Alternatively, to view the entire calendar for the current year, use
+the <code>-y</code> option:</p>
+<div class="sourceCode" id="cb4"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cal</span> <span class="at">-y</span></span></code></pre></div>
+<h3 id="displaying-multiple-months">Displaying Multiple Months</h3>
+<p>To view the previous month, the current month, and the next month
+simultaneously, use the <code>-3</code> flag:</p>
+<div class="sourceCode" id="cb5"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cal</span> <span class="at">-3</span></span></code></pre></div>
+<h3 id="additional-useful-options">Additional Useful Options</h3>
+<ul>
+<li><strong>Monday as First Day of the Week (<code>-m</code>):</strong>
+By default, <code>cal</code> often starts the week on Sunday. Use
+<code>-m</code> to start the week on Monday:
+<div class="sourceCode" id="cb6"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cal</span> <span class="at">-m</span></span></code></pre></div></li>
+<li><strong>Sunday as First Day of the Week (<code>-s</code>):</strong>
+Explicitly forces the week to begin on Sunday:
+<div class="sourceCode" id="cb7"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cal</span> <span class="at">-s</span></span></code></pre></div></li>
+<li><strong>Julian Days (<code>-j</code>):</strong> Displays the
+calendar using Julian days (day of the year, numbered 1 to 365/366)
+instead of standard day-of-the-month numbers:
+<div class="sourceCode" id="cb8"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cal</span> <span class="at">-j</span></span></code></pre></div></li>
+</ul>
+<h3 id="the-ncal-alternative">The ncal Alternative</h3>
+<p>On many modern Linux distributions, the <code>cal</code> utility is
+provided alongside <code>ncal</code>. Running <code>ncal</code> displays
+the calendar in an alternate vertical layout, with days of the week
+listed vertically on the left and dates progressing horizontally across
+columns.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

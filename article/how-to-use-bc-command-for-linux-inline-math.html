@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How to Use bc Command for Linux Inline Math - linux</title>
+    <meta name="description" content="The Linux operating system primarily relies on the bc (Basic Calculator) utility to perform inline mathematical calculations, especially when dealing with floating-point numbers that native shell environments like Bash cannot compute. This article explai">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-to-use-bc-command-for-linux-inline-math">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How to Use bc Command for Linux Inline Math - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-to-use-bc-command-for-linux-inline-math" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="The Linux operating system primarily relies on the bc (Basic Calculator) utility to perform inline mathematical calculations, especially when dealing with floating-point numbers that native shell environments like Bash cannot compute. This article explai" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-to-use-bc-command-for-linux-inline-math">How to Use bc
+Command for Linux Inline Math</h1>
+<p>The Linux operating system primarily relies on the <code>bc</code>
+(Basic Calculator) utility to perform inline mathematical calculations,
+especially when dealing with floating-point numbers that native shell
+environments like Bash cannot compute. This article explains how Linux
+executes inline math using <code>bc</code>, detailing standard input
+piping, command substitution, decimal precision control, and direct
+command-line execution methods for shell scripting and automation.</p>
+<h3 id="understanding-bc-in-linux">Understanding <code>bc</code> in
+Linux</h3>
+<p>The standard Linux shell (Bash) supports only integer arithmetic
+natively via syntax such as <code>$((5 + 2))</code>. When decimal
+points, high-precision operations, or advanced functions are required,
+Linux defers calculations to external tools. The <code>bc</code> command
+is a standard POSIX-compliant language processor that accepts
+mathematical statements from standard input, calculates the results with
+arbitrary precision, and writes them to standard output.</p>
+<h3 id="using-pipes-for-inline-arithmetic">Using Pipes for Inline
+Arithmetic</h3>
+<p>The most common method to perform an inline calculation is piping an
+expression directly into <code>bc</code> via the <code>echo</code> or
+<code>printf</code> command.</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="st">&quot;15 + 27&quot;</span> <span class="kw">|</span> <span class="fu">bc</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="st">&quot;12.5 * 4.2&quot;</span> <span class="kw">|</span> <span class="fu">bc</span></span></code></pre></div>
+<p>Linux processes the text string inside <code>echo</code>, passes the
+string to standard input via the pipe (<code>|</code>), and
+<code>bc</code> returns the evaluated result directly to the
+terminal.</p>
+<h3 id="controlling-precision-with-scale">Controlling Precision with
+<code>scale</code></h3>
+<p>By default, division in <code>bc</code> produces an integer truncated
+toward zero. To preserve decimal places, you must set the
+<code>scale</code> internal variable, which defines the number of digits
+after the decimal point.</p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="st">&quot;scale=2; 10 / 3&quot;</span> <span class="kw">|</span> <span class="fu">bc</span></span></code></pre></div>
+<p>This returns <code>3.33</code>. Multiple expressions are separated by
+a semicolon, allowing configuration commands to execute sequentially
+before the mathematical expression is evaluated.</p>
+<p>Alternatively, using the <code>-l</code> (math library) flag
+automatically sets <code>scale</code> to 20 and enables standard
+functions:</p>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="st">&quot;10 / 3&quot;</span> <span class="kw">|</span> <span class="fu">bc</span> <span class="at">-l</span></span></code></pre></div>
+<h3 id="storing-inline-results-in-variables">Storing Inline Results in
+Variables</h3>
+<p>To use the calculated output within shell scripts or command chains,
+Linux utilizes command substitution (<code>$(...)</code>):</p>
+<div class="sourceCode" id="cb4"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="va">result</span><span class="op">=</span><span class="va">$(</span><span class="bu">echo</span> <span class="st">&quot;scale=4; 355 / 113&quot;</span> <span class="kw">|</span> <span class="fu">bc</span><span class="va">)</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="st">&quot;The calculated value is: </span><span class="va">$result</span><span class="st">&quot;</span></span></code></pre></div>
+<p>The shell spawns a subshell, pipes the calculation through
+<code>bc</code>, captures the standard output, and assigns it to the
+target variable.</p>
+<h3 id="using-here-strings">Using Here-Strings</h3>
+<p>Modern shells like Bash support "here-strings"
+(<code>&lt;&lt;&lt;</code>), which eliminate the need for a separate
+<code>echo</code> command and an extra subshell pipe, providing a
+cleaner inline syntax:</p>
+<div class="sourceCode" id="cb5"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">bc</span> <span class="op">&lt;&lt;&lt;</span> <span class="st">&quot;scale=3; 100 / 7&quot;</span></span></code></pre></div>
+<p>Variable assignment using a here-string:</p>
+<div class="sourceCode" id="cb6"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="va">area</span><span class="op">=</span><span class="va">$(</span><span class="fu">bc</span> <span class="op">&lt;&lt;&lt;</span> <span class="st">&quot;scale=2; 3.14159 * 5 * 5&quot;</span><span class="va">)</span></span></code></pre></div>
+<h3 id="advanced-operations-and-functions">Advanced Operations and
+Functions</h3>
+<p>With the <code>-l</code> flag, <code>bc</code> handles roots,
+exponents, logarithms, and trigonometry natively inline:</p>
+<ul>
+<li><strong>Square root:</strong>
+<code>bc &lt;&lt;&lt; "sqrt(144)"</code></li>
+<li><strong>Sine function:</strong>
+<code>bc -l &lt;&lt;&lt; "s(1)"</code> (Angle in radians)</li>
+<li><strong>Exponential:</strong>
+<code>bc -l &lt;&lt;&lt; "e(2)"</code></li>
+<li><strong>Power/Exponentiation:</strong>
+<code>bc &lt;&lt;&lt; "2^10"</code></li>
+</ul>
+<p>By feeding string expressions directly to standard input, Linux
+systems efficiently execute complex inline arithmetic in one-line
+terminal commands and automated scripts without writing dedicated
+program files.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

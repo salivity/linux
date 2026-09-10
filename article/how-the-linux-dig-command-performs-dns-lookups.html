@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How the Linux Dig Command Performs DNS Lookups - linux</title>
+    <meta name="description" content="The dig (Domain Information Groper) command is a flexible command-line tool used in Linux to query Domain Name System (DNS) servers and troubleshoot network resolution issues. This article examines the internal mechanics of how dig performs DNS lookups,">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-the-linux-dig-command-performs-dns-lookups">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How the Linux Dig Command Performs DNS Lookups - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-the-linux-dig-command-performs-dns-lookups" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="The dig (Domain Information Groper) command is a flexible command-line tool used in Linux to query Domain Name System (DNS) servers and troubleshoot network resolution issues. This article examines the internal mechanics of how dig performs DNS lookups," />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-the-linux-dig-command-performs-dns-lookups">How the Linux
+Dig Command Performs DNS Lookups</h1>
+<p>The <code>dig</code> (Domain Information Groper) command is a
+flexible command-line tool used in Linux to query Domain Name System
+(DNS) servers and troubleshoot network resolution issues. This article
+examines the internal mechanics of how <code>dig</code> performs DNS
+lookups, tracing the process from server selection and network transport
+protocols to recursive resolution, root-level tracing, and response
+packet parsing.</p>
+<h3 id="server-selection-and-configuration">Server Selection and
+Configuration</h3>
+<p>When you invoke <code>dig</code> without specifying a nameserver, it
+reads the <code>/etc/resolv.conf</code> file to determine the default
+DNS resolver configured for your Linux system. It extracts the IP
+address listed under the <code>nameserver</code> directive and targets
+that address for the query. Alternatively, users can bypass system
+defaults by using the <code>@&lt;server&gt;</code> flag (such as
+<code>dig @8.8.8.8 example.com</code>), which directs the query straight
+to the specified IP address or hostname.</p>
+<h3 id="packet-construction-and-network-transport">Packet Construction
+and Network Transport</h3>
+<p>Once the destination server is determined, <code>dig</code>
+constructs a binary DNS query packet containing:</p>
+<ul>
+<li><strong>Header:</strong> Sets operation flags, such as the
+<code>RD</code> (Recursion Desired) bit, which is enabled by
+default.</li>
+<li><strong>Question Section:</strong> Specifies the domain name being
+queried, the query class (usually <code>IN</code> for Internet), and the
+record type (such as <code>A</code>, <code>AAAA</code>, <code>MX</code>,
+or <code>CNAME</code>).</li>
+</ul>
+<p>By default, <code>dig</code> transmits this packet using User
+Datagram Protocol (UDP) over port 53. Because UDP is connectionless and
+lightweight, it ensures fast resolution. However, if the DNS response
+exceeds the standard UDP buffer size (typically 512 bytes, or larger if
+Extension Mechanisms for DNS, known as EDNS0, are negotiated), the
+server sets a truncation flag (<code>TC</code>). Upon receiving a
+truncated packet, <code>dig</code> automatically retries the query using
+Transmission Control Protocol (TCP) port 53 to retrieve the complete
+data set.</p>
+<h3 id="resolution-methods-recursive-vs-iterative">Resolution Methods:
+Recursive vs. Iterative</h3>
+<p>Under standard operation, <code>dig</code> performs a
+<strong>recursive lookup</strong>. It sends the query to the designated
+resolver and waits for that resolver to perform the heavy lifting of
+contacting root, Top-Level Domain (TLD), and authoritative nameservers
+before returning the final resolved address.</p>
+<p>When supplied with the <code>+trace</code> argument, <code>dig</code>
+changes its behavior to perform an <strong>iterative
+lookup</strong>:</p>
+<ol type="1">
+<li>It queries one of the predefined root DNS servers (hints compiled
+into the binary or loaded from cache).</li>
+<li>The root server refers <code>dig</code> to the authoritative TLD
+nameservers (e.g., the <code>.com</code> servers).</li>
+<li><code>dig</code> queries the TLD server, which responds with a
+referral to the authoritative nameservers for the specific domain.</li>
+<li><code>dig</code> queries the domain's authoritative nameserver to
+obtain the definitive answer.</li>
+</ol>
+<h3 id="parsing-and-displaying-the-response">Parsing and Displaying the
+Response</h3>
+<p>Upon receiving the response packet, <code>dig</code> parses the
+binary payload and formats it into human-readable sections:</p>
+<ul>
+<li><strong>Header &amp; Flags:</strong> Displays status codes (like
+<code>NOERROR</code> or <code>NXDOMAIN</code>) and server response flags
+(such as <code>qr</code> for query response, <code>aa</code> for
+authoritative answer, and <code>ra</code> for recursion available).</li>
+<li><strong>Question Section:</strong> Confirms the original query
+parameters.</li>
+<li><strong>Answer Section:</strong> Contains the resolved resource
+records along with their Time-to-Live (TTL) values.</li>
+<li><strong>Authority &amp; Additional Sections:</strong> Lists the
+nameservers responsible for the zone and their associated IP
+addresses.</li>
+<li><strong>Footer Statistics:</strong> Displays metadata, including the
+remote server queried, the port used, the query time in milliseconds,
+and the exact timestamp of the transaction.</li>
+</ul></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

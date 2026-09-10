@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Formatting LUKS Volumes in Linux for Secure Storage - linux</title>
+    <meta name="description" content="Linux formats secure storage volumes through the Linux Unified Key Setup (LUKS) standard by utilizing the kernel's dm-crypt subsystem managed via the cryptsetup utility. This article explains how Linux prepares a physical block device, writes the cryptog">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/formatting-luks-volumes-in-linux-for-secure-storage">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Formatting LUKS Volumes in Linux for Secure Storage - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/formatting-luks-volumes-in-linux-for-secure-storage" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="Linux formats secure storage volumes through the Linux Unified Key Setup (LUKS) standard by utilizing the kernel's dm-crypt subsystem managed via the cryptsetup utility. This article explains how Linux prepares a physical block device, writes the cryptog" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="formatting-luks-volumes-in-linux-for-secure-storage">Formatting
+LUKS Volumes in Linux for Secure Storage</h1>
+<p>Linux formats secure storage volumes through the Linux Unified Key
+Setup (LUKS) standard by utilizing the kernel's <code>dm-crypt</code>
+subsystem managed via the <code>cryptsetup</code> utility. This article
+explains how Linux prepares a physical block device, writes the
+cryptographic metadata header, establishes key slots with key-derivation
+functions, maps the decrypted virtual device, and overlays a standard
+filesystem. Understanding this process demystifies how Linux achieves
+transparent, high-performance, full-disk or partition-level encryption
+at rest.</p>
+<h3 id="the-role-of-dm-crypt-and-cryptsetup">The Role of
+<code>dm-crypt</code> and <code>cryptsetup</code></h3>
+<p>At the core of Linux disk encryption is <code>dm-crypt</code>, a
+transparent disk encryption subsystem integrated into the Linux kernel
+Device Mapper framework. Rather than managing encryption keys directly
+in the kernel, Linux relies on the user-space utility
+<code>cryptsetup</code>. This tool acts as the control interface to
+initialize the LUKS structure, handle user passphrases, and instruct the
+kernel on how to map encrypted sectors to a decrypted virtual block
+device.</p>
+<h3 id="step-1-writing-the-luks-header-and-keyslots">Step 1: Writing the
+LUKS Header and Keyslots</h3>
+<p>The formatting process begins when an administrator executes the
+<code>cryptsetup luksFormat</code> command targeting a specific raw
+partition or drive (e.g., <code>/dev/sdb1</code>). During this
+operation, Linux does not yet format a traditional filesystem; instead,
+it writes a structured cryptographic header at the beginning of the
+partition:</p>
+<ol type="1">
+<li><strong>Master Key Generation:</strong> The utility generates a
+cryptographically secure, random Master Encryption Key (typically
+256-bit or 512-bit for AES-XTS). This master key is what actually
+encrypts and decrypts the underlying data sectors.</li>
+<li><strong>Key Derivation and Key Slots:</strong> To protect the master
+key, LUKS provides multiple "key slots" (up to 8 in LUKS1, up to 32 in
+LUKS2). When the user inputs a passphrase, Linux passes it through a
+memory-hard Key Derivation Function (PBKDF2 in LUKS1, or Argon2id by
+default in LUKS2). This function deliberately consumes significant CPU
+and RAM resources to thwart brute-force and hardware-accelerated
+attacks.</li>
+<li><strong>Master Key Encryption:</strong> The derived key from the
+user's passphrase encrypts the master key, which is then written into
+one of the designated key slots alongside salt and iteration
+metadata.</li>
+<li><strong>Anti-Forensic Splitting:</strong> LUKS uses Information
+Dispersal Algorithms (AFsplitter) to spread the encrypted key across
+multiple sectors, ensuring that an attacker cannot recover the key even
+if partial disk sectors are retained.</li>
+</ol>
+<h3 id="step-2-mapping-the-encrypted-block-device">Step 2: Mapping the
+Encrypted Block Device</h3>
+<p>Once the partition header is written, the encrypted storage space
+cannot be used directly by user-space applications. It must first be
+unlocked and mapped using <code>cryptsetup open</code> (formerly
+<code>luksOpen</code>).</p>
+<p>When supplied with a valid passphrase or keyfile, Linux reads the
+header, verifies the key using the configured derivation function, and
+extracts the master key into protected kernel memory. The kernel's
+Device Mapper creates an unencrypted virtual block device node,
+typically located under <code>/dev/mapper/&lt;name&gt;</code>.</p>
+<p>Every read and write directed to this mapped virtual device passes
+through the <code>dm-crypt</code> driver:</p>
+<ul>
+<li><strong>Writes:</strong> Plaintext data sent to
+<code>/dev/mapper/&lt;name&gt;</code> is encrypted on-the-fly by the CPU
+using symmetric cipher routines (such as AES-XTS) before being written
+as ciphertext to the physical disk.</li>
+<li><strong>Reads:</strong> Ciphertext fetched from the physical drive
+is decrypted in memory before being delivered as plaintext to the
+requesting application.</li>
+</ul>
+<h3 id="step-3-overlaying-the-filesystem">Step 3: Overlaying the
+Filesystem</h3>
+<p>With the decrypted block device active at
+<code>/dev/mapper/&lt;name&gt;</code>, Linux formats the volume using
+standard filesystem utilities, such as <code>mkfs.ext4</code>,
+<code>mkfs.xfs</code>, or <code>mkfs.btrfs</code>.</p>
+<p>The filesystem driver operates completely unaware of the underlying
+encryption. It creates its superblock, inode tables, journals, and
+directory structures directly onto the mapped device. The
+<code>dm-crypt</code> layer transparently translates all of these
+filesystem structures into encrypted data blocks on the actual
+hardware.</p>
+<h3 id="closing-and-securing-the-volume">Closing and Securing the
+Volume</h3>
+<p>When the volume is unmounted and closed with
+<code>cryptsetup close</code>, the Linux kernel flushes any remaining
+cached operations, destroys the virtual device node in
+<code>/dev/mapper/</code>, and completely purges the master key from
+system memory. At this point, the data on the disk returns to an
+entirely opaque state of high-entropy ciphertext, inaccessible without
+re-authenticating against one of the active LUKS key slots.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

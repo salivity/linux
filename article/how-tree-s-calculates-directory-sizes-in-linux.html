@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How tree -s Calculates Directory Sizes in Linux - linux</title>
+    <meta name="description" content="This article explains how the Linux operating system processes file and directory sizes when using the tree -s command. It covers the underlying Virtual Filesystem (VFS) architecture, the relevant system calls used during directory traversal, why standar">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-tree-s-calculates-directory-sizes-in-linux">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How tree -s Calculates Directory Sizes in Linux - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-tree-s-calculates-directory-sizes-in-linux" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="This article explains how the Linux operating system processes file and directory sizes when using the tree -s command. It covers the underlying Virtual Filesystem (VFS) architecture, the relevant system calls used during directory traversal, why standar" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-tree--s-calculates-directory-sizes-in-linux">How tree -s
+Calculates Directory Sizes in Linux</h1>
+<p>This article explains how the Linux operating system processes file
+and directory sizes when using the <code>tree -s</code> command. It
+covers the underlying Virtual Filesystem (VFS) architecture, the
+relevant system calls used during directory traversal, why standard
+directory sizes appear fixed at 4096 bytes, and how recursive
+accumulation operates under the hood.</p>
+<h3 id="the-role-of-tree--s">The Role of <code>tree -s</code></h3>
+<p>The <code>tree</code> command is a recursive directory listing
+program that produces a depth-indented listing of files. When passed the
+<code>-s</code> flag, <code>tree</code> prints the size of each file in
+bytes alongside its name.</p>
+<p>To report these sizes, <code>tree</code> does not directly inspect
+storage blocks on disk. Instead, it interfaces with the Linux Virtual
+Filesystem (VFS) abstraction layer through standard POSIX system
+calls.</p>
+<h3 id="system-calls-and-directory-traversal">System Calls and Directory
+Traversal</h3>
+<p>When you execute <code>tree -s</code>, the process interacts with the
+Linux kernel using two primary operations for every node in the
+filesystem tree:</p>
+<ol type="1">
+<li><strong>Reading Directory Entries:</strong> The program uses the
+<code>opendir()</code> and <code>readdir()</code> library functions,
+which invoke the underlying <code>getdents64</code> (get directory
+entries) system call. This reads raw directory entries from the kernel,
+retrieving file names and their associated inode numbers.</li>
+<li><strong>Querying File Metadata:</strong> For each entry found,
+<code>tree</code> calls <code>lstat()</code> or <code>fstatat()</code>.
+This system call populates a <code>stat</code> buffer containing the
+inode's metadata without following symbolic links. The size printed by
+<code>-s</code> corresponds directly to the <code>st_size</code> field
+returned in this buffer.</li>
+</ol>
+<h3 id="why-tree--s-does-not-sum-directory-contents-by-default">Why
+<code>tree -s</code> Does Not Sum Directory Contents by Default</h3>
+<p>A common misconception is that running <code>tree -s</code>
+automatically sums the contents of a directory to display its cumulative
+size. Under Unix-like operating systems, a directory is simply a special
+type of file that contains a mapping of filenames to inode numbers.</p>
+<p>When <code>tree -s</code> queries a directory using
+<code>lstat()</code>, the kernel returns the size of that directory file
+itself—representing the space allocated to hold the list of directory
+entries. On modern Linux filesystems such as ext4, this value is almost
+always 4096 bytes (one filesystem block) or a multiple of 4096 if the
+directory contains thousands of files.</p>
+<p>Therefore, standard <code>tree -s</code> output reflects:</p>
+<ul>
+<li>For regular files: The actual byte length of the file data
+(<code>st_size</code>).</li>
+<li>For directories: The size of the directory's index block (typically
+4096 bytes), not the sum of its nested contents.</li>
+</ul>
+<h3 id="handling-recursive-accumulation-with---du">Handling Recursive
+Accumulation with <code>--du</code></h3>
+<p>To calculate true recursive directory sizes, <code>tree</code> must
+be invoked with the <code>--du</code> (disk usage) flag, often combined
+with <code>-s</code> or <code>-h</code>.</p>
+<p>When calculating cumulative sizes recursively, the process follows
+these steps:</p>
+<ol type="1">
+<li><strong>Depth-First Traversal (Post-Order):</strong> The
+<code>tree</code> algorithm descends to the deepest leaf nodes of the
+directory tree before finalizing the size of parent directories.</li>
+<li><strong>Inode Tracking:</strong> To prevent inflated calculations
+caused by hard links, <code>tree</code> maintains a hash table of
+visited device IDs and inode numbers (<code>st_dev</code> and
+<code>st_ino</code>). If a hard link points to an already-tallied inode,
+its size is omitted from subsequent parent totals.</li>
+<li><strong>Aggregation:</strong> As the traversal unwinds back up the
+directory tree, the accumulated bytes of all child files and
+subdirectories are summed into the parent directory's total.</li>
+</ol>
+<h3 id="file-size-vs-disk-allocation">File Size vs. Disk Allocation</h3>
+<p>When viewing sizes via <code>tree -s</code>, the value represents
+logical size (<code>st_size</code>), not physical storage consumption.
+Sparse files, for example, may report large logical sizes via
+<code>st_size</code> despite consuming very few physical blocks on disk.
+If accurate disk block consumption is required rather than apparent
+size, commands relying on <code>st_blocks</code> (such as
+<code>du</code>) or <code>tree --du</code> reflect the true allocation
+managed by the filesystem allocator.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

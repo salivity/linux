@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How Linux Manages the acpid Daemon - linux</title>
+    <meta name="description" content="The acpid (Advanced Configuration and Power Interface event daemon) service in Linux acts as a bridge between low-level hardware events and user-space actions, enabling the operating system to react dynamically to physical triggers such as pressing the p">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-linux-manages-the-acpid-daemon">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How Linux Manages the acpid Daemon - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-linux-manages-the-acpid-daemon" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="The acpid (Advanced Configuration and Power Interface event daemon) service in Linux acts as a bridge between low-level hardware events and user-space actions, enabling the operating system to react dynamically to physical triggers such as pressing the p" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-linux-manages-the-acpid-daemon">How Linux Manages the acpid
+Daemon</h1>
+<p>The <code>acpid</code> (Advanced Configuration and Power Interface
+event daemon) service in Linux acts as a bridge between low-level
+hardware events and user-space actions, enabling the operating system to
+react dynamically to physical triggers such as pressing the power
+button, closing a laptop lid, or unplugging an AC adapter. By listening
+to kernel-generated event streams, <code>acpid</code> decodes ACPI
+signals and executes predefined shell scripts or system commands
+according to user configuration. This article explains how the Linux
+kernel detects ACPI hardware events, how the <code>acpid</code> daemon
+listens for and routes these signals, and how modern distributions
+configure and manage this service alongside systemd.</p>
+<h3 id="kernel-event-detection-and-forwarding">Kernel Event Detection
+and Forwarding</h3>
+<p>When a user interacts with ACPI-compliant hardware—such as pressing a
+sleep key or docking a laptop—the hardware triggers an interrupt. The
+Linux kernel's ACPI subsystem catches this interrupt via
+firmware-defined tables.</p>
+<p>Once detected, the kernel packages the occurrence into an event
+string and exposes it to user space. Historically, this was routed
+through <code>/proc/acpi/event</code>. In modern Linux kernels, events
+are typically broadcast through standard input devices
+(<code>/dev/input/event*</code>) or through the kernel's netlink
+interface via the <code>genetlink</code> module. This design eliminates
+polling, allowing user-space applications to respond asynchronously and
+immediately.</p>
+<h3 id="the-lifecycle-and-operation-of-acpid">The Lifecycle and
+Operation of <code>acpid</code></h3>
+<p>The <code>acpid</code> daemon runs as a continuous background process
+with root privileges, necessary for performing system-level operations
+like halting the system or changing hardware brightness levels.</p>
+<ol type="1">
+<li><strong>Initialization</strong>: During system boot, the init system
+(such as <code>systemd</code> via <code>acpid.service</code>) starts the
+daemon. Upon launch, <code>acpid</code> opens communication channels
+with the kernel—primarily listening on <code>/dev/input/event*</code>
+devices and the netlink ACPI family.</li>
+<li><strong>Monitoring</strong>: The daemon waits for incoming messages
+using event loops (<code>epoll</code> or <code>select</code>). This
+prevents unnecessary CPU usage while waiting for hardware triggers.</li>
+<li><strong>Parsing</strong>: When an ACPI event fires, the kernel sends
+a descriptive string or input event code (for example,
+<code>button/power PBTN 00000080 00000000</code>). The daemon reads and
+parses this string into event categories, types, and values.</li>
+</ol>
+<h3 id="rule-matching-and-event-handling">Rule Matching and Event
+Handling</h3>
+<p>After parsing an event, <code>acpid</code> determines how to respond
+by evaluating configuration files located in
+<code>/etc/acpi/events/</code>.</p>
+<p>Each configuration file in this directory typically contains two key
+directives:</p>
+<ul>
+<li><strong><code>event</code></strong>: A regular expression defining
+which kernel event string to match.</li>
+<li><strong><code>action</code></strong>: The shell command or
+executable script to run when a match occurs.</li>
+</ul>
+<p>For example, a configuration file for a power button might look
+like:</p>
+<pre class="text"><code>event=button/power.*
+action=/etc/acpi/powerbtn.sh &quot;%e&quot;</code></pre>
+<p>The <code>%e</code> token passes the raw event string directly into
+the designated action script. The script located in
+<code>/etc/acpi/powerbtn.sh</code> then executes the required logic,
+such as calling <code>systemctl poweroff</code> or alerting desktop
+environments to open a shutdown confirmation dialog.</p>
+<p>If multiple configuration files match a single incoming event,
+<code>acpid</code> executes each action sequentially in alphanumeric
+order based on the configuration file names.</p>
+<h3 id="coexistence-with-systemd-logind">Coexistence with
+<code>systemd-logind</code></h3>
+<p>In modern Linux distributions running systemd,
+<code>systemd-logind</code> natively handles several common ACPI power
+events by default, including:</p>
+<ul>
+<li>Power button presses (<code>HandlePowerKey</code>)</li>
+<li>Suspend/Hibernate buttons (<code>HandleSuspendKey</code>,
+<code>HandleHibernateKey</code>)</li>
+<li>Laptop lid closures (<code>HandleLidSwitch</code>)</li>
+</ul>
+<p>When both <code>systemd-logind</code> and <code>acpid</code> are
+active simultaneously, a conflict can occur where an event triggers
+twice (for instance, the system suspending twice upon lid closure).</p>
+<p>To manage this, administrators choose between two configurations:</p>
+<ul>
+<li><strong>Let <code>systemd-logind</code> handle common
+events</strong>: <code>acpid</code> is kept primarily for non-standard
+or vendor-specific ACPI events (such as specialized function keys,
+docking events, or ambient light sensors), while common keys are
+disabled in <code>/etc/acpi/events/</code>.</li>
+<li><strong>Delegate all control to <code>acpid</code></strong>:
+Administrators edit <code>/etc/systemd/logind.conf</code> to set
+directives such as <code>HandlePowerKey=ignore</code> and
+<code>HandleLidSwitch=ignore</code>, allowing <code>acpid</code> full
+control over all system power scripts.</li>
+</ul></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

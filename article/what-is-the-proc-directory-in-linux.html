@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>What Is the /proc Directory in Linux? - linux</title>
+    <meta name="description" content="The /proc directory in the Linux operating system is a virtual pseudo-filesystem—known as procfs—that acts as a dynamic window into the Linux kernel and running processes. Unlike standard directories on your hard drive, /proc does not contain real fi">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/what-is-the-proc-directory-in-linux">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="What Is the /proc Directory in Linux? - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/what-is-the-proc-directory-in-linux" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="The /proc directory in the Linux operating system is a virtual pseudo-filesystem—known as procfs—that acts as a dynamic window into the Linux kernel and running processes. Unlike standard directories on your hard drive, /proc does not contain real fi" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="what-is-the-proc-directory-in-linux">What Is the /proc Directory
+in Linux?</h1>
+<p>The <code>/proc</code> directory in the Linux operating system is a
+virtual pseudo-filesystem—known as <strong>procfs</strong>—that acts as
+a dynamic window into the Linux kernel and running processes. Unlike
+standard directories on your hard drive, <code>/proc</code> does not
+contain real files saved on persistent storage; instead, it is generated
+on-the-fly in system memory (RAM). This article explains the primary
+purposes of <code>/proc</code>, how it manages process tracking, and how
+system administrators use it to monitor hardware and tune the Linux
+kernel in real time.</p>
+<h3 id="a-virtual-file-system-in-memory">A Virtual File System in
+Memory</h3>
+<p>The primary characteristic of <code>/proc</code> is that it consumes
+zero disk space. When you list files in <code>/proc</code>, their file
+size is typically listed as 0 bytes, yet viewing their contents displays
+live data. The Linux kernel generates this data dynamically when a user
+or program requests it. This architecture follows the traditional Unix
+philosophy: "everything is a file." Instead of requiring specialized
+system utilities to query internal kernel states, users and software can
+read standard text files to retrieve critical system telemetry.</p>
+<h3 id="process-tracking-and-monitoring">Process Tracking and
+Monitoring</h3>
+<p>Every active process running on a Linux system is represented inside
+<code>/proc</code> by a subdirectory named after its unique Process ID
+(PID). For example, if a process has a PID of <code>1234</code>, its
+operational details reside in <code>/proc/1234/</code>.</p>
+<p>Inside a PID directory, you will find vital runtime files:</p>
+<ul>
+<li><strong><code>cmdline</code></strong>: The complete command-line
+string used to launch the process.</li>
+<li><strong><code>status</code></strong>: Human-readable information
+about the process, including memory usage, state (sleeping, running),
+and user permissions.</li>
+<li><strong><code>fd/</code></strong>: A subdirectory containing
+symbolic links to every open file descriptor currently held by the
+process.</li>
+<li><strong><code>environ</code></strong>: The environment variables
+active for that specific process.</li>
+<li><strong><code>exe</code></strong>: A symbolic link to the actual
+binary file executed on the disk.</li>
+</ul>
+<p>Standard command-line utilities such as <code>ps</code>,
+<code>top</code>, <code>htop</code>, and <code>kill</code> do not
+generate process data independently; they simply read and parse the text
+files located within these <code>/proc/[PID]</code> directories.</p>
+<h3 id="system-and-hardware-telemetry">System and Hardware
+Telemetry</h3>
+<p>Beyond individual processes, <code>/proc</code> provides vital
+diagnostic information about the underlying hardware and the Linux
+operating system itself. Common informational files in the root of
+<code>/proc</code> include:</p>
+<ul>
+<li><strong><code>/proc/cpuinfo</code></strong>: Details regarding the
+host CPU, including model name, clock speed, core count, cache size, and
+supported hardware instruction flags.</li>
+<li><strong><code>/proc/meminfo</code></strong>: Comprehensive metrics
+on system memory, displaying available RAM, active/inactive memory,
+cached memory, and swap space. Tools like <code>free</code> parse this
+file.</li>
+<li><strong><code>/proc/version</code></strong>: Displays the active
+Linux kernel version, the GCC compiler version used to build it, and the
+build date.</li>
+<li><strong><code>/proc/uptime</code></strong>: The length of time the
+operating system has been running since the last reboot, alongside idle
+time.</li>
+<li><strong><code>/proc/mounts</code></strong>: A real-time list of all
+mounted filesystems and their corresponding mount options.</li>
+</ul>
+<h3 id="live-kernel-configuration-via-procsys">Live Kernel Configuration
+via <code>/proc/sys</code></h3>
+<p>While most files in <code>/proc</code> are read-only, the
+<code>/proc/sys</code> subdirectory contains writable interfaces that
+allow root users to modify kernel behavior dynamically without
+rebooting.</p>
+<p>By writing values directly to these pseudo-files (or using the
+<code>sysctl</code> command), administrators can manage core operating
+system behavior, including:</p>
+<ul>
+<li><strong><code>/proc/sys/net/</code></strong>: Modifies networking
+parameters, such as enabling IP packet forwarding
+(<code>/proc/sys/net/ipv4/ip_forward</code>).</li>
+<li><strong><code>/proc/sys/vm/</code></strong>: Regulates virtual
+memory management, such as adjusting the system's tendency to swap
+memory to disk (<code>/proc/sys/vm/swappiness</code>).</li>
+<li><strong><code>/proc/sys/fs/</code></strong>: Sets filesystem limits,
+such as the maximum number of open file descriptors allowed
+system-wide.</li>
+</ul>
+<p>The <code>/proc</code> directory serves as the bridge between user
+space and kernel space in Linux, acting as a real-time control panel for
+monitoring processes, auditing system resources, and adjusting operating
+system parameters on demand.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

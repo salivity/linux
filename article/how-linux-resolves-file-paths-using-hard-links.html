@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How Linux Resolves File Paths Using Hard Links - linux</title>
+    <meta name="description" content="In the Linux operating system, file path resolution is the core mechanism that translates a human-readable path string into the underlying data stored on a physical disk. Hard links are central to this design because Linux completely decouples a file’s">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-linux-resolves-file-paths-using-hard-links">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How Linux Resolves File Paths Using Hard Links - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-linux-resolves-file-paths-using-hard-links" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="In the Linux operating system, file path resolution is the core mechanism that translates a human-readable path string into the underlying data stored on a physical disk. Hard links are central to this design because Linux completely decouples a file’s" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-linux-resolves-file-paths-using-hard-links">How Linux
+Resolves File Paths Using Hard Links</h1>
+<p>In the Linux operating system, file path resolution is the core
+mechanism that translates a human-readable path string into the
+underlying data stored on a physical disk. Hard links are central to
+this design because Linux completely decouples a file’s identity and
+data from its name. This article explains the underlying mechanisms of
+Linux path resolution, detailing how the Virtual File System (VFS),
+directory entries, and inodes interact to resolve paths using hard
+links.</p>
+<h3 id="the-foundation-inodes-and-directory-entries">The Foundation:
+Inodes and Directory Entries</h3>
+<p>To understand path resolution, you must separate a file's name from
+its contents:</p>
+<ul>
+<li><strong>Inode (Index Node):</strong> The true identity of a file. An
+inode stores metadata—such as file permissions, ownership, size,
+timestamps, and pointers to the disk blocks holding the actual file
+data. Crucially, an inode does not store the file name.</li>
+<li><strong>Directory Entry (dentry):</strong> A directory in Linux is
+simply a special file containing a list of mappings. Each record maps a
+human-readable filename component to an inode number.</li>
+</ul>
+<p>A hard link is simply a directory entry that points directly to an
+existing inode. Because every standard file entry in a directory is a
+mapping of a name to an inode, all regular files in Linux are
+essentially hard links.</p>
+<h3 id="step-by-step-path-resolution">Step-by-Step Path Resolution</h3>
+<p>When a process initiates a system call (such as <code>open()</code>,
+<code>stat()</code>, or <code>execve()</code>) with a file path like
+<code>/home/user/document.txt</code>, the Linux kernel’s Virtual File
+System (VFS) resolves the path component by component:</p>
+<ol type="1">
+<li><p><strong>Determining the Starting Point:</strong></p>
+<ul>
+<li>If the path begins with a forward slash (<code>/</code>), resolution
+starts at the root directory inode (defined by the process's root
+filesystem namespace).</li>
+<li>If the path does not begin with a slash, resolution begins at the
+inode corresponding to the current working directory (<code>cwd</code>)
+of the calling process.</li>
+</ul></li>
+<li><p><strong>Iterative Component Lookup:</strong> The kernel splits
+the path by the <code>/</code> delimiter and processes each token
+sequentially:</p>
+<ul>
+<li>It checks the permissions of the current directory inode to verify
+the process has execute (<code>+x</code>) permissions, which are
+required for traversal.</li>
+<li>The kernel consults the directory’s entry list to find a match for
+the target component string.</li>
+<li>Once matched, the kernel retrieves the corresponding inode number
+associated with that entry.</li>
+</ul></li>
+<li><p><strong>Kernel Optimization via Dcache:</strong> Reading
+directory blocks from disk repeatedly is computationally expensive.
+Linux maintains a memory cache called the <strong>Directory Cache
+(dcache)</strong>. The dcache holds <code>dentry</code> structures
+representing recently accessed path components. During resolution, the
+kernel looks up names in the dcache first; only on a cache miss does it
+read the directory contents from the storage device.</p></li>
+<li><p><strong>Reaching the Final Target:</strong> The kernel repeats
+this lookup process for each subfolder until it evaluates the final
+token (<code>document.txt</code>). The final lookup extracts the target
+inode number, reads the inode metadata into memory, and makes the file's
+data blocks accessible to the process.</p></li>
+</ol>
+<h3 id="how-hard-links-function-during-path-resolution">How Hard Links
+Function During Path Resolution</h3>
+<p>When you create a hard link using the command
+<code>ln source.txt link.txt</code>, the kernel creates a new directory
+entry (<code>link.txt</code>) pointing to the exact same inode number as
+<code>source.txt</code>. It also increments the reference counter
+(<code>i_nlink</code>) inside that inode.</p>
+<p>During path resolution:</p>
+<ul>
+<li><strong>Identical Treatment:</strong> The kernel handles
+<code>source.txt</code> and <code>link.txt</code> identically. When the
+path resolver parses either name, the lookup yields the exact same inode
+number. The kernel does not distinguish an "original" file from a
+"link."</li>
+<li><strong>No Redirection:</strong> Unlike symbolic links (symlinks),
+which require the resolver to restart the path traversal using the
+target path stored inside the link file, a hard link requires zero
+redirection. Resolution terminates directly at the target inode.</li>
+<li><strong>Decoupled Deletion:</strong> The kernel only frees disk
+blocks when the inode's link count (<code>i_nlink</code>) drops to zero
+and no open file descriptors reference it. Removing one path via
+<code>unlink()</code> merely removes that specific name-to-inode mapping
+without affecting path resolution via any remaining hard links.</li>
+</ul>
+<h3 id="filesystem-boundaries">Filesystem Boundaries</h3>
+<p>Because hard links rely on raw inode numbers, they cannot cross
+filesystem boundaries. Inode numbers are only unique within a single
+filesystem instance. If a path resolution attempt requires bridging
+different storage devices or partitions, the operating system relies on
+mount points and symbolic links rather than hard links.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

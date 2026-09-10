@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Using avahi-browse to Discover mDNS Services in Linux - linux</title>
+    <meta name="description" content="The avahi-browse command is a network discovery utility in Linux used to scan, identify, and display Multicast DNS (mDNS) and DNS Service Discovery (DNS-SD) services running on a local network. Operating as part of the Avahi Zeroconf suite, it enables ad">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/using-avahi-browse-to-discover-mdns-services-in-linux">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Using avahi-browse to Discover mDNS Services in Linux - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/using-avahi-browse-to-discover-mdns-services-in-linux" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="The avahi-browse command is a network discovery utility in Linux used to scan, identify, and display Multicast DNS (mDNS) and DNS Service Discovery (DNS-SD) services running on a local network. Operating as part of the Avahi Zeroconf suite, it enables ad" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="using-avahi-browse-to-discover-mdns-services-in-linux">Using
+avahi-browse to Discover mDNS Services in Linux</h1>
+<p>The <code>avahi-browse</code> command is a network discovery utility
+in Linux used to scan, identify, and display Multicast DNS (mDNS) and
+DNS Service Discovery (DNS-SD) services running on a local network.
+Operating as part of the Avahi Zeroconf suite, it enables administrators
+and users to detect network-accessible resources—such as network
+printers, SSH servers, file shares, and media streaming devices—without
+relying on a centralized unicast DNS server. This article details the
+core function of <code>avahi-browse</code>, its primary options, and how
+it is used to inspect local network services.</p>
+<h3 id="core-function-of-avahi-browse">Core Function of
+avahi-browse</h3>
+<p>In a Zero-configuration networking (Zeroconf) environment, devices
+broadcast their presence and service availability over UDP port 5353
+using mDNS. The <code>avahi-browse</code> command queries the local
+<code>avahi-daemon</code> to listen for these broadcasts or actively
+solicit responses from nearby hosts.</p>
+<p>Its primary functions include:</p>
+<ul>
+<li><strong>Service Enumeration:</strong> Identifying which service
+types (such as <code>_http._tcp</code>, <code>_ssh._tcp</code>, or
+<code>_ipp._tcp</code>) are available on the subnet.</li>
+<li><strong>Host Resolution:</strong> Mapping mDNS service names to
+specific hostnames, IP addresses, and listening port numbers.</li>
+<li><strong>Metadata Extraction:</strong> Reading TXT records associated
+with services, which often contain configuration details like printer
+models, paths, or device states.</li>
+</ul>
+<h3 id="common-syntax-and-essential-options">Common Syntax and Essential
+Options</h3>
+<p>By default, running <code>avahi-browse</code> requires specifying a
+service type. However, several flags expand its functionality for
+general exploration and troubleshooting.</p>
+<h4 id="scanning-all-services--a-or---all">Scanning All Services
+(<code>-a</code> or <code>--all</code>)</h4>
+<p>To scan for all available service types rather than just a specific
+one, use the <code>-a</code> flag:</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">avahi-browse</span> <span class="at">-a</span></span></code></pre></div>
+<h4 id="resolving-service-details--r-or---resolve">Resolving Service
+Details (<code>-r</code> or <code>--resolve</code>)</h4>
+<p>By default, <code>avahi-browse</code> only lists the service name,
+type, and domain. Adding <code>-r</code> instructs the tool to resolve
+the service, displaying the exact hostname, IP address, port, and TXT
+record metadata:</p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="ex">avahi-browse</span> <span class="at">-a</span> <span class="at">-r</span></span></code></pre></div>
+<h4 id="terminating-after-scanning--t-or---terminate">Terminating After
+Scanning (<code>-t</code> or <code>--terminate</code>)</h4>
+<p><code>avahi-browse</code> typically runs continuously, listening for
+new services or announcements until interrupted. The <code>-t</code>
+flag instructs the command to exit automatically once it finishes
+dumping the initial cache:</p>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="ex">avahi-browse</span> <span class="at">-a</span> <span class="at">-r</span> <span class="at">-t</span></span></code></pre></div>
+<h4 id="ignoring-local-services--c-or---ignore-local">Ignoring Local
+Services (<code>-c</code> or <code>--ignore-local</code>)</h4>
+<p>To isolate and view only external devices on the local subnet while
+ignoring services hosted on the machine executing the command, use
+<code>-c</code>:</p>
+<div class="sourceCode" id="cb4"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="ex">avahi-browse</span> <span class="at">-a</span> <span class="at">-c</span></span></code></pre></div>
+<h3 id="filtering-specific-service-types">Filtering Specific Service
+Types</h3>
+<p>Instead of scanning all services, <code>avahi-browse</code> can
+target a particular protocol. Common examples include:</p>
+<ul>
+<li><strong>SSH Servers:</strong>
+<code>avahi-browse _ssh._tcp -r</code></li>
+<li><strong>HTTP Web Servers:</strong>
+<code>avahi-browse _http._tcp -r</code></li>
+<li><strong>Printers (IPP):</strong>
+<code>avahi-browse _ipp._tcp -r</code></li>
+<li><strong>Workstations:</strong>
+<code>avahi-browse _workstation._tcp -r</code></li>
+</ul>
+<h3 id="practical-value">Practical Value</h3>
+<p>The <code>avahi-browse</code> command is essential for
+troubleshooting connectivity in environments that rely on dynamic
+addressing. When a network printer, IoT device, or development server is
+unreachable via standard hostname lookups, running
+<code>avahi-browse</code> allows network operators to verify whether the
+host is successfully announcing its mDNS presence, what IP address it is
+using, and whether the targeted service port is exposed correctly.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

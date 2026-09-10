@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Snap Package Format and Linux Sandboxing Explained - linux</title>
+    <meta name="description" content="The Snap package format is a universal Linux packaging system created by Canonical that bundles an application along with all its required dependencies, runtimes, and libraries. Designed to run consistently across any Linux distribution, Snaps eliminate">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/snap-package-format-and-linux-sandboxing-explained">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Snap Package Format and Linux Sandboxing Explained - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/snap-package-format-and-linux-sandboxing-explained" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="The Snap package format is a universal Linux packaging system created by Canonical that bundles an application along with all its required dependencies, runtimes, and libraries. Designed to run consistently across any Linux distribution, Snaps eliminate" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="snap-package-format-and-linux-sandboxing-explained">Snap Package
+Format and Linux Sandboxing Explained</h1>
+<p>The Snap package format is a universal Linux packaging system created
+by Canonical that bundles an application along with all its required
+dependencies, runtimes, and libraries. Designed to run consistently
+across any Linux distribution, Snaps eliminate dependency conflicts and
+streamline software distribution. Crucially, Snap packages provide
+built-in security through strict sandboxing mechanisms—utilizing Linux
+kernel features such as AppArmor, cgroups, seccomp filters, and mount
+namespaces to isolate applications completely from the host system and
+other software.</p>
+<h3 id="understanding-the-snap-package-format">Understanding the Snap
+Package Format</h3>
+<p>At its core, a Snap is a single compressed file using the SquashFS
+filesystem format. When an application packaged as a Snap is installed,
+it is not unpacked into system directories like traditional
+<code>.deb</code> or <code>.rpm</code> packages. Instead, the Snap
+daemon (<code>snapd</code>) mounts the SquashFS image as a read-only
+loop device.</p>
+<p>Because each Snap includes its own set of dependencies, developers no
+longer have to worry about the specific library versions installed on
+the host operating system. This self-contained architecture enables
+transactional updates, automated rollbacks if an update fails, and the
+ability to install multiple versions of the same application
+concurrently without conflicts.</p>
+<h3 id="how-snap-sandboxing-works">How Snap Sandboxing Works</h3>
+<p>Snap relies on three distinct confinement levels to manage
+application security:</p>
+<ol type="1">
+<li><strong>Strict:</strong> The default and most secure mode. The
+application runs fully sandboxed and has no access to system resources,
+user files, or hardware unless explicitly granted.</li>
+<li><strong>Classic:</strong> Used for developer tools and utilities
+that require broad system access (such as compilers or shell utilities).
+Applications in this mode run with the same access levels as traditional
+Linux packages and are not sandboxed.</li>
+<li><strong>Devmode:</strong> A diagnostic mode where confinement rules
+are monitored rather than enforced, primarily used by developers to
+debug sandboxing issues.</li>
+</ol>
+<p>Under <strong>Strict confinement</strong>, <code>snapd</code>
+orchestrates several foundational Linux kernel security features to
+establish an isolated environment:</p>
+<ul>
+<li><strong>AppArmor:</strong> Enforces Mandatory Access Control (MAC).
+AppArmor profiles specify precisely which files, directories, network
+sockets, and D-Bus endpoints an application can read, write, or
+execute.</li>
+<li><strong>Seccomp (Secure Computing Mode):</strong> Restricts the
+system calls (syscalls) an application can make to the Linux kernel. If
+an application attempts an unauthorized syscall that is not explicitly
+whitelisted, the kernel blocks the action or terminates the
+process.</li>
+<li><strong>Mount Namespaces:</strong> Creates a customized, isolated
+view of the filesystem for each application. A strictly confined Snap
+cannot see the host root filesystem directly; instead, it sees a
+controlled environment where paths like <code>/tmp</code> are private to
+that application.</li>
+<li><strong>Control Groups (cgroups):</strong> Manages and restricts
+system resources, such as memory and CPU usage, ensuring that a
+misbehaving or compromised Snap cannot starve the host system of
+resources.</li>
+</ul>
+<h3 id="secure-communication-via-interfaces-plugs-and-slots">Secure
+Communication via Interfaces: Plugs and Slots</h3>
+<p>Because strictly confined applications are isolated by default, they
+require a secure mechanism to access external hardware or host
+resources, such as the network, webcams, audio devices, or personal
+files. Snap achieves this through an interface system based on
+<strong>plugs</strong> and <strong>slots</strong>:</p>
+<ul>
+<li><strong>Slot:</strong> A provider of a system resource or service
+(often provided by the core system or another Snap).</li>
+<li><strong>Plug:</strong> A consumer requesting access to that
+resource.</li>
+</ul>
+<p>When a plug is connected to a slot, <code>snapd</code> automatically
+updates the application's AppArmor and seccomp profiles to allow the
+requested access. While safe interfaces (such as network access) are
+often connected automatically during installation, sensitive interfaces
+(such as raw disk access or camera control) typically require manual
+approval from the user via the command line or a graphical software
+center. This permission-based model ensures users maintain granular
+control over application capabilities.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

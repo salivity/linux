@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linux epoll API for Scalable IO Event Notification - linux</title>
+    <meta name="description" content="The epoll (event poll) API is a scalable I/O event notification facility in the Linux kernel designed to monitor multiple file descriptors to see if I/O is possible on any of them. This article explains the primary function of epoll, how it overcomes the">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/linux-epoll-api-for-scalable-io-event-notification">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Linux epoll API for Scalable IO Event Notification - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/linux-epoll-api-for-scalable-io-event-notification" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="The epoll (event poll) API is a scalable I/O event notification facility in the Linux kernel designed to monitor multiple file descriptors to see if I/O is possible on any of them. This article explains the primary function of epoll, how it overcomes the" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="linux-epoll-api-for-scalable-io-event-notification">Linux epoll
+API for Scalable IO Event Notification</h1>
+<p>The <code>epoll</code> (event poll) API is a scalable I/O event
+notification facility in the Linux kernel designed to monitor multiple
+file descriptors to see if I/O is possible on any of them. This article
+explains the primary function of <code>epoll</code>, how it overcomes
+the architectural limitations of older system calls like
+<code>select</code> and <code>poll</code>, its core operational
+mechanisms, and why it serves as the foundation for high-concurrency
+network servers in modern Linux environments.</p>
+<h3 id="the-problem-with-legacy-io-multiplexing">The Problem with Legacy
+I/O Multiplexing</h3>
+<p>Before <code>epoll</code>, Linux systems relied on
+<code>select()</code> and <code>poll()</code> to handle multiplexed I/O.
+Both mechanisms suffer from severe performance degradation as the number
+of monitored connections grows:</p>
+<ul>
+<li><strong>Linear Complexity (<span
+class="math inline">\(O(N)\)</span>):</strong> Both
+<code>select()</code> and <code>poll()</code> require passing the entire
+set of file descriptors from user space to kernel space on every
+invocation. The kernel must iterate through every descriptor to check
+its status.</li>
+<li><strong>Scan Overhead in User Space:</strong> When the call returns,
+user space must loop through the entire list to identify which
+descriptors are ready for I/O.</li>
+<li><strong>Memory Copying:</strong> Constantly copying large descriptor
+sets between user space and kernel space creates significant CPU and
+memory bandwidth overhead when handling tens of thousands of idle
+connections.</li>
+</ul>
+<h3 id="core-function-and-mechanism-of-epoll">Core Function and
+Mechanism of epoll</h3>
+<p>The primary function of <code>epoll</code> is to decouple the
+registration of monitored file descriptors from the actual event-waiting
+process, providing an <span class="math inline">\(O(1)\)</span> lookup
+time relative to the number of monitored descriptors. Instead of passing
+an entire array of descriptors on every call, <code>epoll</code>
+maintains state within the kernel.</p>
+<p>The <code>epoll</code> interface operates through three primary
+system calls:</p>
+<ol type="1">
+<li><strong><code>epoll_create1(int flags)</code></strong>: Allocates an
+<code>epoll</code> instance in the kernel and returns a file descriptor
+referencing it.</li>
+<li><strong><code>epoll_ctl(int epfd, int op, int fd, struct epoll_event *event)</code></strong>:
+Manages the "interest list." It allows applications to add
+(<code>EPOLL_CTL_ADD</code>), modify (<code>EPOLL_CTL_MOD</code>), or
+remove (<code>EPOLL_CTL_DEL</code>) specific file descriptors to monitor
+for events such as readability (<code>EPOLLIN</code>) or writability
+(<code>EPOLLOUT</code>).</li>
+<li><strong><code>epoll_wait(int epfd, struct epoll_event *events, int maxevents, int timeout)</code></strong>:
+Suspends the calling thread until one or more monitored file descriptors
+are ready for I/O. It returns only the descriptors that actually have
+pending events, populating a user-provided array.</li>
+</ol>
+<h3 id="internal-architecture">Internal Architecture</h3>
+<p>To achieve high efficiency, the Linux kernel structures the
+<code>epoll</code> subsystem using two primary data structures:</p>
+<ul>
+<li><strong>Red-Black Tree:</strong> Stores the interest list. Adding,
+modifying, or removing a file descriptor via <code>epoll_ctl()</code>
+takes <span class="math inline">\(O(\log N)\)</span> time, ensuring fast
+lookups and state management.</li>
+<li><strong>Ready List (Doubly Linked List):</strong> When an I/O event
+occurs on a monitored socket, a kernel callback adds that descriptor to
+the ready list. When <code>epoll_wait()</code> is called, the kernel
+simply checks if the ready list is non-empty and transfers those active
+events to user space, taking <span class="math inline">\(O(K)\)</span>
+time, where <span class="math inline">\(K\)</span> is the number of
+ready events, rather than the total number of monitored connections
+(<span class="math inline">\(N\)</span>).</li>
+</ul>
+<h3 id="level-triggered-vs-edge-triggered-modes">Level-Triggered vs.
+Edge-Triggered Modes</h3>
+<p>The <code>epoll</code> API supports two distinct event notification
+modes:</p>
+<ul>
+<li><strong>Level-Triggered (LT):</strong> The default behavior.
+<code>epoll_wait()</code> notifies the application as long as the
+underlying buffer has data available to read or space available to
+write. If the application reads only part of the incoming data,
+subsequent calls to <code>epoll_wait()</code> will continue to flag the
+descriptor.</li>
+<li><strong>Edge-Triggered (ET):</strong> Enabled via the
+<code>EPOLLET</code> flag. <code>epoll_wait()</code> delivers a
+notification only when a state change occurs (e.g., new data arrives).
+The application must consume all available data using non-blocking I/O
+until the read operation returns <code>EAGAIN</code> or
+<code>EWOULDBLOCK</code>. Edge-triggered mode reduces redundant kernel
+wakeups and is common in ultra-high-throughput architectures.</li>
+</ul>
+<h3 id="summary">Summary</h3>
+<p>The <code>epoll</code> API provides scalable, event-driven I/O
+notifications by maintaining kernel-side state and returning only ready
+descriptors. By eliminating the <span
+class="math inline">\(O(N)\)</span> scanning bottlenecks inherent to
+<code>select()</code> and <code>poll()</code>, <code>epoll</code>
+enables software like Nginx, Node.js, Redis, and modern asynchronous
+runtimes to scale efficiently to hundreds of thousands of concurrent
+connections.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

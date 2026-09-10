@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How Linux Manages /dev/shm for RAM Storage - linux</title>
+    <meta name="description" content="The /dev/shm directory in Linux is a specialized temporary file storage facility backed directly by system memory rather than a physical disk. This article explains how the Linux kernel manages /dev/shm through the tmpfs virtual filesystem, how it dynami">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-linux-manages-dev-shm-for-ram-storage">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How Linux Manages /dev/shm for RAM Storage - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-linux-manages-dev-shm-for-ram-storage" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="The /dev/shm directory in Linux is a specialized temporary file storage facility backed directly by system memory rather than a physical disk. This article explains how the Linux kernel manages /dev/shm through the tmpfs virtual filesystem, how it dynami" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-linux-manages-devshm-for-ram-storage">How Linux Manages
+/dev/shm for RAM Storage</h1>
+<p>The <code>/dev/shm</code> directory in Linux is a specialized
+temporary file storage facility backed directly by system memory rather
+than a physical disk. This article explains how the Linux kernel manages
+<code>/dev/shm</code> through the <code>tmpfs</code> virtual filesystem,
+how it dynamically allocates RAM and swap space, its role in POSIX
+shared memory for inter-process communication (IPC), and how
+administrators can monitor and configure its capacity.</p>
+<h3 id="the-mechanism-behind-devshm-tmpfs">The Mechanism Behind
+/dev/shm: tmpfs</h3>
+<p>At the core of <code>/dev/shm</code> is <code>tmpfs</code> (temporary
+file system). Unlike standard filesystems such as ext4 or XFS,
+<code>tmpfs</code> does not write blocks to persistent storage hardware
+like an SSD or HDD. Instead, the Linux kernel treats the system's
+virtual memory subsystem as a mountable filesystem.</p>
+<p>Files placed inside <code>/dev/shm</code> are kept directly in
+volatile memory. As a result, read and write speeds are tied to RAM
+bandwidth and latency, offering virtually zero I/O wait times compared
+to persistent block devices. Because the storage is entirely volatile,
+any data stored in <code>/dev/shm</code> is lost immediately upon a
+system reboot or power loss.</p>
+<h3 id="dynamic-memory-allocation-and-swapping">Dynamic Memory
+Allocation and Swapping</h3>
+<p>A common misconception is that <code>/dev/shm</code> permanently
+reserves a fixed chunk of physical RAM. In reality, the Linux kernel
+allocates memory to <code>/dev/shm</code> dynamically:</p>
+<ul>
+<li><strong>On-Demand Consumption:</strong> An empty
+<code>/dev/shm</code> consumes almost no physical RAM. Memory pages are
+only allocated when data is actively written to a file within the
+directory.</li>
+<li><strong>Default Size Limit:</strong> By default, Linux sizes the
+<code>/dev/shm</code> mount point to 50% of the system's available
+physical RAM. This acts as a hard upper bound to prevent runaway
+processes from exhausting all system memory.</li>
+<li><strong>Kernel Paging and Swap:</strong> Because <code>tmpfs</code>
+operates inside the virtual memory manager, files inside
+<code>/dev/shm</code> are pageable. If physical RAM experiences heavy
+pressure, the kernel can swap inactive pages from <code>/dev/shm</code>
+out to the swap partition or swap file, freeing physical RAM for active
+processes.</li>
+</ul>
+<h3 id="role-in-posix-shared-memory">Role in POSIX Shared Memory</h3>
+<p>The acronym <code>shm</code> stands for "shared memory." Linux uses
+<code>/dev/shm</code> to implement the POSIX shared memory API
+(<code>shm_open</code>, <code>shm_unlink</code>).</p>
+<p>When an application calls <code>shm_open()</code> to establish a
+shared memory segment for inter-process communication (IPC), the kernel
+creates a corresponding file descriptor linked directly to an object
+inside <code>/dev/shm</code>. Multiple distinct processes can map this
+object into their own virtual address spaces using the
+<code>mmap()</code> system call. This allows programs to read and write
+to the exact same physical memory addresses simultaneously without the
+overhead of context switching, pipe creation, or network socket
+communication.</p>
+<p>Users can view these IPC objects simply by inspecting the directory
+with standard tools like <code>ls -l /dev/shm</code>.</p>
+<h3 id="managing-and-configuring-devshm">Managing and Configuring
+/dev/shm</h3>
+<p>System administrators can inspect, alter, and clean
+<code>/dev/shm</code> using standard Linux commands:</p>
+<ul>
+<li><strong>Checking Usage:</strong> To check the current capacity and
+utilization of <code>/dev/shm</code>, use the disk free command:
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">df</span> <span class="at">-h</span> /dev/shm</span></code></pre></div></li>
+<li><strong>Resizing the Mount:</strong> If an application requires more
+space than the default 50% allocation, the size can be adjusted
+dynamically without unmounting by running:
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">mount</span> <span class="at">-o</span> remount,size=8G /dev/shm</span></code></pre></div></li>
+<li><strong>Persistent Configuration:</strong> To make size
+modifications survive reboots, update the mount entry in
+<code>/etc/fstab</code>:
+<pre class="text"><code>tmpfs /dev/shm tmpfs defaults,size=8G 0 0</code></pre></li>
+<li><strong>File Management:</strong> Files inside <code>/dev/shm</code>
+can be read, created, moved, and deleted using standard utilities such
+as <code>cat</code>, <code>touch</code>, <code>cp</code>, and
+<code>rm</code>. When a file is removed, the kernel immediately frees
+those memory pages back to the operating system's general memory
+pool.</li>
+</ul></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

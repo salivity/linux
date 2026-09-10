@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How Linux Manages CPU Frequency with cpufreq - linux</title>
+    <meta name="description" content="The Linux operating system dynamically adjusts processor clock speeds to balance computing performance and power consumption through a dedicated framework known as the cpufreq subsystem. This article examines the internal architecture of the cpufreq subs">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-linux-manages-cpu-frequency-with-cpufreq">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How Linux Manages CPU Frequency with cpufreq - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-linux-manages-cpu-frequency-with-cpufreq" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="The Linux operating system dynamically adjusts processor clock speeds to balance computing performance and power consumption through a dedicated framework known as the cpufreq subsystem. This article examines the internal architecture of the cpufreq subs" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-linux-manages-cpu-frequency-with-cpufreq">How Linux Manages
+CPU Frequency with cpufreq</h1>
+<p>The Linux operating system dynamically adjusts processor clock speeds
+to balance computing performance and power consumption through a
+dedicated framework known as the cpufreq subsystem. This article
+examines the internal architecture of the cpufreq subsystem, detailing
+how the kernel core, hardware-specific scaling drivers, and policy
+governors interact to regulate CPU frequencies in response to system
+workload demands and power constraints.</p>
+<h3 id="the-architecture-of-the-cpufreq-subsystem">The Architecture of
+the cpufreq Subsystem</h3>
+<p>The cpufreq subsystem operates via a modular architecture divided
+into three primary layers: the cpufreq core, scaling drivers, and
+scaling governors. This separation allows Linux to support diverse
+processor architectures while applying standardized power management
+policies.</p>
+<ol type="1">
+<li><strong>The cpufreq Core:</strong> The core acts as the central
+mediator. It provides a standardized internal API for drivers and
+governors, maintains state data, and exposes an interface to user space
+through the <code>/sys/devices/system/cpu/cpu*/cpufreq/</code> virtual
+filesystem.</li>
+<li><strong>Scaling Drivers:</strong> Drivers provide the
+hardware-specific communication layer. They interface directly with the
+CPU or platform firmware to read supported frequency states (P-states)
+and instruct the hardware to transition between them.</li>
+<li><strong>Scaling Governors:</strong> Governors implement the
+decision-making logic. They monitor system load or integrate directly
+with the task scheduler to determine the optimal frequency for a given
+moment, requesting frequency changes from the core.</li>
+</ol>
+<h3 id="cpu-frequency-scaling-drivers">CPU Frequency Scaling
+Drivers</h3>
+<p>Scaling drivers translate generic requests into architecture-specific
+hardware commands:</p>
+<ul>
+<li><strong>Generic Drivers (e.g., <code>acpi-cpufreq</code>):</strong>
+These drivers rely on standard ACPI tables provided by the system
+firmware to read available frequency steps and trigger transitions. They
+are widely compatible across x86 hardware but may offer slower
+transition times compared to modern vendor-tailored solutions.</li>
+<li><strong>Modern Hardware Drivers (e.g., <code>intel_pstate</code>,
+<code>amd-pstate</code>):</strong> Modern processors often manage
+frequency selection autonomously using internal microcode. Drivers like
+<code>intel_pstate</code> and <code>amd-pstate</code> leverage
+hardware-managed P-states (HWP/CPPC), allowing the processor itself to
+scale frequencies rapidly based on autonomous metrics or explicit kernel
+hints.</li>
+</ul>
+<h3 id="cpufreq-governors-and-policy-logic">cpufreq Governors and Policy
+Logic</h3>
+<p>Governors determine how aggressively the kernel scales frequency
+based on workload:</p>
+<ul>
+<li><strong>schedutil:</strong> The default governor in modern Linux
+distributions. It integrates directly with the Completely Fair Scheduler
+(CFS) / Earliest Eligible Virtual Deadline First (EEVDF) scheduler.
+Instead of relying on periodic CPU utilization samples, it uses runqueue
+utilization metrics (<code>PELT</code>—Per-Entity Load Tracking) to
+adjust frequencies immediately when tasks wake up or migrate.</li>
+<li><strong>performance:</strong> Locks the CPU to the highest available
+frequency within the permitted operating range, prioritizing maximum
+throughput at the cost of higher power draw.</li>
+<li><strong>powersave:</strong> Operates the CPU at the lowest supported
+frequency. On systems running modern drivers like
+<code>intel_pstate</code>, this governor often delegates autonomous
+frequency scaling to the processor's energy-performance preference (EPP)
+mechanism rather than truly locking the CPU to its minimum
+frequency.</li>
+<li><strong>ondemand:</strong> A legacy governor that periodically
+checks CPU utilization. If the load exceeds a defined threshold, it
+jumps directly to the maximum frequency, subsequently stepping down as
+the load diminishes.</li>
+<li><strong>conservative:</strong> Similar to <code>ondemand</code>, but
+steps through intermediate frequencies gradually rather than jumping
+immediately to the highest frequency, aiming for smoother
+transitions.</li>
+</ul>
+<h3 id="user-space-monitoring-and-configuration">User Space Monitoring
+and Configuration</h3>
+<p>Administrators can inspect and configure cpufreq settings at runtime
+through the <code>sysfs</code> filesystem. Under
+<code>/sys/devices/system/cpu/cpuX/cpufreq/</code>, key files
+include:</p>
+<ul>
+<li><code>scaling_available_governors</code>: Lists the compiled-in
+governors available for selection.</li>
+<li><code>scaling_governor</code>: Shows or sets the active governor for
+the CPU core.</li>
+<li><code>scaling_cur_freq</code>: Displays the current operating
+frequency in kilohertz.</li>
+<li><code>scaling_min_freq</code> and <code>scaling_max_freq</code>:
+Enforce absolute lower and upper bounds on frequency transitions,
+allowing fine-grained control over thermal limits and energy usage.</li>
+</ul></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

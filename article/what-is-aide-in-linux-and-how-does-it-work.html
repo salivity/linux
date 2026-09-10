@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>What Is AIDE in Linux and How Does It Work? - linux</title>
+    <meta name="description" content="The Advanced Intrusion Detection Environment (AIDE) is an open-source host-based intrusion detection system (HIDS) primarily used for file integrity monitoring (FIM) in Linux operating systems. This article explains the role of AIDE in Linux security, de">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/what-is-aide-in-linux-and-how-does-it-work">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="What Is AIDE in Linux and How Does It Work? - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/what-is-aide-in-linux-and-how-does-it-work" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="The Advanced Intrusion Detection Environment (AIDE) is an open-source host-based intrusion detection system (HIDS) primarily used for file integrity monitoring (FIM) in Linux operating systems. This article explains the role of AIDE in Linux security, de" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="what-is-aide-in-linux-and-how-does-it-work">What Is AIDE in
+Linux and How Does It Work?</h1>
+<p>The Advanced Intrusion Detection Environment (AIDE) is an open-source
+host-based intrusion detection system (HIDS) primarily used for file
+integrity monitoring (FIM) in Linux operating systems. This article
+explains the role of AIDE in Linux security, details how it creates and
+utilizes baseline cryptographic databases to detect unauthorized file
+system changes, highlights the specific file attributes it monitors, and
+outlines why it is a critical component for system auditing and
+regulatory compliance.</p>
+<h2 id="understanding-aide-and-file-integrity-monitoring">Understanding
+AIDE and File Integrity Monitoring</h2>
+<p>AIDE serves as a replacement for the classic Tripwire tool. Its
+primary role in Linux is to monitor the integrity of critical system
+files, binaries, and configurations to detect unauthorized
+modifications, deletions, or additions.</p>
+<p>While firewalls and network intrusion detection systems safeguard the
+perimeter, AIDE operates internally at the host level. It alerts system
+administrators if a malicious actor, unauthorized user, or rogue process
+successfully bypasses external defenses and alters core operating system
+files.</p>
+<h2 id="how-aide-works">How AIDE Works</h2>
+<p>AIDE relies on a comparison model that evaluates the current state of
+a file system against a trusted baseline. Its operation consists of
+three main phases:</p>
+<h3 id="1-baseline-database-initialization">1. Baseline Database
+Initialization</h3>
+<p>During initial configuration, an administrator defines rules in
+<code>/etc/aide.conf</code> specifying which directories and files to
+monitor, as well as which attributes to track. AIDE scans these target
+files and records their characteristics into a trusted database
+(typically stored as <code>aide.db.gz</code>).</p>
+<h3 id="2-integrity-verification">2. Integrity Verification</h3>
+<p>At scheduled intervals—often automated via <code>cron</code> jobs or
+systemd timers—AIDE scans the system again. It generates fresh
+cryptographic hashes and metadata for the targeted files and compares
+them against the stored baseline database.</p>
+<h3 id="3-reporting-discrepancies">3. Reporting Discrepancies</h3>
+<p>If any discrepancy exists between the baseline and the current state,
+AIDE outputs a detailed report detailing whether files were added,
+deleted, or altered. The administrator can then determine if the change
+was legitimate (such as an authorized package update) or indicative of a
+compromise.</p>
+<h2 id="monitored-file-attributes">Monitored File Attributes</h2>
+<p>AIDE can monitor an extensive list of file characteristics beyond
+basic content changes:</p>
+<ul>
+<li><strong>Cryptographic Hashes:</strong> Checks file content integrity
+using algorithms like SHA-256, SHA-512, and MD5.</li>
+<li><strong>File Permissions and Access Control:</strong> Monitors
+changes to read, write, and execute permissions, including POSIX
+ACLs.</li>
+<li><strong>Ownership:</strong> Tracks modifications to user and group
+ownership (UID/GID).</li>
+<li><strong>Timestamps:</strong> Detects alterations to file
+modification time (<code>mtime</code>), change time
+(<code>ctime</code>), and access time (<code>atime</code>).</li>
+<li><strong>Inode Data:</strong> Watches inode numbers and hard link
+counts.</li>
+<li><strong>File Size:</strong> Flags increases or decreases in file
+size.</li>
+<li><strong>Extended Attributes and SELinux Contexts:</strong> Verifies
+security contexts to ensure mandatory access controls remain
+uncompromised.</li>
+</ul>
+<h2 id="key-use-cases-in-linux-environments">Key Use Cases in Linux
+Environments</h2>
+<ul>
+<li><strong>Rootkit and Backdoor Detection:</strong> Attackers often
+replace common binaries (such as <code>ls</code>, <code>ps</code>, or
+<code>sshd</code>) with trojanized versions to hide their presence. AIDE
+immediately flags modifications to these critical system binaries.</li>
+<li><strong>Configuration Drift Auditing:</strong> It identifies
+unintentional or unapproved changes to core configuration files in
+<code>/etc</code>, helping maintain standardized server
+configurations.</li>
+<li><strong>Regulatory and Standards Compliance:</strong> Frameworks
+such as PCI-DSS, ISO/IEC 27001, and CIS Benchmarks require file
+integrity monitoring to ensure that sensitive log files and
+configuration states remain immutable and auditable.</li>
+</ul>
+<h2 id="basic-management-commands">Basic Management Commands</h2>
+<p>Managing AIDE involves three essential commands:</p>
+<ul>
+<li><code>aide --init</code>: Generates the initial baseline database
+(<code>aide.db.new.gz</code>), which must then be renamed to
+<code>aide.db.gz</code> to become the active baseline.</li>
+<li><code>aide --check</code>: Scans the system against the active
+baseline and outputs any detected differences.</li>
+<li><code>aide --update</code>: Performs an integrity check and
+automatically generates a new baseline database reflecting legitimate
+system updates.</li>
+</ul></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

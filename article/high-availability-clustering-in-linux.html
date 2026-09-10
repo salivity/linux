@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>High Availability Clustering in Linux - linux</title>
+    <meta name="description" content="This article provides an overview of how the Linux operating system achieves high availability (HA) through clustering technologies. It examines the foundational software stack, including messaging layers, resource managers, fencing mechanisms, shared st">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/high-availability-clustering-in-linux">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="High Availability Clustering in Linux - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/high-availability-clustering-in-linux" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="This article provides an overview of how the Linux operating system achieves high availability (HA) through clustering technologies. It examines the foundational software stack, including messaging layers, resource managers, fencing mechanisms, shared st" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="high-availability-clustering-in-linux">High Availability
+Clustering in Linux</h1>
+<p>This article provides an overview of how the Linux operating system
+achieves high availability (HA) through clustering technologies. It
+examines the foundational software stack, including messaging layers,
+resource managers, fencing mechanisms, shared storage solutions, and
+network failover tools that work together to prevent downtime and
+eliminate single points of failure in enterprise environments.</p>
+<h3 id="the-linux-high-availability-stack">The Linux High Availability
+Stack</h3>
+<p>High availability clustering in Linux is achieved through a modular
+software stack rather than a single monolithic tool. The two primary
+open-source components powering modern Linux HA clusters are
+<strong>Corosync</strong> and <strong>Pacemaker</strong>.</p>
+<ul>
+<li><strong>Corosync (Cluster Messaging and Membership):</strong>
+Corosync operates at the infrastructure layer. It handles node
+communication, detects system failures, and maintains cluster
+membership. It also enforces "quorum"—a voting algorithm that ensures
+only a verified majority of nodes can make operational decisions,
+protecting the cluster from split-brain scenarios where isolated nodes
+operate independently.</li>
+<li><strong>Pacemaker (Cluster Resource Manager):</strong> Pacemaker
+operates on top of Corosync. It manages the lifecycle of cluster
+services, known as resources (such as databases, web servers, or virtual
+IP addresses). Pacemaker monitors the health of these resources, stops
+failing services, and automatically restarts or relocates them to
+healthy nodes according to predefined rules and dependencies.</li>
+</ul>
+<h3 id="fencing-and-stonith">Fencing and STONITH</h3>
+<p>A critical requirement of Linux HA clustering is fencing, most
+commonly implemented via <strong>STONITH</strong> ("Shoot The Other Node
+In The Head"). When a node becomes unresponsive or loses network
+connectivity with the rest of the cluster, it may still attempt to write
+to shared storage, causing catastrophic data corruption.</p>
+<p>STONITH provides hardware-level fencing—often utilizing intelligent
+platform management interfaces (IPMI), networked power distribution
+units (PDUs), or hypervisor APIs—to forcefully power down or isolate the
+unresponsive node before the remaining cluster attempts to recover its
+services.</p>
+<h3 id="data-redundancy-and-shared-storage">Data Redundancy and Shared
+Storage</h3>
+<p>To ensure seamless failover, all nodes in a cluster must have access
+to consistent data. Linux supports several clustering storage
+architectures:</p>
+<ul>
+<li><strong>DRBD (Distributed Replicated Block Device):</strong> Often
+referred to as network-based RAID-1, DRBD mirrors block devices in
+real-time over standard IP networks between nodes.</li>
+<li><strong>Clustered File Systems:</strong> Solutions such as
+<strong>GFS2</strong> (Global File System 2) and <strong>OCFS2</strong>
+(Oracle Cluster File System 2) allow multiple nodes to concurrently read
+and write to the same shared block storage (SAN or iSCSI) without data
+corruption.</li>
+<li><strong>Distributed Storage Systems:</strong> Modern Linux
+deployments frequently utilize distributed object and block storage
+platforms like <strong>Ceph</strong> or <strong>GlusterFS</strong> to
+ensure high availability of persistent data across multiple physical
+locations.</li>
+</ul>
+<h3 id="network-redundancy-and-virtual-ips">Network Redundancy and
+Virtual IPs</h3>
+<p>Linux clusters maintain client access during a failover by utilizing
+floating or Virtual IP (VIP) addresses. Pacemaker, or specialized
+network tools like <strong>Keepalived</strong> (which uses the Virtual
+Router Redundancy Protocol, or VRRP), assigns a single IP address to the
+active node. When that node fails, the cluster instantly reassigns the
+VIP to a standby node, allowing clients to reconnect with minimal
+interruption. Additionally, Linux native tools like the <strong>IP
+Virtual Server (IPVS)</strong> framework provide scalable layer-4
+transport load balancing across active cluster nodes.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

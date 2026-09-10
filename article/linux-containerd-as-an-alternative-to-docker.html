@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linux containerd as an Alternative to Docker - linux</title>
+    <meta name="description" content="This article explains how the Linux operating system utilizes containerd as an independent, lightweight container runtime in place of the monolithic Docker daemon. It explores the architectural differences between the two systems, the direct integration">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/linux-containerd-as-an-alternative-to-docker">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Linux containerd as an Alternative to Docker - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/linux-containerd-as-an-alternative-to-docker" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="This article explains how the Linux operating system utilizes containerd as an independent, lightweight container runtime in place of the monolithic Docker daemon. It explores the architectural differences between the two systems, the direct integration" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="linux-containerd-as-an-alternative-to-docker">Linux containerd
+as an Alternative to Docker</h1>
+<p>This article explains how the Linux operating system utilizes
+<code>containerd</code> as an independent, lightweight container runtime
+in place of the monolithic Docker daemon. It explores the architectural
+differences between the two systems, the direct integration of
+<code>containerd</code> with Linux kernel primitives via standard
+interfaces, and how environments like Kubernetes use this configuration
+to reduce overhead and improve container lifecycle management.</p>
+<h3
+id="architectural-shift-from-docker-daemon-to-containerd">Architectural
+Shift: From Docker Daemon to containerd</h3>
+<p>Historically, the Docker daemon (<code>dockerd</code>) served as a
+high-level platform handling a broad spectrum of responsibilities,
+including image building, volume management, network configuration, API
+routing, and container execution. Under the hood, Docker delegated core
+runtime operations to <code>containerd</code>, which it originally
+created and later donated to the Cloud Native Computing Foundation
+(CNCF).</p>
+<p>When Linux uses <code>containerd</code> directly, it bypasses
+<code>dockerd</code> entirely. Rather than running a heavyweight daemon
+with developer-centric tooling, the operating system manages a
+streamlined system daemon that focuses strictly on the container
+execution lifecycle: image transfer, storage management, container
+execution, and supervision.</p>
+<h3
+id="integration-with-linux-system-services-and-kernel-primitives">Integration
+with Linux System Services and Kernel Primitives</h3>
+<p>The Linux OS interacts with <code>containerd</code> primarily as a
+native <code>systemd</code> service. The daemon runs in the background
+and exposes a gRPC API through a local Unix domain socket (typically
+located at <code>/run/containerd/containerd.sock</code>).</p>
+<p>When a client or orchestrator requests a container action,
+<code>containerd</code> translates these commands and communicates with
+an Open Container Initiative (OCI) compliant runtime, typically
+<code>runc</code>. The execution pipeline relies directly on fundamental
+Linux kernel features:</p>
+<ul>
+<li><strong>Namespaces:</strong> Isolate system resources such as
+process trees (<code>pid</code>), network interfaces (<code>net</code>),
+mount points (<code>mnt</code>), and user IDs (<code>user</code>).</li>
+<li><strong>Control Groups (cgroups):</strong> Allocate and throttle
+hardware resources, including CPU, memory, and disk I/O, using Linux
+cgroups v1 or v2.</li>
+<li><strong>Security Modules:</strong> Enforce process restrictions
+using Linux security mechanisms such as AppArmor profiles, SELinux
+policies, and Seccomp system call filters.</li>
+</ul>
+<p>Because <code>containerd</code> sits closer to these kernel
+interfaces than the full Docker engine, it avoids intermediate
+translation layers, resulting in lower CPU usage and a smaller memory
+footprint.</p>
+<h3 id="orchestration-and-kubernetes-via-cri">Orchestration and
+Kubernetes via CRI</h3>
+<p>In orchestration platforms like Kubernetes, replacing the Docker
+daemon with <code>containerd</code> standardizes operations through the
+Container Runtime Interface (CRI). Previously, the Kubernetes
+<code>kubelet</code> required a translation component known as
+<code>dockershim</code> to communicate with the Docker daemon, which
+then routed requests to <code>containerd</code>.</p>
+<p>By configuring the <code>kubelet</code> to point directly to
+<code>containerd</code>'s CRI plugin (built into the runtime), the
+operating system eliminates the Docker abstraction layer. The
+communication path flows directly from <code>kubelet</code> over the
+Unix domain socket into <code>containerd</code>, which invokes
+<code>runc</code> to execute the container processes directly on the
+Linux kernel.</p>
+<h3 id="management-tools-and-cli-alternatives">Management Tools and CLI
+Alternatives</h3>
+<p>Because <code>containerd</code> does not include the user-facing
+Docker CLI, interaction on a Linux host occurs through specialized
+tools:</p>
+<ul>
+<li><strong>ctr:</strong> A low-level command-line client shipped
+directly with <code>containerd</code>. It is designed for debugging and
+developer inspection rather than production orchestration.</li>
+<li><strong>nerdctl:</strong> A Docker-compatible CLI for
+<code>containerd</code> that provides a similar user experience to the
+<code>docker</code> command, supporting features like rootless
+execution, image encryption, and Compose configurations.</li>
+<li><strong>crictl:</strong> A CLI designed for CRI-compatible container
+runtimes, commonly used to inspect and troubleshoot pods and containers
+on Kubernetes nodes.</li>
+</ul>
+<p>By utilizing <code>containerd</code> as a standalone runtime, Linux
+hosts achieve improved stability, faster container start times, and
+reduced attack surfaces while maintaining full compliance with modern
+container standards.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

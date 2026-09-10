@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>What Is the Linux useradd Command Used For? - linux</title>
+    <meta name="description" content="The useradd command is a foundational command-line utility in Linux used by system administrators to create and configure new user accounts. This article explains the primary function of useradd, outlines its most common command-line flags, contrasts it">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/what-is-the-linux-useradd-command-used-for">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="What Is the Linux useradd Command Used For? - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/what-is-the-linux-useradd-command-used-for" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="The useradd command is a foundational command-line utility in Linux used by system administrators to create and configure new user accounts. This article explains the primary function of useradd, outlines its most common command-line flags, contrasts it" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="what-is-the-linux-useradd-command-used-for">What Is the Linux
+useradd Command Used For?</h1>
+<p>The <code>useradd</code> command is a foundational command-line
+utility in Linux used by system administrators to create and configure
+new user accounts. This article explains the primary function of
+<code>useradd</code>, outlines its most common command-line flags,
+contrasts it with higher-level alternatives, and demonstrates how it
+integrates with system files to establish user environments
+securely.</p>
+<h3 id="core-function-of-useradd">Core Function of useradd</h3>
+<p>In Linux administration, <code>useradd</code> is a low-level native
+utility that adds user entries to the system. When executed with
+administrative privileges (typically via <code>sudo</code>),
+<code>useradd</code> performs the backend tasks required to register a
+new identity:</p>
+<ul>
+<li>It records the account information in <code>/etc/passwd</code>.</li>
+<li>It creates a corresponding entry for encrypted password metadata in
+<code>/etc/shadow</code>.</li>
+<li>It defines the user's primary group in <code>/etc/group</code>.</li>
+</ul>
+<p>Because <code>useradd</code> is a low-level tool, it does not prompt
+for information interactively. By default on many distributions, running
+<code>useradd username</code> creates the user in an inactive state
+without a password, a dedicated home directory, or a custom login shell
+unless specific flags or system defaults are provided.</p>
+<h3 id="common-options-and-usage">Common Options and Usage</h3>
+<p>To build a fully functional user account, administrators combine
+<code>useradd</code> with various flags:</p>
+<ul>
+<li><strong><code>-m</code> (Create Home Directory):</strong> Generates
+the user's home directory (usually <code>/home/username</code>) and
+populates it with default configuration files from
+<code>/etc/skel</code>.</li>
+<li><strong><code>-s</code> (Specify Login Shell):</strong> Sets the
+user's default command-line shell, such as <code>/bin/bash</code> or
+<code>/usr/bin/zsh</code>.</li>
+<li><strong><code>-g</code> (Primary Group):</strong> Assigns an
+existing primary group to the user by name or GID.</li>
+<li><strong><code>-G</code> (Supplementary Groups):</strong> Adds the
+user to secondary groups (e.g., <code>sudo</code>, <code>docker</code>)
+as a comma-separated list.</li>
+<li><strong><code>-u</code> (User ID):</strong> Manually assigns a
+specific numeric User ID (UID).</li>
+<li><strong><code>-e</code> (Expiration Date):</strong> Defines a date
+(in <code>YYYY-MM-DD</code> format) on which the user account
+automatically expires and locks.</li>
+</ul>
+<p>A standard administrative command to create a complete user account
+looks like this:</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> useradd <span class="at">-m</span> <span class="at">-s</span> /bin/bash <span class="at">-G</span> wheel,developers developer1</span></code></pre></div>
+<h3 id="finalizing-account-creation">Finalizing Account Creation</h3>
+<p>After creating an account with <code>useradd</code>, the account
+remains locked until a password is set. Administrators must pair
+<code>useradd</code> with the <code>passwd</code> command:</p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> passwd developer1</span></code></pre></div>
+<p>This step sets the authentication secret in <code>/etc/shadow</code>,
+enabling the user to log in via console or SSH.</p>
+<h3 id="useradd-vs-adduser">useradd vs. adduser</h3>
+<p>While <code>useradd</code> is a universal binary standard across
+virtually all Linux distributions (including RHEL, CentOS, Arch, and
+Debian), many Debian-based distributions also include
+<code>adduser</code>. Unlike <code>useradd</code>, <code>adduser</code>
+is a high-level Perl script that guides the administrator through an
+interactive prompt, automatically creates a home directory, and sets
+passwords in a single workflow. However, <code>useradd</code> remains
+the industry standard for automation scripts, configuration management
+tools, and headless server provisioning.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

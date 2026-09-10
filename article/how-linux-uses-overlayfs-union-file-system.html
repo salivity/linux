@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How Linux Uses OverlayFS Union File System - linux</title>
+    <meta name="description" content="OverlayFS is a modern union mount filesystem implementation built directly into the Linux kernel that combines multiple directories into a single, unified view. This article explores how Linux utilizes OverlayFS to merge read-only base layers with writab">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-linux-uses-overlayfs-union-file-system">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How Linux Uses OverlayFS Union File System - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-linux-uses-overlayfs-union-file-system" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="OverlayFS is a modern union mount filesystem implementation built directly into the Linux kernel that combines multiple directories into a single, unified view. This article explores how Linux utilizes OverlayFS to merge read-only base layers with writab" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-linux-uses-overlayfs-union-file-system">How Linux Uses
+OverlayFS Union File System</h1>
+<p>OverlayFS is a modern union mount filesystem implementation built
+directly into the Linux kernel that combines multiple directories into a
+single, unified view. This article explores how Linux utilizes OverlayFS
+to merge read-only base layers with writable layers using Copy-on-Write
+(CoW) mechanics, and examines its critical applications in container
+runtimes, live operating system environments, and embedded systems.</p>
+<h3 id="the-architecture-of-overlayfs">The Architecture of
+OverlayFS</h3>
+<p>OverlayFS presents multiple directory trees on a Linux system as a
+single coherent filesystem. It achieves this by stacking directories on
+top of each other, categorized into four core components:</p>
+<ul>
+<li><strong>Lower Directory (<code>lowerdir</code>):</strong> The base
+layer, which is strictly read-only. Linux allows stacking multiple lower
+directories sequentially.</li>
+<li><strong>Upper Directory (<code>upperdir</code>):</strong> The top
+layer, which is writable. Any new files or changes made to existing
+files are stored here.</li>
+<li><strong>Work Directory (<code>workdir</code>):</strong> An internal,
+empty directory on the same filesystem as the upper directory, used by
+Linux to prepare files atomically before moving them to the upper
+layer.</li>
+<li><strong>Merged Directory (<code>merged</code>):</strong> The unified
+mount point where the user interacts with the combined view of the upper
+and lower directories.</li>
+</ul>
+<h3 id="file-operations-and-copy-on-write-mechanics">File Operations and
+Copy-on-Write Mechanics</h3>
+<p>Linux handles file operations across these layers using distinct
+behaviors depending on the action requested:</p>
+<ul>
+<li><strong>Reading Files:</strong> When a process reads a file,
+OverlayFS looks for it in the <code>upperdir</code>. If the file exists
+there, that version is read. If it does not exist in the upper layer,
+OverlayFS looks down through the <code>lowerdir</code> stack.</li>
+<li><strong>Modifying Files (Copy-on-Write):</strong> If a user modifies
+a file that resides only in the <code>lowerdir</code>, OverlayFS
+automatically copies the entire file up to the <code>upperdir</code>
+before applying the modifications. The original file in the lower layer
+remains untouched, while the modified copy in the upper layer supersedes
+it in the <code>merged</code> view.</li>
+<li><strong>Deleting Files (Whiteouts):</strong> Because the lower
+layers cannot be modified, deleting a lower-layer file from the merged
+view creates a "whiteout" character device in the <code>upperdir</code>.
+This whiteout node masks the lower-layer file, preventing it from
+appearing in the unified mount point.</li>
+</ul>
+<h3 id="primary-use-cases-in-linux">Primary Use Cases in Linux</h3>
+<h4 id="container-runtimes">Container Runtimes</h4>
+<p>The most prevalent use of OverlayFS is in container engines such as
+Docker, Podman, and containerd via the <code>overlay2</code> storage
+driver. Container images consist of multiple immutable lower layers
+sharing common libraries and runtimes. When a container starts, Linux
+creates a thin, dedicated writable <code>upperdir</code> for that
+instance. This allows hundreds of containers to share the same
+underlying base image in memory while isolating runtime writes,
+drastically reducing disk space and startup latency.</p>
+<h4 id="live-media-and-recovery-systems">Live Media and Recovery
+Systems</h4>
+<p>Linux Live CDs and bootable USB drives use OverlayFS to present a
+fully operational OS from read-only media. The core operating system
+resides in a compressed, read-only lower filesystem (like SquashFS),
+while the <code>upperdir</code> is mounted in volatile RAM via
+<code>tmpfs</code>. Users can install packages and alter settings during
+a live session, which are safely discarded upon reboot.</p>
+<h4 id="embedded-linux-and-iot">Embedded Linux and IoT</h4>
+<p>In embedded environments, system stability is critical. Devices
+frequently mount their core operating system partition as a read-only
+lower directory to guard against filesystem corruption during sudden
+power losses. Configuration changes or updates can be tracked in an
+upper partition, which can be cleanly wiped to perform a factory reset
+without disturbing the core OS.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

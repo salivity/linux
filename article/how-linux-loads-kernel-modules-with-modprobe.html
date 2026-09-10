@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How Linux Loads Kernel Modules with Modprobe - linux</title>
+    <meta name="description" content="This article explores how the Linux operating system uses the modprobe utility to dynamically load and manage Loadable Kernel Modules (LKMs). It covers the role of modprobe in managing dependencies, reading configuration files, parsing the dependency dat">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-linux-loads-kernel-modules-with-modprobe">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How Linux Loads Kernel Modules with Modprobe - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-linux-loads-kernel-modules-with-modprobe" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="This article explores how the Linux operating system uses the modprobe utility to dynamically load and manage Loadable Kernel Modules (LKMs). It covers the role of modprobe in managing dependencies, reading configuration files, parsing the dependency dat" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-linux-loads-kernel-modules-with-modprobe">How Linux Loads
+Kernel Modules with Modprobe</h1>
+<p>This article explores how the Linux operating system uses the
+<code>modprobe</code> utility to dynamically load and manage Loadable
+Kernel Modules (LKMs). It covers the role of <code>modprobe</code> in
+managing dependencies, reading configuration files, parsing the
+dependency database, and passing the binary code to the kernel via
+system calls. By understanding this process, administrators and
+developers can better diagnose hardware driver issues, manage system
+resources, and optimize boot performance.</p>
+<h2 id="the-role-of-modprobe-vs-insmod">The Role of Modprobe vs.
+Insmod</h2>
+<p>While Linux provides low-level utilities like <code>insmod</code> to
+insert a single module into the kernel, <code>insmod</code> requires the
+exact file path and fails if the module depends on symbols provided by
+another un-loaded module. <code>modprobe</code> acts as a high-level,
+intelligent front-end. It automatically discovers dependencies, loads
+required prerequisite modules in the correct order, and applies
+pre-configured options before loading.</p>
+<h2 id="step-1-parsing-the-module-dependency-index">Step 1: Parsing the
+Module Dependency Index</h2>
+<p>When a user or a system event (such as <code>udev</code>) invokes
+<code>modprobe &lt;module_name&gt;</code>, the utility does not scan the
+file system manually. Instead, it references a pre-computed dependency
+tree:</p>
+<ol type="1">
+<li><strong>Kernel Version Directory</strong>: <code>modprobe</code>
+targets <code>/lib/modules/$(uname -r)/</code>, where modules matching
+the running kernel version reside.</li>
+<li><strong>The Dependency File</strong>: It reads
+<code>modules.dep</code> (or its binary optimized counterpart
+<code>modules.dep.bin</code>), which is generated by the
+<code>depmod</code> program.</li>
+<li><strong>Graph Traversal</strong>: <code>modprobe</code> looks up the
+target module to find a list of all prerequisite <code>.ko</code>
+(Kernel Object) files. It builds a directed acyclic graph to determine
+the safe insertion order.</li>
+</ol>
+<h2 id="step-2-applying-configurations-and-rules">Step 2: Applying
+Configurations and Rules</h2>
+<p>Before inserting the modules, <code>modprobe</code> consults
+configuration files located in:</p>
+<ul>
+<li><code>/etc/modprobe.d/*.conf</code></li>
+<li><code>/run/modprobe.d/*.conf</code></li>
+<li><code>/usr/lib/modprobe.d/*.conf</code></li>
+</ul>
+<p>These files define:</p>
+<ul>
+<li><strong>Aliases</strong>: Mapping generic hardware identifiers or
+alternative names to specific driver modules.</li>
+<li><strong>Options</strong>: Parameters passed to the module when it
+initializes (e.g., debug modes, buffer sizes).</li>
+<li><strong>Blacklists</strong>: Directives that prevent specific
+modules from loading automatically.</li>
+<li><strong>Install/Remove Commands</strong>: Custom shell commands that
+run before or after the module is inserted or removed.</li>
+</ul>
+<h2 id="step-3-invoking-kernel-system-calls">Step 3: Invoking Kernel
+System Calls</h2>
+<p>Once dependencies are sequenced and options are prepared,
+<code>modprobe</code> loads each required module into kernel space one
+by one:</p>
+<ol type="1">
+<li><strong>Locating the Binary</strong>: The utility opens the
+compressed or uncompressed <code>.ko</code> file from disk.</li>
+<li><strong>System Call Execution</strong>: <code>modprobe</code> calls
+the <code>finit_module()</code> or <code>init_module()</code> system
+call, passing the file descriptor (or memory buffer) and any specified
+module parameters to the kernel.</li>
+<li><strong>Privilege Requirement</strong>: This step requires root
+privileges (<code>CAP_SYS_MODULE</code> capability).</li>
+</ol>
+<h2 id="step-4-kernel-side-initialization">Step 4: Kernel-Side
+Initialization</h2>
+<p>Once the kernel receives the system call:</p>
+<ol type="1">
+<li><strong>Verification</strong>: The kernel verifies the module's
+format (ELF standard), checks for version compatibility (vermagic), and
+validates cryptographic signatures if module signing is enforced.</li>
+<li><strong>Memory Allocation &amp; Relocation</strong>: Memory is
+allocated in the kernel address space, and unresolved symbols are linked
+to the kernel’s symbol table (<code>/proc/kallsyms</code>).</li>
+<li><strong>Execution</strong>: The kernel executes the module’s
+initialization function (defined by <code>module_init()</code> in
+C).</li>
+<li><strong>Registration</strong>: The module registers its drivers,
+handlers, or hooks with the appropriate kernel subsystems, making it
+active.</li>
+</ol>
+<h2 id="module-unloading-with-modprobe">Module Unloading with
+Modprobe</h2>
+<p>When invoked with the <code>-r</code> flag
+(<code>modprobe -r &lt;module_name&gt;</code>), the utility reverses
+this process. It queries the kernel via the <code>delete_module()</code>
+system call. The kernel checks the module's reference count; if the
+module is in use by a process or another module, removal is blocked. If
+the reference count is zero, the kernel runs the cleanup function
+(defined by <code>module_exit()</code>), unloads the code, frees the
+allocated memory, and <code>modprobe</code> then unloads any unused
+dependency modules in reverse order.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How Linux Manages NVMe Namespaces - linux</title>
+    <meta name="description" content="This article explores how the Linux operating system handles Non-Volatile Memory Express (NVMe) namespaces to deliver high-throughput, low-latency storage for modern solid-state drives. It covers the underlying architecture of the Linux NVMe driver, the">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-linux-manages-nvme-namespaces">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How Linux Manages NVMe Namespaces - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-linux-manages-nvme-namespaces" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="This article explores how the Linux operating system handles Non-Volatile Memory Express (NVMe) namespaces to deliver high-throughput, low-latency storage for modern solid-state drives. It covers the underlying architecture of the Linux NVMe driver, the" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-linux-manages-nvme-namespaces">How Linux Manages NVMe
+Namespaces</h1>
+<p>This article explores how the Linux operating system handles
+Non-Volatile Memory Express (NVMe) namespaces to deliver
+high-throughput, low-latency storage for modern solid-state drives. It
+covers the underlying architecture of the Linux NVMe driver, the role of
+the multi-queue block layer, device enumeration in the filesystem,
+native multipathing, and the runtime management of dynamic namespaces
+using user-space utilities.</p>
+<h2 id="understanding-nvme-namespaces">Understanding NVMe
+Namespaces</h2>
+<p>An NVMe namespace is a quantity of non-volatile memory that can be
+formatted into logical blocks. Unlike traditional storage, where
+partitioning is handled strictly by the operating system's partition
+table (such as GPT or MBR) on a single physical drive, an NVMe
+controller can divide physical flash memory into multiple distinct
+namespaces at the hardware level. To the operating system, each
+namespace behaves as an independent, isolated block device with its own
+performance characteristics, capacity, and logical block size.</p>
+<h2 id="the-kernel-architecture-and-block-layer-integration">The Kernel
+Architecture and Block Layer Integration</h2>
+<p>Linux manages NVMe storage through a modular kernel architecture
+consisting of the NVMe core driver (<code>nvme-core</code>), the
+transport-specific drivers (such as PCIe, RDMA, or TCP for NVMe-oF), and
+the Linux Multi-Queue Block Layer (<code>blk-mq</code>).</p>
+<p>When an NVMe controller is initialized:</p>
+<ol type="1">
+<li>The kernel communicates with the controller via Admin Submission and
+Completion Queues to discover its capabilities.</li>
+<li>The controller reports the list of active and allocated namespaces
+through the "Identify" command.</li>
+<li>The kernel's <code>blk-mq</code> framework allocates dedicated
+hardware I/O queues mapped directly to individual CPU cores, bypassing
+global locking mechanisms and minimizing latency.</li>
+<li>For each active namespace discovered, the kernel registers an
+individual block device.</li>
+</ol>
+<h2 id="device-identification-and-naming-scheme">Device Identification
+and Naming Scheme</h2>
+<p>Linux exposes NVMe controllers and namespaces through standard device
+nodes located in the <code>/dev</code> directory. The naming structure
+clearly distinguishes controllers from namespaces:</p>
+<ul>
+<li><code>/dev/nvme0</code>: The NVMe controller itself (used primarily
+for administrative commands and configuration).</li>
+<li><code>/dev/nvme0n1</code>: Controller 0, Namespace 1 (the first
+logical block device on this controller).</li>
+<li><code>/dev/nvme0n2</code>: Controller 0, Namespace 2 (an independent
+second logical block device).</li>
+<li><code>/dev/nvme0n1p1</code>: The first partition located inside
+Namespace 1.</li>
+</ul>
+<p>Each namespace is assigned an internal Namespace Identifier (NSID) by
+the controller hardware, which Linux queries during boot or device
+discovery to instantiate the <code>/dev/nvmeXnY</code> structure.</p>
+<h2 id="native-nvme-multipathing">Native NVMe Multipathing</h2>
+<p>Enterprise environments often connect multiple physical paths or
+controllers to a shared set of namespaces, particularly in NVMe over
+Fabrics (NVMe-oF) architectures. Linux provides a high-performance
+native multipathing subsystem specifically designed for NVMe, enabled
+via the kernel parameter <code>nvme_core.multipath=Y</code>.</p>
+<p>Instead of relying on the older Device Mapper
+(<code>dm-multipath</code>) layer, the native NVMe multipath
+implementation operates directly within the NVMe subsystem:</p>
+<ul>
+<li>It groups different controller paths that point to the same shared
+namespace.</li>
+<li>It exposes a single virtual device node (e.g.,
+<code>/dev/nvme0c1n1</code> or mapped namespace) to applications.</li>
+<li>It routes I/O requests across available paths using an optimized,
+low-overhead round-robin or NUMA-aware dispatch policy.</li>
+</ul>
+<h2 id="dynamic-namespace-management-with-nvme-cli">Dynamic Namespace
+Management with nvme-cli</h2>
+<p>While the kernel handles the low-level I/O paths, user-space
+administration is performed using the <code>nvme-cli</code> suite.
+System administrators can create, delete, attach, and detach namespaces
+on the fly without rebooting the system or interrupting other active
+namespaces on the same drive.</p>
+<p>Typical operations include:</p>
+<ul>
+<li><strong>Namespace Creation:</strong> Allocating specific block sizes
+and capacities using <code>nvme create-ns</code>.</li>
+<li><strong>Attaching to Controllers:</strong> Mapping a created
+namespace to a controller with <code>nvme attach-ns</code>, which
+triggers the Linux kernel to generate a new <code>/dev/nvmeXnY</code>
+block device.</li>
+<li><strong>Low-Level Formatting:</strong> Executing
+<code>nvme format</code> to modify logical block sizes (such as
+switching between 512-byte and 4096-byte sectors for better flash
+alignment and performance).</li>
+<li><strong>Deletion and Detachment:</strong> Reclaiming flash capacity
+back to the controller's unallocated pool using
+<code>nvme detach-ns</code> and <code>nvme delete-ns</code>.</li>
+</ul>
+<p>Through this combined approach—tight integration with
+<code>blk-mq</code>, dedicated hardware queues, low-overhead
+multipathing, and standard user-space tooling—Linux maximizes the I/O
+parallelism and low latency inherent in NVMe hardware.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How Linux Namespaces Provide Process Isolation - linux</title>
+    <meta name="description" content="Linux namespaces are a foundational kernel feature that provides process isolation by partitioning global system resources into distinct, independent abstractions. This article explains how the Linux operating system uses namespaces to restrict a process">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-linux-namespaces-provide-process-isolation">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How Linux Namespaces Provide Process Isolation - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-linux-namespaces-provide-process-isolation" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="Linux namespaces are a foundational kernel feature that provides process isolation by partitioning global system resources into distinct, independent abstractions. This article explains how the Linux operating system uses namespaces to restrict a process" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-linux-namespaces-provide-process-isolation">How Linux
+Namespaces Provide Process Isolation</h1>
+<p>Linux namespaces are a foundational kernel feature that provides
+process isolation by partitioning global system resources into distinct,
+independent abstractions. This article explains how the Linux operating
+system uses namespaces to restrict a process's view of the underlying
+system, details the primary types of namespaces available in the kernel,
+and explores the core mechanisms and system calls that make modern
+containerization possible.</p>
+<h2 id="the-concept-of-linux-namespaces">The Concept of Linux
+Namespaces</h2>
+<p>In standard multi-tasking operating systems, all processes share
+global resources such as system process tables, network interfaces,
+filesystem mount points, and user accounts. Linux namespaces alter this
+paradigm by creating virtualized instances of these global
+resources.</p>
+<p>When a process executes inside a namespace, it interacts only with
+resources assigned to that namespace. Changes made within the namespace
+do not affect other processes outside of it or processes in different
+namespaces. By encapsulating these system views, the kernel prevents
+processes from inspecting, modifying, or conflicting with one another,
+providing strong operational isolation without the overhead of running a
+full virtual machine.</p>
+<h2 id="key-types-of-linux-namespaces">Key Types of Linux
+Namespaces</h2>
+<p>The Linux kernel provides several distinct namespaces, each
+responsible for isolating a specific category of system resource:</p>
+<ul>
+<li><strong>PID (Process ID):</strong> Isolates the process ID space. A
+process inside a new PID namespace can be assigned PID 1—acting as an
+init process—while maintaining a completely different PID in the parent
+or root namespace. This prevents processes from viewing, signaling, or
+terminating processes outside their namespace.</li>
+<li><strong>NET (Network):</strong> Provides an independent network
+stack for the enclosed processes. Each network namespace possesses its
+own network devices, IP addresses, routing tables, port bindings, and
+firewall rules (<code>iptables</code>/<code>nftables</code>).</li>
+<li><strong>MNT (Mount):</strong> Isolates the filesystem mount points.
+Processes in different mount namespaces can mount and unmount
+filesystems without affecting the rest of the host system. This allows a
+process to have its own unique root filesystem (<code>/</code>).</li>
+<li><strong>USER (User ID):</strong> Isolates user and group ID
+mappings. A process can operate with root privileges (UID 0) inside its
+own user namespace while mapping to an unprivileged standard user
+outside the namespace, significantly enhancing security.</li>
+<li><strong>IPC (Inter-Process Communication):</strong> Isolates System
+V IPC resources and POSIX message queues. Processes in distinct IPC
+namespaces cannot communicate using shared memory segments, semaphores,
+or message queues.</li>
+<li><strong>UTS (UNIX Timesharing System):</strong> Isolates system
+identifiers, specifically the hostname and domain name. This allows
+isolated environments to define their own hostnames independently of the
+host machine.</li>
+<li><strong>CGROUP (Control Group):</strong> Virtualizes the view of the
+<code>/proc/self/cgroup</code> file and cgroup directories. This masks
+the host's overall cgroup hierarchy from the process.</li>
+<li><strong>TIME:</strong> Isolates the system clocks, allowing
+processes to have an independent monotonic clock or boot clock offset
+without modifying the host clock.</li>
+</ul>
+<h2 id="kernel-mechanisms-and-system-calls">Kernel Mechanisms and System
+Calls</h2>
+<p>The Linux kernel exposes three primary system calls to create and
+manipulate namespaces:</p>
+<ul>
+<li><strong><code>clone()</code>:</strong> Extends the standard
+<code>fork()</code> system call by accepting flags (such as
+<code>CLONE_NEWPID</code>, <code>CLONE_NEWNET</code>, or
+<code>CLONE_NEWNS</code>) to spawn a child process inside newly created
+namespaces.</li>
+<li><strong><code>unshare()</code>:</strong> Allows an existing process
+to disassociate parts of its execution context and move itself into new
+namespaces without spawning a child process.</li>
+<li><strong><code>setns()</code>:</strong> Attaches the calling process
+to an existing namespace, enabling processes to join already running
+isolated environments.</li>
+</ul>
+<p>Each running process has a directory located at
+<code>/proc/[PID]/ns/</code>, which contains symbolic links representing
+the namespaces the process currently belongs to. These file descriptors
+can be inspected, mounted, or passed to <code>setns()</code> to allow
+external processes to enter the same isolation boundary.</p>
+<h2 id="namespaces-in-modern-containerization">Namespaces in Modern
+Containerization</h2>
+<p>Linux namespaces are the core technology powering container engines
+such as Docker, Podman, and containerd. While control groups (cgroups)
+handle resource limitation—such as constraining CPU and memory
+consumption—namespaces handle resource visibility. By combining all the
+primary namespaces simultaneously, the Linux kernel constructs an
+isolated userland runtime that mimics the behavior of a standalone
+operating system while continuing to share the host's underlying
+kernel.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

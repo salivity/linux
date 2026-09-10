@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linux Network Bonding and Link Aggregation - linux</title>
+    <meta name="description" content="Network bonding in the Linux operating system is a kernel-level mechanism that aggregates multiple physical network interfaces into a single logical interface. This process, often referred to as link aggregation or NIC teaming, provides network redundanc">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/linux-network-bonding-and-link-aggregation">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Linux Network Bonding and Link Aggregation - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/linux-network-bonding-and-link-aggregation" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="Network bonding in the Linux operating system is a kernel-level mechanism that aggregates multiple physical network interfaces into a single logical interface. This process, often referred to as link aggregation or NIC teaming, provides network redundanc" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="linux-network-bonding-and-link-aggregation">Linux Network
+Bonding and Link Aggregation</h1>
+<p>Network bonding in the Linux operating system is a kernel-level
+mechanism that aggregates multiple physical network interfaces into a
+single logical interface. This process, often referred to as link
+aggregation or NIC teaming, provides network redundancy to prevent
+single points of failure and increases total network throughput by
+balancing traffic across multiple connections.</p>
+<h3 id="the-architecture-of-the-bonding-driver">The Architecture of the
+Bonding Driver</h3>
+<p>The Linux kernel implements link aggregation through the
+<code>bonding</code> kernel module. When loaded, this driver creates a
+virtual network interface (commonly named <code>bond0</code>,
+<code>bond1</code>, etc.) that acts as a master device. Physical network
+interface controllers (NICs) are then bound to this master device as
+slaves.</p>
+<p>To the user space and higher-level networking protocols (such as
+TCP/IP), the bonded interface appears as a standard network adapter with
+its own IP address and MAC address. When an application transmits
+data:</p>
+<ol type="1">
+<li>The network stack sends the packet to the virtual bonding
+interface.</li>
+<li>The bonding driver intercepts the packet and selects a slave
+interface based on the configured bonding mode and hash policy.</li>
+<li>The selected slave's driver transmits the raw frame onto the
+physical wire.</li>
+</ol>
+<p>For incoming traffic, slave interfaces receive packets and pass them
+to the bonding driver, which decapsulates and presents them uniformly to
+the operating system's network stack.</p>
+<h3 id="bonding-modes">Bonding Modes</h3>
+<p>The bonding driver's behavior is dictated by its operational mode.
+Linux supports seven primary modes:</p>
+<ul>
+<li><strong>Mode 0 (balance-rr):</strong> Transmits packets in
+sequential order, from the first available slave to the last. It
+provides both load balancing and fault tolerance, though it can cause
+packet reordering issues for TCP streams if packet arrival times vary
+across links.</li>
+<li><strong>Mode 1 (active-backup):</strong> Only one slave interface
+remains active. Another slave becomes active only if the primary slave
+fails. The bond's MAC address is typically visible on only one port to
+prevent switch MAC table confusion.</li>
+<li><strong>Mode 2 (balance-xor):</strong> Transmits based on a hash
+policy (such as
+<code>[(source MAC XOR destination MAC) modulo slave count]</code>).
+This ensures that traffic to particular destinations consistently uses
+the same slave, preserving packet ordering while providing fault
+tolerance and load balancing.</li>
+<li><strong>Mode 3 (broadcast):</strong> Transmits all packets on all
+slave interfaces. This mode provides high fault tolerance at the expense
+of bandwidth efficiency.</li>
+<li><strong>Mode 4 (802.3ad / LACP):</strong> Implements the IEEE
+802.3ad Dynamic Link Aggregation standard. It creates aggregation groups
+sharing the same speed and duplex settings and utilizes the Link
+Aggregation Control Protocol (LACP) to negotiate link parameters with an
+upstream network switch. This mode requires switch support.</li>
+<li><strong>Mode 5 (balance-tlb):</strong> Adaptive Transmit Load
+Balancing. Outgoing traffic is distributed according to the current load
+on each slave (calculated relative to interface speed). Incoming traffic
+is received by the current assigned slave. This mode does not require
+special switch support.</li>
+<li><strong>Mode 6 (balance-alb):</strong> Adaptive Load Balancing.
+Combines transmit load balancing (Mode 5) with receive load balancing
+(RLB). Receive balancing is achieved at the ARP level, where the bonding
+driver intercepts ARP replies and overwrites the hardware address with
+the MAC address of one of the specific slaves.</li>
+</ul>
+<h3 id="link-health-monitoring">Link Health Monitoring</h3>
+<p>The bonding driver continuously checks the integrity of its slave
+interfaces to manage failovers effectively. It does this via two
+mechanisms:</p>
+<ul>
+<li><strong>MII Monitoring (<code>miimon</code>):</strong> Queries the
+interface's Media Independent Interface (MII) registers via the device
+driver to verify whether the physical carrier link is up. It is
+computationally light and fast, but it only detects local link failure
+(e.g., a severed cable directly attached to the host).</li>
+<li><strong>ARP Monitoring:</strong> Periodically sends ARP queries to a
+designated upstream gateway or host. The driver determines link health
+based on whether ARP responses are received. This approach detects
+upstream route failures beyond the immediate physical switch port,
+though it generates periodic network overhead.</li>
+</ul>
+<p>Through this modular combination of operational policies and health
+monitoring mechanisms, the Linux bonding driver delivers resilient,
+high-bandwidth networking suited for enterprise servers, hypervisors,
+and storage systems.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How Linux Handles PPPoE Connections - linux</title>
+    <meta name="description" content="The Linux operating system handles Point-to-Point Protocol over Ethernet (PPPoE) through a hybrid architecture combining user-space control daemons and in-kernel packet processing. By bridging the data link layer (Ethernet) and the network layer (PPP), L">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-linux-handles-pppoe-connections">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How Linux Handles PPPoE Connections - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-linux-handles-pppoe-connections" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="The Linux operating system handles Point-to-Point Protocol over Ethernet (PPPoE) through a hybrid architecture combining user-space control daemons and in-kernel packet processing. By bridging the data link layer (Ethernet) and the network layer (PPP), L" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-linux-handles-pppoe-connections">How Linux Handles PPPoE
+Connections</h1>
+<p>The Linux operating system handles Point-to-Point Protocol over
+Ethernet (PPPoE) through a hybrid architecture combining user-space
+control daemons and in-kernel packet processing. By bridging the data
+link layer (Ethernet) and the network layer (PPP), Linux allows systems
+to authenticate and communicate over broadband networks such as DSL and
+fiber. This article explains how Linux initiates connections, offloads
+packet forwarding to the kernel, and manages transmission constraints
+like MTU sizing.</p>
+<h3 id="the-two-phase-pppoe-process">The Two-Phase PPPoE Process</h3>
+<p>Linux processes PPPoE connections in two distinct stages: Discovery
+and Session.</p>
+<ol type="1">
+<li><strong>Discovery Phase:</strong> Because Ethernet is a multi-access
+network without built-in point-to-point semantics, Linux must first
+locate an Access Concentrator (AC). A user-space utility (such as
+<code>pppoe</code> from the Roaring Penguin suite or
+<code>NetworkManager</code>) broadcasts a PPPoE Active Discovery
+Initiation (PADI) packet. When reachable concentrators reply with Offer
+(PADO) packets, the Linux client selects one, sends a Request (PADR),
+and waits for a Session-confirmation (PADS) containing a unique 16-bit
+Session ID.</li>
+<li><strong>Session Phase:</strong> Once the Session ID is established,
+standard Point-to-Point Protocol (PPP) encapsulation begins. The Linux
+<code>pppd</code> daemon negotiates link parameters using the Link
+Control Protocol (LCP), performs credential verification via PAP or
+CHAP, and negotiates network settings (IP addresses, default routes, DNS
+servers) using the Internet Protocol Control Protocol (IPCP).</li>
+</ol>
+<h3 id="user-space-control-vs-kernel-space-data-path">User-Space Control
+vs. Kernel-Space Data Path</h3>
+<p>Early Linux PPPoE implementations handled all packet encapsulation in
+user space. This created significant CPU overhead because every network
+frame required a context switch between the kernel network stack and the
+user daemon.</p>
+<p>Modern Linux systems use a dedicated kernel module
+(<code>pppoe</code>, often compiled as part of
+<code>CONFIG_PPPOE</code>) alongside the <code>ppp_generic</code>
+subsystem:</p>
+<ul>
+<li><strong>User Space (<code>pppd</code> and plugins):</strong> Manages
+the state machine, renegotiates links, checks link quality using LCP
+Echo requests, and terminates sessions gracefully.</li>
+<li><strong>Kernel Space (<code>AF_PPPOX</code> socket):</strong> Once
+the user-space daemon negotiates the session, it attaches the PPPoE
+session ID and network interface to a kernel-level socket. The kernel
+then takes over the data path. Outgoing IP packets are encapsulated
+directly into PPPoE and Ethernet frames inside the kernel, and incoming
+PPPoE frames are stripped and passed directly to the standard TCP/IP
+stack without user-space intervention.</li>
+</ul>
+<p>This separation ensures full line-rate throughput with minimal CPU
+overhead.</p>
+<h3 id="network-interface-creation">Network Interface Creation</h3>
+<p>When the session negotiation succeeds, the kernel creates a virtual
+point-to-point network interface, typically designated as
+<code>ppp0</code>. This interface functions identically to any other
+standard network interface in Linux:</p>
+<ul>
+<li>It receives its own IP address and subnet mask from the ISP.</li>
+<li>It is assigned routes in the kernel routing table, usually serving
+as the system's default gateway.</li>
+<li>Standard Linux firewalling tools (<code>iptables</code> and
+<code>nftables</code>) can filter or shape traffic on this interface
+directly.</li>
+</ul>
+<h3 id="handling-mtu-and-mss-clamping">Handling MTU and MSS
+Clamping</h3>
+<p>Standard Ethernet frames have a Maximum Transmission Unit (MTU) of
+1500 bytes. Because the PPPoE header consumes 6 bytes and the PPP
+protocol ID consumes 2 bytes, the maximum payload for an IP packet over
+PPPoE is reduced to 1492 bytes.</p>
+<p>To prevent packet fragmentation or dropped packets caused by path MTU
+discovery issues, the Linux kernel relies on Maximum Segment Size (MSS)
+clamping. Network tools or firewall configurations inject rules via
+<code>iptables</code> or <code>nftables</code> using the
+<code>TCPMSS</code> target:</p>
+<pre class="text"><code>iptables -t mangle -A FORWARD -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu</code></pre>
+<p>This instruction forces Linux to rewrite the TCP MSS option in
+outgoing SYN packets to match the 1492-byte limit automatically,
+ensuring transparent and reliable communication across the PPPoE
+tunnel.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

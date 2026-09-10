@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Understanding the Linux Cat Command: Uses and Syntax - linux</title>
+    <meta name="description" content="The cat command, short for "concatenate," is one of the most fundamental and frequently used utilities in the Linux operating system. Its primary purpose is to read sequential data from files or standard input and output it directly to the terminal scree">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/understanding-the-linux-cat-command-uses-and-syntax">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Understanding the Linux Cat Command: Uses and Syntax - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/understanding-the-linux-cat-command-uses-and-syntax" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="The cat command, short for "concatenate," is one of the most fundamental and frequently used utilities in the Linux operating system. Its primary purpose is to read sequential data from files or standard input and output it directly to the terminal scree" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1
+id="understanding-the-linux-cat-command-uses-and-syntax">Understanding
+the Linux Cat Command: Uses and Syntax</h1>
+<p>The <code>cat</code> command, short for "concatenate," is one of the
+most fundamental and frequently used utilities in the Linux operating
+system. Its primary purpose is to read sequential data from files or
+standard input and output it directly to the terminal screen or another
+destination. This article explores the core functions of
+<code>cat</code>, including how it displays file contents, merges
+multiple files, creates new documents, and leverages standard options to
+format text efficiently.</p>
+<h3 id="1-viewing-file-contents">1. Viewing File Contents</h3>
+<p>The most common use of the <code>cat</code> command is to quickly
+view the entire contents of a text file without opening a text editor
+like Nano or Vim.</p>
+<p>To display a file's contents, pass the filename as an argument:</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span> filename.txt</span></code></pre></div>
+<p>This reads <code>filename.txt</code> and prints its contents directly
+to the standard output (stdout), which is typically the terminal
+window.</p>
+<h3 id="2-concatenating-multiple-files">2. Concatenating Multiple
+Files</h3>
+<p>As its name implies, concatenation is a core feature of the
+<code>cat</code> command. It allows users to combine multiple files into
+a single continuous stream.</p>
+<p>To view multiple files consecutively:</p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span> file1.txt file2.txt</span></code></pre></div>
+<p>To permanently combine multiple files into a single new file, use the
+output redirection operator (<code>&gt;</code>):</p>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span> file1.txt file2.txt <span class="op">&gt;</span> combined.txt</span></code></pre></div>
+<p>This merges <code>file1.txt</code> and <code>file2.txt</code> and
+writes the combined output into <code>combined.txt</code>.</p>
+<h3 id="3-creating-and-appending-to-files">3. Creating and Appending to
+Files</h3>
+<p>The <code>cat</code> command can also create simple files or append
+data to existing ones without leaving the command line.</p>
+<ul>
+<li><p><strong>Creating a new file:</strong></p>
+<div class="sourceCode" id="cb4"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span> <span class="op">&gt;</span> newfile.txt</span></code></pre></div>
+<p>After running this command, any text typed into the terminal is
+written to <code>newfile.txt</code>. Press <code>Ctrl + D</code> to save
+and exit.</p></li>
+<li><p><strong>Appending text to an existing file:</strong></p>
+<div class="sourceCode" id="cb5"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span> <span class="op">&gt;&gt;</span> existingfile.txt</span></code></pre></div>
+<p>Using double angle brackets (<code>&gt;&gt;</code>) prevents
+overwriting and appends the new input directly to the end of the
+specified file.</p></li>
+</ul>
+<h3 id="4-useful-flags-and-modifiers">4. Useful Flags and Modifiers</h3>
+<p>The <code>cat</code> utility includes several command-line flags to
+modify its output for easier analysis:</p>
+<ul>
+<li><strong><code>-n</code> (Number lines):</strong> Displays line
+numbers alongside the text, which is helpful for debugging scripts or
+reviewing logs.
+<div class="sourceCode" id="cb6"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span> <span class="at">-n</span> script.sh</span></code></pre></div></li>
+<li><strong><code>-b</code> (Number non-blank lines):</strong> Adds line
+numbers only to lines that contain text, ignoring empty lines.
+<div class="sourceCode" id="cb7"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span> <span class="at">-b</span> document.txt</span></code></pre></div></li>
+<li><strong><code>-s</code> (Squeeze blank lines):</strong> Suppresses
+repeated empty output lines, replacing multiple consecutive blank lines
+with a single blank line.
+<div class="sourceCode" id="cb8"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span> <span class="at">-s</span> file.txt</span></code></pre></div></li>
+<li><strong><code>-E</code> (Show line ends):</strong> Displays a
+<code>$</code> symbol at the end of each line, making it easy to
+identify hidden trailing whitespace.
+<div class="sourceCode" id="cb9"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span> <span class="at">-E</span> file.txt</span></code></pre></div></li>
+</ul>
+<h3 id="best-practices-and-limitations">Best Practices and
+Limitations</h3>
+<p>While <code>cat</code> is ideal for small to medium-sized text files,
+it is not recommended for viewing very large files because it loads and
+prints the entire document at once, quickly overwhelming the terminal
+buffer. For large files, pagers like <code>less</code> or
+<code>more</code>, or inspection tools like <code>head</code> and
+<code>tail</code>, provide better control. Additionally, piping
+<code>cat</code> directly into commands that already accept file
+arguments (such as <code>cat file.txt | grep "pattern"</code>) is
+generally discouraged in favor of passing the file directly (e.g.,
+<code>grep "pattern" file.txt</code>).</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

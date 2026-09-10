@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>What Is Logical Volume Management (LVM) in Linux? - linux</title>
+    <meta name="description" content="Logical Volume Management (LVM) is a storage management framework for Linux that provides a flexible abstraction layer between physical storage hardware and the operating system's filesystems. Unlike traditional partition-based storage, LVM allows system">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/what-is-logical-volume-management-lvm-in-linux">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="What Is Logical Volume Management (LVM) in Linux? - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/what-is-logical-volume-management-lvm-in-linux" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="Logical Volume Management (LVM) is a storage management framework for Linux that provides a flexible abstraction layer between physical storage hardware and the operating system's filesystems. Unlike traditional partition-based storage, LVM allows system" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="what-is-logical-volume-management-lvm-in-linux">What Is Logical
+Volume Management (LVM) in Linux?</h1>
+<p>Logical Volume Management (LVM) is a storage management framework for
+Linux that provides a flexible abstraction layer between physical
+storage hardware and the operating system's filesystems. Unlike
+traditional partition-based storage, LVM allows system administrators to
+aggregate multiple physical drives into unified storage pools, allocate
+dynamic partitions that can span across disks, resize storage volumes on
+the fly without downtime, and create point-in-time snapshots for
+backups. This article explains the fundamental architecture of LVM,
+details its core components, outlines its primary operational
+advantages, and demonstrates the basic workflow for managing storage
+using LVM.</p>
+<h2 id="the-architecture-of-lvm">The Architecture of LVM</h2>
+<p>Traditional disk management ties filesystems directly to fixed
+partition tables (such as MBR or GPT) on a single physical drive. LVM
+eliminates these physical constraints by organizing storage into three
+hierarchical layers:</p>
+<ol type="1">
+<li><strong>Physical Volumes (PV):</strong> These are the raw block
+devices—such as an entire hard drive, an SSD, or a standard disk
+partition (e.g., <code>/dev/sdb</code> or <code>/dev/nvme0n1p1</code>).
+Initializing a disk as a PV marks it for use within the LVM subsystem by
+adding an LVM header.</li>
+<li><strong>Volume Groups (VG):</strong> A Volume Group acts as a
+single, unified pool of storage created by combining one or more
+Physical Volumes. Inside the VG, disk space is divided into fixed-size
+chunks known as Physical Extents (PEs), typically 4MB by default. The
+total capacity of a VG is the sum of the capacities of its member
+PVs.</li>
+<li><strong>Logical Volumes (LV):</strong> Logical Volumes are the
+functional equivalent of traditional disk partitions, carved out of the
+Volume Group. An LV consists of an allocation of Physical Extents from
+the VG. Filesystems (such as ext4 or XFS) are formatted directly onto
+Logical Volumes, which are then mounted into the Linux directory
+tree.</li>
+</ol>
+<h2 id="key-advantages-of-lvm">Key Advantages of LVM</h2>
+<ul>
+<li><strong>Dynamic Resizing:</strong> Logical Volumes can be expanded
+or shrunk while the system remains online, provided the underlying
+filesystem supports live resizing. If a Volume Group runs out of free
+space, administrators can add a new physical drive to the VG to expand
+available capacity instantly.</li>
+<li><strong>Multi-Disk Spanning:</strong> A single Logical Volume can
+span across multiple physical drives seamlessly, eliminating the
+limitation of being constrained to the capacity of a single disk.</li>
+<li><strong>Snapshots:</strong> LVM supports point-in-time copy-on-write
+(COW) snapshots. A snapshot records the state of an LV at a specific
+moment by only saving changes made after the snapshot was created,
+providing a fast and safe mechanism for backups and system
+upgrades.</li>
+<li><strong>Data Striping and Mirroring:</strong> LVM can stripe data
+across multiple physical disks to increase read and write throughput, or
+mirror data across drives to provide redundancy against drive failure,
+functioning similarly to software RAID.</li>
+<li><strong>Thin Provisioning:</strong> LVM enables overcommitting
+storage capacity by allocating actual disk space only when data is
+written, rather than reserving the full allocated volume size in
+advance.</li>
+</ul>
+<h2 id="basic-lvm-command-workflow">Basic LVM Command Workflow</h2>
+<p>Managing storage through LVM follows a sequential path through its
+three architectural layers:</p>
+<h3 id="1-initializing-physical-volumes">1. Initializing Physical
+Volumes</h3>
+<p>To prepare raw disks or partitions for LVM:</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">pvcreate</span> /dev/sdb /dev/sdc</span></code></pre></div>
+<p>To verify the initialized devices:</p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="ex">pvs</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="co"># or for detailed output:</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="ex">pvdisplay</span></span></code></pre></div>
+<h3 id="2-creating-a-volume-group">2. Creating a Volume Group</h3>
+<p>To combine the Physical Volumes into a unified pool named
+<code>vg_data</code>:</p>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="ex">vgcreate</span> vg_data /dev/sdb /dev/sdc</span></code></pre></div>
+<p>To check the status and available space of the pool:</p>
+<div class="sourceCode" id="cb4"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="ex">vgs</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="co"># or for detailed output:</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="ex">vgdisplay</span></span></code></pre></div>
+<h3 id="3-creating-and-formatting-a-logical-volume">3. Creating and
+Formatting a Logical Volume</h3>
+<p>To carve out a 50 GB Logical Volume named <code>lv_storage</code>
+from the <code>vg_data</code> group:</p>
+<div class="sourceCode" id="cb5"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="ex">lvcreate</span> <span class="at">-L</span> 50G <span class="at">-n</span> lv_storage vg_data</span></code></pre></div>
+<p>The volume is then accessible as a block device at
+<code>/dev/vg_data/lv_storage</code> or
+<code>/dev/mapper/vg_data-lv_storage</code>. It can be formatted and
+mounted like any standard partition:</p>
+<div class="sourceCode" id="cb6"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="ex">mkfs.ext4</span> /dev/vg_data/lv_storage</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="fu">mount</span> /dev/vg_data/lv_storage /mnt/data</span></code></pre></div>
+<h3 id="4-extending-a-logical-volume">4. Extending a Logical Volume</h3>
+<p>If the filesystem requires more space, the volume and its filesystem
+can be extended on the fly:</p>
+<div class="sourceCode" id="cb7"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Extend the LV by 20GB and resize the underlying filesystem in a single command</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="ex">lvextend</span> <span class="at">-L</span> +20G <span class="at">-r</span> /dev/vg_data/lv_storage</span></code></pre></div>
+<p>LVM simplifies enterprise and modern Linux storage by decoupling
+filesystems from rigid hardware geometry, making storage allocation
+adaptable to changing capacity requirements.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

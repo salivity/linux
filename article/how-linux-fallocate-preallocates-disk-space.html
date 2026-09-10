@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How Linux fallocate Preallocates Disk Space - linux</title>
+    <meta name="description" content="The Linux operating system uses the fallocate command to rapidly reserve physical storage space for a file without the overhead of writing zeroes to the disk. By communicating directly with the underlying filesystem through the fallocate() system call, t">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-linux-fallocate-preallocates-disk-space">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How Linux fallocate Preallocates Disk Space - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-linux-fallocate-preallocates-disk-space" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="The Linux operating system uses the fallocate command to rapidly reserve physical storage space for a file without the overhead of writing zeroes to the disk. By communicating directly with the underlying filesystem through the fallocate() system call, t" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-linux-fallocate-preallocates-disk-space">How Linux fallocate
+Preallocates Disk Space</h1>
+<p>The Linux operating system uses the <code>fallocate</code> command to
+rapidly reserve physical storage space for a file without the overhead
+of writing zeroes to the disk. By communicating directly with the
+underlying filesystem through the <code>fallocate()</code> system call,
+the OS allocates actual disk blocks and updates metadata pointers almost
+instantaneously. This mechanism prevents filesystem fragmentation,
+guarantees that applications will not unexpectedly encounter
+out-of-space errors during critical write operations, and drastically
+speeds up storage provisioning compared to traditional disk writing
+utilities.</p>
+<h3 id="how-fallocate-works-internally">How <code>fallocate</code> Works
+Internally</h3>
+<p>When standard tools like <code>dd</code> create a large file, the
+operating system must physically write bytes (often zeroes) across every
+single block requested. This process is bounded by storage write speeds,
+generating significant I/O traffic and wear on physical drives.</p>
+<p>In contrast, modern Linux filesystems like ext4, XFS, and Btrfs
+support extent-based block mapping. When you execute the
+<code>fallocate</code> command, the following process occurs:</p>
+<ol type="1">
+<li><strong>System Call Invocation:</strong> The command triggers the
+<code>fallocate()</code> system call at the Linux kernel level.</li>
+<li><strong>Metadata Allocation:</strong> The filesystem allocates
+contiguous blocks in its allocation tables (such as extents in ext4 or
+B-trees in XFS).</li>
+<li><strong>Unwritten Marking:</strong> Instead of writing actual data
+to those sectors, the filesystem marks these allocated blocks as
+"unwritten" or "uninitialized."</li>
+<li><strong>Read/Write Handling:</strong>
+<ul>
+<li>If an application reads from an unwritten block, the kernel returns
+zeroes without reading raw physical storage.</li>
+<li>When an application writes real data to the file, the filesystem
+overwrites the unwritten state with real data in place, avoiding the
+latency of locating new blocks on the fly.</li>
+</ul></li>
+</ol>
+<h3 id="comparison-fallocate-vs-truncate-vs-dd">Comparison:
+<code>fallocate</code> vs. <code>truncate</code> vs.
+<code>dd</code></h3>
+<ul>
+<li><strong><code>dd</code></strong>: Physically writes zeros to disk.
+It guarantees space allocation and avoids fragmentation, but it is
+extremely slow and I/O-intensive for large files.</li>
+<li><strong><code>truncate</code></strong>: Creates a sparse file by
+updating the file size in the inode without actually reserving physical
+blocks. While fast, it does not guarantee disk space; if the disk fills
+up later, writes to the sparse file will fail with an
+<code>ENOSPC</code> (No space left on device) error.</li>
+<li><strong><code>fallocate</code></strong>: Combines the speed of
+<code>truncate</code> with the safety of <code>dd</code>. It instantly
+allocates real blocks on disk, fully guaranteeing space without
+generating heavy I/O operations.</li>
+</ul>
+<h3 id="basic-usage-and-commands">Basic Usage and Commands</h3>
+<p>To preallocate space using <code>fallocate</code>, specify the length
+of the file using the <code>-l</code> (or <code>--length</code>) flag
+followed by the target filename:</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">fallocate</span> <span class="at">-l</span> 10G large_database.img</span></code></pre></div>
+<p>This command immediately allocates 10 gigabytes of contiguous
+physical storage for <code>large_database.img</code>.</p>
+<h3 id="advanced-manipulation-features">Advanced Manipulation
+Features</h3>
+<p>Beyond standard allocation, the Linux kernel allows
+<code>fallocate</code> to modify file ranges directly within compatible
+filesystems:</p>
+<ul>
+<li><p><strong>Deallocating Space (Hole Punching):</strong> You can
+deallocate a specific byte range within a file to free up disk space
+while preserving the total file size, creating a sparse region:</p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="ex">fallocate</span> <span class="at">-p</span> <span class="at">-o</span> 1G <span class="at">-l</span> 500M target_file.img</span></code></pre></div>
+<p><em>(This punches a 500 MB hole starting at the 1 GB
+offset).</em></p></li>
+<li><p><strong>Zeroing Ranges:</strong> You can zero out a range of
+bytes at the filesystem level without writing physical zeros
+manually:</p>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="ex">fallocate</span> <span class="at">-z</span> <span class="at">-o</span> 0 <span class="at">-l</span> 1G target_file.img</span></code></pre></div></li>
+<li><p><strong>Collapsing and Inserting Space:</strong> Advanced modes
+allow removing or inserting ranges in a file without shifting subsequent
+data through copy operations, simply by manipulating extent pointers in
+the filesystem metadata.</p></li>
+</ul>
+<h3 id="filesystem-compatibility-and-fallback">Filesystem Compatibility
+and Fallback</h3>
+<p>For <code>fallocate</code> to operate instantaneously, the target
+filesystem must natively implement the <code>fallocate()</code> system
+call. If used on a filesystem that does not support it (such as older
+ext3 or certain network shares), the command will return an error
+(<code>Operation not supported</code>). In programming environments like
+the C standard library, <code>posix_fallocate()</code> handles this by
+falling back to writing physical zeroes block by block to guarantee
+space reservation at the cost of execution speed.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linux Variable Expansion and Parameter Substitution - linux</title>
+    <meta name="description" content="Variable expansion and parameter substitution are fundamental mechanisms in Linux shell environments that allow scripts to dynamically evaluate, manipulate, and inject values before executing commands. When a shell like Bash or Dash encounters a dollar s">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/linux-variable-expansion-and-parameter-substitution">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Linux Variable Expansion and Parameter Substitution - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/linux-variable-expansion-and-parameter-substitution" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="Variable expansion and parameter substitution are fundamental mechanisms in Linux shell environments that allow scripts to dynamically evaluate, manipulate, and inject values before executing commands. When a shell like Bash or Dash encounters a dollar s" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="linux-variable-expansion-and-parameter-substitution">Linux
+Variable Expansion and Parameter Substitution</h1>
+<p>Variable expansion and parameter substitution are fundamental
+mechanisms in Linux shell environments that allow scripts to dynamically
+evaluate, manipulate, and inject values before executing commands. When
+a shell like Bash or Dash encounters a dollar sign (<code>$</code>), it
+initiates an expansion phase that replaces variable names with their
+stored values or applies inline transformation logic. This article
+breaks down how the Linux shell parses these expressions, handles
+conditional fallback values, executes pattern-based string
+manipulations, and fits substitution into its broader command execution
+lifecycle.</p>
+<h3 id="the-mechanism-of-variable-expansion">The Mechanism of Variable
+Expansion</h3>
+<p>In Linux shell scripting, a parameter is an entity that stores
+values, which can be a name (variable), a number (positional parameter
+like <code>$1</code>), or a special symbol (such as <code>$?</code> or
+<code>$$</code>). Variable expansion is the process of retrieving the
+value assigned to that parameter.</p>
+<p>The most basic form uses the <code>$</code> prefix:</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="va">NAME</span><span class="op">=</span><span class="st">&quot;Linux&quot;</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="va">$NAME</span></span></code></pre></div>
+<p>When unambiguous separation is required between the variable name and
+adjacent characters, curly braces are mandatory:</p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="va">PREFIX</span><span class="op">=</span><span class="st">&quot;super&quot;</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="st">&quot;</span><span class="va">${PREFIX}</span><span class="st">user&quot;</span> <span class="co"># Outputs: superuser</span></span></code></pre></div>
+<p>Without the braces, the shell attempts to evaluate
+<code>$PREFIXuser</code>, which likely returns an empty string if
+undefined.</p>
+<h3 id="parameter-substitution-operations">Parameter Substitution
+Operations</h3>
+<p>Parameter substitution extends basic expansion by allowing
+conditional checks, default value assignments, and string manipulation
+directly within the <code>${}</code> syntax, eliminating the need for
+external tools like <code>awk</code> or <code>sed</code>.</p>
+<h4 id="1-conditional-and-fallback-expansions">1. Conditional and
+Fallback Expansions</h4>
+<p>Shells provide conditional operators to handle unset or null
+variables:</p>
+<ul>
+<li><strong>Default Value (<code>${VAR:-default}</code>)</strong>: Uses
+<code>default</code> if <code>VAR</code> is unset or null. The original
+variable remains unchanged.</li>
+<li><strong>Assign Default (<code>${VAR:=default}</code>)</strong>: If
+<code>VAR</code> is unset or null, it sets <code>VAR</code> to
+<code>default</code> and expands to that value.</li>
+<li><strong>Display Error (<code>${VAR:?error_message}</code>)</strong>:
+Throws an error with <code>error_message</code> and terminates the
+script if <code>VAR</code> is unset or null.</li>
+<li><strong>Alternate Value (<code>${VAR:+alternate}</code>)</strong>:
+Expands to <code>alternate</code> only if <code>VAR</code> is set and
+not null; expands to nothing otherwise.</li>
+</ul>
+<h4 id="2-string-length-and-slicing">2. String Length and Slicing</h4>
+<p>The shell can compute string length or extract substrings
+natively:</p>
+<ul>
+<li><strong>String Length (<code>${#VAR}</code>)</strong>: Returns the
+number of characters in the value of <code>VAR</code>.</li>
+<li><strong>Substring Extraction
+(<code>${VAR:offset:length}</code>)</strong>: Extracts a slice starting
+at the zero-based index <code>offset</code> for a specified
+<code>length</code>. If <code>length</code> is omitted, it extracts to
+the end of the string.</li>
+</ul>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="va">TEXT</span><span class="op">=</span><span class="st">&quot;OperatingSystem&quot;</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="st">&quot;</span><span class="va">${TEXT</span><span class="op">:</span><span class="dv">0</span><span class="op">:</span><span class="dv">9</span><span class="va">}</span><span class="st">&quot;</span> <span class="co"># Outputs: Operating</span></span></code></pre></div>
+<h4 id="3-pattern-removal-trimming">3. Pattern Removal (Trimming)</h4>
+<p>Shell parameter substitution allows prefix and suffix truncation
+using standard glob patterns:</p>
+<ul>
+<li><strong>Remove Shortest Prefix
+(<code>${VAR#pattern}</code>)</strong>: Deletes the shortest match of
+<code>pattern</code> from the beginning of <code>VAR</code>.</li>
+<li><strong>Remove Longest Prefix
+(<code>${VAR##pattern}</code>)</strong>: Deletes the longest match of
+<code>pattern</code> from the beginning of <code>VAR</code>. Commonly
+used to get file basenames.</li>
+<li><strong>Remove Shortest Suffix
+(<code>${VAR%pattern}</code>)</strong>: Deletes the shortest match of
+<code>pattern</code> from the end of <code>VAR</code>. Commonly used to
+strip file extensions.</li>
+<li><strong>Remove Longest Suffix
+(<code>${VAR%%pattern}</code>)</strong>: Deletes the longest match of
+<code>pattern</code> from the end of <code>VAR</code>.</li>
+</ul>
+<div class="sourceCode" id="cb4"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="va">FILE</span><span class="op">=</span><span class="st">&quot;/path/to/archive.tar.gz&quot;</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="st">&quot;</span><span class="va">${FILE</span><span class="op">##</span><span class="pp">*</span>/<span class="va">}</span><span class="st">&quot;</span> <span class="co"># Outputs: archive.tar.gz</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="st">&quot;</span><span class="va">${FILE</span><span class="op">%</span>.<span class="pp">*</span><span class="va">}</span><span class="st">&quot;</span>  <span class="co"># Outputs: /path/to/archive.tar</span></span></code></pre></div>
+<h4 id="4-pattern-replacement">4. Pattern Replacement</h4>
+<p>Bash and compatible shells support search-and-replace
+transformations:</p>
+<ul>
+<li><strong>Replace First Match
+(<code>${VAR/pattern/replacement}</code>)</strong>: Replaces the first
+match of <code>pattern</code> with <code>replacement</code>.</li>
+<li><strong>Replace All Matches
+(<code>${VAR//pattern/replacement}</code>)</strong>: Replaces every
+match of <code>pattern</code> with <code>replacement</code>.</li>
+<li><strong>Anchor Replacement (<code>${VAR/#pattern/replacement}</code>
+or <code>${VAR/%pattern/replacement}</code>)</strong>: Restricts the
+substitution to the prefix (<code>#</code>) or suffix (<code>%</code>)
+of the string.</li>
+</ul>
+<h3 id="order-of-shell-expansion">Order of Shell Expansion</h3>
+<p>The Linux shell does not evaluate expressions at random. It follows a
+strict, sequential order of operations before passing arguments to a
+command:</p>
+<ol type="1">
+<li><strong>Brace Expansion</strong>: Expressions like
+<code>a{b,c}</code> expand to <code>ab ac</code>.</li>
+<li><strong>Tilde Expansion</strong>: <code>~</code> expands to the
+user's home directory.</li>
+<li><strong>Parameter and Variable Expansion</strong>:
+<code>${VAR}</code> substitutions occur.</li>
+<li><strong>Command Substitution</strong>: Expressions like
+<code>$(command)</code> or <code>`command`</code> are executed, and
+their output replaces the expression.</li>
+<li><strong>Arithmetic Expansion</strong>: Expressions inside
+<code>$(( ... ))</code> are computed.</li>
+<li><strong>Word Splitting</strong>: Unquoted expansions are scanned
+according to the Internal Field Separator (<code>IFS</code>, usually
+space, tab, newline) and split into distinct arguments.</li>
+<li><strong>Pathname Expansion (Globbing)</strong>: Patterns like
+<code>*</code> or <code>?</code> are replaced with matching
+filenames.</li>
+<li><strong>Quote Removal</strong>: Single and double quotation marks
+used to suppress previous expansions are removed.</li>
+</ol>
+<p>Because word splitting occurs immediately after parameter expansion,
+failing to wrap variables in double quotes (<code>"$VAR"</code>) can
+cause variables containing whitespace to split into multiple distinct
+arguments, often resulting in scripting bugs or security
+vulnerabilities. Double-quoting preserves the integrity of the expanded
+text as a single word.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

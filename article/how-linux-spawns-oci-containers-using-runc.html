@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How Linux Spawns OCI Containers Using runc - linux</title>
+    <meta name="description" content="This article explores the technical mechanics behind how the Linux operating system uses the runc CLI tool to create and manage Open Container Initiative (OCI) compliant containers. It covers the consumption of the standard OCI container bundle, the invo">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-linux-spawns-oci-containers-using-runc">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How Linux Spawns OCI Containers Using runc - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-linux-spawns-oci-containers-using-runc" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="This article explores the technical mechanics behind how the Linux operating system uses the runc CLI tool to create and manage Open Container Initiative (OCI) compliant containers. It covers the consumption of the standard OCI container bundle, the invo" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-linux-spawns-oci-containers-using-runc">How Linux Spawns OCI
+Containers Using runc</h1>
+<p>This article explores the technical mechanics behind how the Linux
+operating system uses the <code>runc</code> CLI tool to create and
+manage Open Container Initiative (OCI) compliant containers. It covers
+the consumption of the standard OCI container bundle, the invocation of
+core Linux kernel isolation primitives such as namespaces and cgroups,
+the filesystem pivoting process, and the execution transition to the
+target containerized workload.</p>
+<h3 id="the-oci-container-bundle">The OCI Container Bundle</h3>
+<p>The deployment process begins with the OCI container bundle. Before
+<code>runc</code> interacts with the kernel, it requires a standardized
+bundle directory containing two primary components:</p>
+<ol type="1">
+<li><strong><code>rootfs/</code></strong>: A directory containing the
+complete root filesystem of the container image.</li>
+<li><strong><code>config.json</code></strong>: A specification file that
+details process execution parameters, environment variables,
+capabilities, mount points, resource limits, and kernel features to
+enable.</li>
+</ol>
+<p>Higher-level runtimes like <code>containerd</code> or
+<code>CRI-O</code> unpack container image layers into this filesystem
+layout and generate the <code>config.json</code> file according to the
+OCI Runtime Specification before handing execution off to
+<code>runc</code>.</p>
+<h3 id="invoking-runc-and-libcontainer">Invoking runc and
+libcontainer</h3>
+<p>When invoked through commands such as
+<code>runc run &lt;container-id&gt;</code> or
+<code>runc create &lt;container-id&gt;</code>, the <code>runc</code>
+binary parses the <code>config.json</code> file. It then uses its
+internal Go package, <code>libcontainer</code>, to interact directly
+with the Linux kernel via system calls. <code>runc</code> acts as an
+ephemeral wrapper: its job is strictly to configure the kernel
+primitives, launch the containerized process, and optionally exit while
+handing supervisory duties over to a monitoring process (like
+<code>shim</code>).</p>
+<h3 id="kernel-isolation-via-namespaces">Kernel Isolation via
+Namespaces</h3>
+<p>To isolate the new container process from the host and other
+containers, <code>runc</code> uses the <code>clone(2)</code> and
+<code>unshare(2)</code> system calls with specific flag arguments to
+instantiate Linux namespaces:</p>
+<ul>
+<li><strong>PID Namespace (<code>CLONE_NEWPID</code>)</strong>: Isolates
+the process ID space, allowing the container's main process to become
+PID 1 inside the container while appearing as a standard unprivileged
+PID on the host.</li>
+<li><strong>Mount Namespace (<code>CLONE_NEWNS</code>)</strong>:
+Isolates the filesystem mount points, ensuring the container cannot see
+or manipulate host mounts.</li>
+<li><strong>Network Namespace (<code>CLONE_NEWNET</code>)</strong>:
+Provides independent network devices, IP addresses, routing tables, and
+firewall rules.</li>
+<li><strong>UTS Namespace (<code>CLONE_NEWUTS</code>)</strong>: Allows
+the container to have its own hostname and domain name.</li>
+<li><strong>IPC Namespace (<code>CLONE_NEWIPC</code>)</strong>: Isolates
+System V IPC and POSIX message queues.</li>
+<li><strong>User Namespace (<code>CLONE_NEWUSER</code>)</strong>: Maps
+user and group IDs inside the container to different UIDs and GIDs on
+the host, enabling root privileges inside the container without granting
+root access on the host.</li>
+</ul>
+<h3 id="resource-constraints-with-cgroups">Resource Constraints with
+Cgroups</h3>
+<p>Before the workload executes, <code>runc</code> applies resource
+boundaries using Linux Control Groups (cgroups v1 or cgroups v2).</p>
+<ol type="1">
+<li><code>runc</code> creates a new cgroup directory under
+<code>/sys/fs/cgroup/</code> (in cgroups v2, unified hierarchy).</li>
+<li>It writes limits defined in <code>config.json</code>—such as memory
+limits, CPU shares, I/O bandwidth, and pids limits—to corresponding
+control files (e.g., <code>memory.max</code>,
+<code>cpu.weight</code>).</li>
+<li>The process ID of the newly spawned setup process is added to the
+cgroup's <code>cgroup.procs</code> file, ensuring all subsequently
+spawned child processes inherit these restrictions.</li>
+</ol>
+<h3 id="filesystem-jail-and-security-hardening">Filesystem Jail and
+Security Hardening</h3>
+<p>Once isolated by namespaces and constrained by cgroups,
+<code>runc</code> secures the filesystem and restricts kernel
+privileges:</p>
+<ol type="1">
+<li><strong>Pivoting the Root</strong>: Using the
+<code>pivot_root(2)</code> system call (preferred over
+<code>chroot</code>), <code>runc</code> swaps the container's
+<code>rootfs</code> with the host's root filesystem, unmounts the old
+host root, and confines the process entirely to the new root
+directory.</li>
+<li><strong>Mounting Virtual Filesystems</strong>: <code>runc</code>
+mounts container-specific pseudo-filesystems, including
+<code>/proc</code>, <code>/sys</code>, and <code>/dev</code>, ensuring
+device nodes and system information reflect the container's isolated
+context.</li>
+<li><strong>Capabilities</strong>: It drops unnecessary Linux
+capabilities (e.g., <code>CAP_SYS_ADMIN</code>,
+<code>CAP_NET_ADMIN</code>) using <code>capset(2)</code> to limit the
+operations the containerized process can execute, even if running as UID
+0.</li>
+<li><strong>Seccomp Filters</strong>: <code>runc</code> parses system
+call rules defined in the specification and uses <code>prctl(2)</code>
+with <code>PR_SET_SECCOMP</code> to apply BPF (Berkeley Packet Filter)
+profiles, blocking restricted system calls at the kernel boundary.</li>
+<li><strong>LSM Profiles</strong>: It configures Linux Security Modules
+like AppArmor or SELinux by writing the appropriate profile attributes
+to <code>/proc/self/attr/</code>.</li>
+</ol>
+<h3 id="final-execution-execve">Final Execution: execve</h3>
+<p>With all security boundaries, namespaces, mounts, and resource
+controls established, the initialization process calls
+<code>execve(2)</code>. This system call replaces the temporary
+<code>runc</code> initialization process with the container's actual
+user-defined entrypoint binary (such as <code>/bin/sh</code> or a
+compiled service). The application process now runs natively on the
+Linux kernel with near-zero virtualization overhead, fully confined
+within the OCI-compliant boundaries enforced by the OS.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

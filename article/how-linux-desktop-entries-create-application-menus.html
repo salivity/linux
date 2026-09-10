@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How Linux Desktop Entries Create Application Menus - linux</title>
+    <meta name="description" content="This article explores how the Linux operating system uses desktop entries to construct graphical application menus. Linux desktop environments rely on standardized configuration files known as .desktop files to locate, identify, and categorize installed">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-linux-desktop-entries-create-application-menus">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How Linux Desktop Entries Create Application Menus - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-linux-desktop-entries-create-application-menus" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="This article explores how the Linux operating system uses desktop entries to construct graphical application menus. Linux desktop environments rely on standardized configuration files known as .desktop files to locate, identify, and categorize installed" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-linux-desktop-entries-create-application-menus">How Linux
+Desktop Entries Create Application Menus</h1>
+<p>This article explores how the Linux operating system uses desktop
+entries to construct graphical application menus. Linux desktop
+environments rely on standardized configuration files known as
+<code>.desktop</code> files to locate, identify, and categorize
+installed software. By reading these metadata files from designated
+directories and applying desktop integration specifications, system menu
+systems automatically organize applications into clear, launchable menu
+hierarchies.</p>
+<h3 id="the-freedesktoporg-standard">The Freedesktop.org Standard</h3>
+<p>Linux application menus do not use a centralized registry. Instead,
+modern desktop environments such as GNOME, KDE Plasma, and XFCE follow
+the Desktop Entry Specification defined by Freedesktop.org (also known
+as the XDG standard). This cross-desktop standard ensures that an
+installed application appears consistently across any graphical
+environment without requiring custom configuration for each window
+manager.</p>
+<h3 id="standard-file-locations">Standard File Locations</h3>
+<p>Desktop environments monitor specific filesystem paths to discover
+available software. When looking for desktop entries, the system scans
+two primary types of locations:</p>
+<ul>
+<li><strong>System-wide directories:</strong>
+<code>/usr/share/applications/</code> and
+<code>/usr/local/share/applications/</code> contain entries for programs
+available to all users on the machine.</li>
+<li><strong>User-specific directories:</strong>
+<code>~/.local/share/applications/</code> contains entries available
+only to the current user, allowing individual customization without
+administrative privileges.</li>
+</ul>
+<p>Any valid <code>.desktop</code> file placed in these directories is
+read by the desktop environment's menu generator.</p>
+<h3 id="anatomy-of-a-desktop-file">Anatomy of a <code>.desktop</code>
+File</h3>
+<p>A desktop entry is a plain text configuration file formatted with
+key-value pairs grouped under a <code>[Desktop Entry]</code> header. The
+core keys responsible for generating the menu items include:</p>
+<ul>
+<li><strong>Type:</strong> Defines the entry type, typically
+<code>Application</code>.</li>
+<li><strong>Name:</strong> The user-facing label shown in the menu
+(e.g., <code>Firefox Web Browser</code>).</li>
+<li><strong>Exec:</strong> The absolute path or command-line binary
+executed when the user clicks the menu item.</li>
+<li><strong>Icon:</strong> The name or absolute path of the icon
+displayed next to the application name.</li>
+<li><strong>Categories:</strong> Semicolon-separated values that
+designate where the application belongs (e.g.,
+<code>Network;WebBrowser;</code>).</li>
+<li><strong>NoDisplay:</strong> A boolean value (<code>true</code> or
+<code>false</code>) that tells the system whether to hide the entry from
+the menu while still associating it with file types.</li>
+</ul>
+<h3 id="menu-generation-and-categorization">Menu Generation and
+Categorization</h3>
+<p>Desktop menus rely on the XDG Menu Specification to map applications
+to visual menu trees. A separate XML-based menu definition file (usually
+found in <code>/etc/xdg/menus/</code>) defines categories such as
+"Development," "Graphics," "Internet," and "Office."</p>
+<p>When the desktop environment loads, it processes the
+<code>Categories</code> key inside every <code>.desktop</code> file. For
+instance, if an entry includes
+<code>Categories=AudioVideo;Player;</code>, the system automatically
+assigns that entry to the "Multimedia" or "Sound &amp; Video"
+sub-menu.</p>
+<h3 id="dynamic-updates">Dynamic Updates</h3>
+<p>Application menus update automatically when new software is installed
+or removed. Package managers like <code>apt</code>, <code>dnf</code>, or
+<code>pacman</code> drop new <code>.desktop</code> files into
+<code>/usr/share/applications/</code> during installation. Modern
+desktop environments use filesystem monitoring mechanisms (such as
+<code>inotify</code>) or update utilities like
+<code>update-desktop-database</code> to detect these file changes
+instantly, rebuilding the application menu in real time without
+requiring a system reboot or desktop restart.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

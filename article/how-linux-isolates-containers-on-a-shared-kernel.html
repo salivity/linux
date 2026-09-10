@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How Linux Isolates Containers on a Shared Kernel - linux</title>
+    <meta name="description" content="Linux enables containers to share a single host operating system kernel while maintaining strict isolation through native kernel primitives, primarily Namespaces, Control Groups (cgroups), and security access controls. Unlike traditional virtual machines">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-linux-isolates-containers-on-a-shared-kernel">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How Linux Isolates Containers on a Shared Kernel - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-linux-isolates-containers-on-a-shared-kernel" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="Linux enables containers to share a single host operating system kernel while maintaining strict isolation through native kernel primitives, primarily Namespaces, Control Groups (cgroups), and security access controls. Unlike traditional virtual machines" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-linux-isolates-containers-on-a-shared-kernel">How Linux
+Isolates Containers on a Shared Kernel</h1>
+<p>Linux enables containers to share a single host operating system
+kernel while maintaining strict isolation through native kernel
+primitives, primarily Namespaces, Control Groups (cgroups), and security
+access controls. Unlike traditional virtual machines that emulate
+hardware and run independent guest kernels, a container is simply an
+isolated Linux process running directly on the host. By partitioning
+kernel resources and visibility at the operating system level, Linux
+creates the illusion of a dedicated operating system for each container
+with near-native performance and minimal overhead.</p>
+<h3 id="linux-namespaces-isolating-what-processes-can-see">Linux
+Namespaces: Isolating What Processes Can See</h3>
+<p>Namespaces provide the foundational boundary for container isolation
+by wrapping global system resources into isolated abstractions. A
+process inside a namespace only sees its own dedicated view of the
+system. Linux provides several distinct types of namespaces:</p>
+<ul>
+<li><strong>PID (Process ID):</strong> Assigns an independent set of
+process IDs. A container process can be PID 1 inside its namespace,
+functioning as the init process, while having a standard, non-root PID
+on the host.</li>
+<li><strong>NET (Network):</strong> Provides each container with its own
+virtual network stack, including network interfaces, IP addresses,
+routing tables, and firewall rules.</li>
+<li><strong>MNT (Mount):</strong> Isolates filesystem mount points.
+Changes to the filesystem view inside a container do not affect the host
+or other containers.</li>
+<li><strong>UTS (UNIX Timesharing System):</strong> Allows containers to
+have their own hostnames and domain names independent of the host.</li>
+<li><strong>IPC (Inter-Process Communication):</strong> Prevents
+processes in different containers from communicating via shared memory,
+message queues, and semaphores.</li>
+<li><strong>USER (User ID):</strong> Maps user and group IDs inside a
+container to different IDs on the host. This allows a process to run as
+root (UID 0) inside the container while mapping to an unprivileged UID
+on the host, mitigating privilege escalation risks.</li>
+</ul>
+<h3 id="control-groups-cgroups-limiting-what-processes-can-use">Control
+Groups (cgroups): Limiting What Processes Can Use</h3>
+<p>While namespaces control visibility, Control Groups (cgroups) control
+resource consumption. The kernel uses cgroups to monitor, allocate, and
+restrict physical hardware resources among process groups:</p>
+<ul>
+<li><strong>Resource Limiting:</strong> Enforces hard or soft caps on
+memory, CPU cycles, block I/O, and network bandwidth, preventing a
+single container from starving the host.</li>
+<li><strong>Prioritization:</strong> Assigns proportional shares of CPU
+time or disk throughput when resources are constrained.</li>
+<li><strong>Accounting:</strong> Measures resource utilization for
+monitoring and billing.</li>
+<li><strong>Process Control:</strong> Enables freezing, pausing, or
+restarting all processes within a container simultaneously.</li>
+</ul>
+<h3 id="isolated-root-filesystems-chroot-and-pivot_root">Isolated Root
+Filesystems: chroot and pivot_root</h3>
+<p>To present a self-contained operating system environment, containers
+decouple from the host's root directory tree. The container runtime
+extracts container image layers and uses the <code>pivot_root</code>
+system call (a modern, more secure alternative to <code>chroot</code>)
+inside a mount namespace. This operation swaps the current root
+filesystem with a new, container-specific directory structure containing
+its own binaries, libraries, and configuration files, effectively
+trapping the container within its designated filesystem hierarchy.</p>
+<h3 id="security-layers-restricting-kernel-system-calls">Security
+Layers: Restricting Kernel System Calls</h3>
+<p>Because all containers share the single host kernel, a compromised
+container could theoretically execute malicious system calls to affect
+the host. Linux mitigates this with additional security layers:</p>
+<ul>
+<li><strong>Linux Capabilities:</strong> Breaks monolithic root
+privileges into distinct units. Runtimes drop unnecessary privileges by
+default, such as <code>CAP_SYS_ADMIN</code> (administrative tasks) or
+<code>CAP_NET_ADMIN</code> (network interface modification).</li>
+<li><strong>Seccomp (Secure Computing Mode):</strong> Restricts the
+specific system calls a container can make directly to the kernel. If a
+containerized application attempts a blocked system call, the kernel
+immediately terminates or denies the request.</li>
+<li><strong>LSMs (Linux Security Modules):</strong> Modules such as
+AppArmor and SELinux enforce mandatory access control (MAC) policies
+that restrict file access, network operations, and execution
+permissions, regardless of user privileges inside the container.</li>
+</ul></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

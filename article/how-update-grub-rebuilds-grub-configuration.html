@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How update-grub Rebuilds GRUB Configuration - linux</title>
+    <meta name="description" content="The update-grub command is a vital utility in Debian-based Linux distributions used to regenerate the GRUB 2 bootloader configuration. Rather than executing a complex internal routine, it acts as a streamlined wrapper script that calls grub-mkconfig to i">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-update-grub-rebuilds-grub-configuration">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How update-grub Rebuilds GRUB Configuration - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-update-grub-rebuilds-grub-configuration" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="The update-grub command is a vital utility in Debian-based Linux distributions used to regenerate the GRUB 2 bootloader configuration. Rather than executing a complex internal routine, it acts as a streamlined wrapper script that calls grub-mkconfig to i" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-update-grub-rebuilds-grub-configuration">How update-grub
+Rebuilds GRUB Configuration</h1>
+<p>The <code>update-grub</code> command is a vital utility in
+Debian-based Linux distributions used to regenerate the GRUB 2
+bootloader configuration. Rather than executing a complex internal
+routine, it acts as a streamlined wrapper script that calls
+<code>grub-mkconfig</code> to inspect the system, discover installed
+kernels and alternative operating systems, and write a unified boot
+configuration file to <code>/boot/grub/grub.cfg</code>.</p>
+<h3 id="the-execution-process">The Execution Process</h3>
+<p>When executed with root privileges, <code>update-grub</code> runs a
+single command under the hood:</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">grub-mkconfig</span> <span class="at">-o</span> /boot/grub/grub.cfg</span></code></pre></div>
+<p>This triggers a step-by-step process where the operating system
+compiles dynamic scripts and static settings into a single, static
+configuration that the GRUB bootloader can parse at machine startup.</p>
+<h3 id="1-reading-system-defaults">1. Reading System Defaults</h3>
+<p>The generation process begins by loading settings from
+<code>/etc/default/grub</code>. This file contains the administrative
+preferences defined by the user or installation defaults, including:</p>
+<ul>
+<li><code>GRUB_DEFAULT</code>: The default operating system or kernel to
+boot.</li>
+<li><code>GRUB_TIMEOUT</code>: The duration the boot menu displays
+before booting the default entry.</li>
+<li><code>GRUB_CMDLINE_LINUX_DEFAULT</code>: Kernel parameters passed to
+the Linux kernel at boot time (such as <code>quiet splash</code>).</li>
+<li>Visual preferences, including display resolutions, terminal output
+modes, and console themes.</li>
+</ul>
+<h3 id="2-processing-modular-scripts-in-etcgrubd">2. Processing Modular
+Scripts in <code>/etc/grub.d/</code></h3>
+<p>Once the general preferences are loaded, the system executes the
+scripts located in <code>/etc/grub.d/</code> in numerical order. These
+executable shell scripts output GRUB script commands that construct the
+final <code>/boot/grub/grub.cfg</code>:</p>
+<ul>
+<li><strong><code>00_header</code></strong>: Establishes the GRUB
+environment, imports graphical modules, applies timeout settings, and
+loads basic variables.</li>
+<li><strong><code>05_debian_theme</code></strong>: Configures colors,
+fonts, and background images for the boot interface.</li>
+<li><strong><code>10_linux</code></strong>: Scans the <code>/boot</code>
+directory for installed Linux kernels (<code>vmlinuz-*</code>) and
+corresponding Initial RAM Disks (<code>initrd.img-*</code>). For each
+kernel found, it creates standard and recovery boot menu entries using
+the kernel parameters specified in <code>/etc/default/grub</code>.</li>
+<li><strong><code>20_memtest86+</code></strong>: Detects memory-testing
+utilities in <code>/boot</code> and adds them to the utility options if
+present.</li>
+<li><strong><code>30_os-prober</code></strong>: Utilizes the
+<code>os-prober</code> tool to scan other partitions and drives for
+foreign installations, such as Microsoft Windows or other Linux
+distributions, generating boot options for multi-boot
+configurations.</li>
+<li><strong><code>40_custom</code></strong>: Appends any user-written
+entries or configuration fragments that should remain persistent across
+regenerations.</li>
+</ul>
+<h3 id="3-assembling-and-writing-the-configuration">3. Assembling and
+Writing the Configuration</h3>
+<p>As each script in <code>/etc/grub.d/</code> runs, its standard output
+is captured and concatenated. The combined output forms the syntax of
+the GRUB scripting engine.</p>
+<p>To prevent corruption during writes or interrupted executions, the
+output is typically constructed in a temporary stream before replacing
+<code>/boot/grub/grub.cfg</code>. Once written, GRUB reads this
+finalized file during the next system boot cycle without needing to
+re-scan the disks.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

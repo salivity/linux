@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Using numactl to Bind Processes to Linux CPU Nodes - linux</title>
+    <meta name="description" content="The numactl utility in Linux controls Non-Uniform Memory Access (NUMA) policy for processes and shared memory. In modern multi-socket and multi-core server architectures, system memory is divided into nodes assigned to specific CPU sockets. This article">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/using-numactl-to-bind-processes-to-linux-cpu-nodes">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Using numactl to Bind Processes to Linux CPU Nodes - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/using-numactl-to-bind-processes-to-linux-cpu-nodes" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="The numactl utility in Linux controls Non-Uniform Memory Access (NUMA) policy for processes and shared memory. In modern multi-socket and multi-core server architectures, system memory is divided into nodes assigned to specific CPU sockets. This article" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="using-numactl-to-bind-processes-to-linux-cpu-nodes">Using
+numactl to Bind Processes to Linux CPU Nodes</h1>
+<p>The <code>numactl</code> utility in Linux controls Non-Uniform Memory
+Access (NUMA) policy for processes and shared memory. In modern
+multi-socket and multi-core server architectures, system memory is
+divided into nodes assigned to specific CPU sockets. This article
+details the function of <code>numactl</code>, explaining how it binds
+processes and memory allocations to specific CPU nodes to minimize
+latency, prevent cross-node bus traffic, and maximize application
+throughput.</p>
+<h3 id="understanding-numa-architecture">Understanding NUMA
+Architecture</h3>
+<p>In symmetric multiprocessing (SMP) systems with a NUMA architecture,
+a processor accesses its own local memory faster than non-local (remote)
+memory attached to another processor. When the Linux kernel scheduler
+migrates a process across different physical sockets, the process may
+frequently access remote memory across interconnects like Intel Ultra
+Path Interconnect (UPI) or AMD Infinity Fabric. This introduces latency
+and reduces memory bandwidth.</p>
+<h3 id="core-function-of-the-numactl-utility">Core Function of the
+<code>numactl</code> Utility</h3>
+<p>The primary role of <code>numactl</code> is to override the default
+Linux scheduler behavior and explicitly define CPU affinity and memory
+allocation policies. By executing an application through
+<code>numactl</code>, an administrator guarantees that the execution
+threads and their corresponding memory pages stay bound to optimal
+hardware locations.</p>
+<p><code>numactl</code> achieves this through several core operational
+functions:</p>
+<ul>
+<li><strong>CPU Node Binding (<code>--cpunodebind</code> or
+<code>-N</code>):</strong> Restricts the execution of the target process
+to the CPU cores belonging to a specified NUMA node or list of
+nodes.</li>
+<li><strong>Physical CPU Binding (<code>--physcpubind</code> or
+<code>-C</code>):</strong> Binds the execution directly to specific
+physical CPU core IDs, offering granular control over core assignment
+regardless of node topology.</li>
+<li><strong>Memory Binding (<code>--membind</code> or
+<code>-m</code>):</strong> Mandates that memory allocations occur
+strictly on the designated NUMA nodes. If memory on the selected nodes
+is exhausted, allocation fails rather than spilling over to remote
+nodes.</li>
+<li><strong>Local Memory Allocation (<code>--localalloc</code> or
+<code>-l</code>):</strong> Directs the process to always allocate memory
+on the node of the CPU executing the request.</li>
+<li><strong>Interleaved Allocation (<code>--interleave</code> or
+<code>-i</code>):</strong> Distributes memory round-robin across
+specified nodes, useful when a single thread requires more bandwidth
+than a single memory controller can provide.</li>
+</ul>
+<h3 id="practical-usage-examples">Practical Usage Examples</h3>
+<p>Before binding processes, system administrators inspect the NUMA
+topology using:</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">numactl</span> <span class="at">--hardware</span></span></code></pre></div>
+<p>This displays the number of available nodes, CPU core mapping per
+node, memory capacity, and the relative distance (latency penalty)
+between nodes.</p>
+<p>To run a high-performance application bound exclusively to the CPUs
+and memory of NUMA node 0:</p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="ex">numactl</span> <span class="at">--cpunodebind</span><span class="op">=</span>0 <span class="at">--membind</span><span class="op">=</span>0 /usr/bin/target_application</span></code></pre></div>
+<p>To bind a process to specific physical cores (for example, cores 0
+through 3) while ensuring memory is allocated locally on the node
+hosting those cores:</p>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="ex">numactl</span> <span class="at">--physcpubind</span><span class="op">=</span>0-3 <span class="at">--localalloc</span> /usr/bin/target_application</span></code></pre></div>
+<h3 id="performance-benefits-and-use-cases">Performance Benefits and Use
+Cases</h3>
+<p>Using <code>numactl</code> is a standard optimization technique in
+enterprise environments:</p>
+<ul>
+<li><strong>Database Management Systems:</strong> Databases like
+PostgreSQL, MySQL, and Redis experience significant latency reductions
+when their processes are pinned to the same NUMA node where their memory
+buffers reside.</li>
+<li><strong>High-Performance Computing (HPC):</strong> Parallel
+computing tasks benefit from predictable cache behavior and isolated
+memory paths, preventing resource contention between workloads.</li>
+<li><strong>Virtualization:</strong> Hypervisors and container engines
+use NUMA pinning to align virtual CPUs (vCPUs) with specific host memory
+blocks, eliminating virtualization overhead caused by cross-node memory
+fetch cycles.</li>
+</ul></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VFIO-PCI Driver Function in Linux GPU Passthrough - linux</title>
+    <meta name="description" content="The vfio-pci driver serves as the essential framework in the Linux kernel that enables direct hardware access for virtual machines, a technique known as GPU passthrough. By decoupling the graphics processing unit from the host operating system's standard">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/vfio-pci-driver-function-in-linux-gpu-passthrough">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="VFIO-PCI Driver Function in Linux GPU Passthrough - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/vfio-pci-driver-function-in-linux-gpu-passthrough" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="The vfio-pci driver serves as the essential framework in the Linux kernel that enables direct hardware access for virtual machines, a technique known as GPU passthrough. By decoupling the graphics processing unit from the host operating system's standard" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="vfio-pci-driver-function-in-linux-gpu-passthrough">VFIO-PCI
+Driver Function in Linux GPU Passthrough</h1>
+<p>The <code>vfio-pci</code> driver serves as the essential framework in
+the Linux kernel that enables direct hardware access for virtual
+machines, a technique known as GPU passthrough. By decoupling the
+graphics processing unit from the host operating system's standard
+graphics drivers and exposing it securely to userspace hypervisors like
+QEMU and KVM, <code>vfio-pci</code> allows a guest virtual machine to
+utilize the physical graphics card with near-native performance.</p>
+<h3 id="device-isolation-and-host-decoupling">Device Isolation and Host
+Decoupling</h3>
+<p>Under normal operations, the Linux kernel binds dedicated host
+drivers—such as <code>amdgpu</code>, <code>nvidia</code>, or
+<code>nouveau</code>—to any detected GPU. For passthrough to work, the
+host must relinquish control of the target hardware.</p>
+<p>The primary task of <code>vfio-pci</code> (Virtual Function I/O for
+PCI) is to intercept the designated GPU during boot or dynamic
+reassignment. By binding to the GPU's PCI ID instead of the standard
+display drivers, <code>vfio-pci</code> prevents the host system from
+initializing the device, rendering it inert on the host and reserved
+exclusively for virtualization.</p>
+<h3 id="iommu-group-enforcement">IOMMU Group Enforcement</h3>
+<p>Modern computer architectures rely on an Input-Output Memory
+Management Unit (IOMMU)—branded as Intel VT-d or AMD-Vi—to translate
+virtual addresses to physical addresses for hardware devices. Devices
+are organized into "IOMMU groups," which represent the smallest units of
+physical isolation.</p>
+<p>The <code>vfio-pci</code> driver strictly enforces IOMMU group
+boundaries. It verifies that all devices within the same IOMMU group
+(such as the GPU and its integrated HDMI/DisplayPort audio controller)
+are either assigned to the virtual machine or safely isolated from the
+host. This prevents a misconfigured or malicious guest operating system
+from reading host memory or interfering with other hardware.</p>
+<h3 id="secure-direct-memory-access-dma-and-interrupts">Secure Direct
+Memory Access (DMA) and Interrupts</h3>
+<p>A virtual machine cannot directly access host physical memory without
+introducing severe security and stability risks. The
+<code>vfio-pci</code> driver programs the IOMMU to map guest physical
+memory directly to host physical memory. This enables:</p>
+<ul>
+<li><strong>DMA Remapping:</strong> The GPU can write directly to the
+guest’s allocated RAM without host CPU intervention.</li>
+<li><strong>Interrupt Remapping:</strong> Hardware interrupts, including
+Message Signaled Interrupts (MSI and MSI-X), are translated and routed
+directly into the virtual machine.</li>
+</ul>
+<h3 id="userspace-device-exposure">Userspace Device Exposure</h3>
+<p>Hypervisors like QEMU execute primarily as unprivileged or standard
+processes in Linux userspace. The <code>vfio-pci</code> driver provides
+a secure file descriptor interface in <code>/dev/vfio/</code>.</p>
+<p>Through this interface, QEMU can read and write to the GPU's PCI
+configuration space, map the device's Base Address Registers (BARs)
+directly into the virtual machine's memory space, and reset the device
+between VM reboots. This grants the guest operating system full,
+low-latency control over the GPU's compute cores, VRAM, and display
+outputs.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

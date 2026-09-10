@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Using resize2fs to Expand Active ext4 Partition - linux</title>
+    <meta name="description" content="The resize2fs utility is a dedicated Linux command-line tool used to adjust the size of ext2, ext3, and ext4 filesystems. When expanding an active, mounted ext4 partition, Linux leverages the kernel's online resizing capabilities to allocate newly availa">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/using-resize2fs-to-expand-active-ext4-partition">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Using resize2fs to Expand Active ext4 Partition - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/using-resize2fs-to-expand-active-ext4-partition" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="The resize2fs utility is a dedicated Linux command-line tool used to adjust the size of ext2, ext3, and ext4 filesystems. When expanding an active, mounted ext4 partition, Linux leverages the kernel's online resizing capabilities to allocate newly availa" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="using-resize2fs-to-expand-active-ext4-partition">Using resize2fs
+to Expand Active ext4 Partition</h1>
+<p>The <code>resize2fs</code> utility is a dedicated Linux command-line
+tool used to adjust the size of ext2, ext3, and ext4 filesystems. When
+expanding an active, mounted ext4 partition, Linux leverages the
+kernel's online resizing capabilities to allocate newly available disk
+space to the filesystem without requiring system downtime or unmounting
+the drive. This article explains the underlying mechanism of online
+resizing with <code>resize2fs</code>, the prerequisite steps involved,
+and how the Linux kernel safely integrates new storage blocks into a
+running filesystem.</p>
+<h3 id="the-mechanism-of-online-resizing">The Mechanism of Online
+Resizing</h3>
+<p>Filesystem resizing operates on top of underlying storage layers,
+such as physical disk partitions, software RAID, or Logical Volume
+Manager (LVM) volumes. Before <code>resize2fs</code> can expand an ext4
+filesystem, the underlying block device must first be enlarged using
+tools such as <code>growpart</code>, <code>parted</code>, or
+<code>lvextend</code>.</p>
+<p>Once the storage layer is extended, <code>resize2fs</code> reads the
+new boundary of the block device and initiates the expansion. When
+executed on an unmounted filesystem, <code>resize2fs</code> writes
+directly to the disk blocks. However, when run on an active, mounted
+filesystem, direct disk writes could cause critical data corruption. To
+prevent this, <code>resize2fs</code> automatically detects the active
+mount state and delegates the operation to the Linux kernel via a
+specialized input/output control system call:
+<code>EXT4_IOC_RESIZE_FS</code>.</p>
+<h3 id="how-the-linux-kernel-expands-ext4-online">How the Linux Kernel
+Expands ext4 Online</h3>
+<p>When the kernel receives the resize request through the
+<code>ioctl</code> interface, it performs the expansion dynamically:</p>
+<ol type="1">
+<li><strong>Space Verification:</strong> The kernel queries the block
+device driver to confirm the total number of available blocks and
+validates that the new size is larger than the existing filesystem.</li>
+<li><strong>Block Group Creation:</strong> The ext4 architecture
+organizes storage into chunks called Block Groups. The kernel allocates
+and formats new Block Groups to cover the newly expanded capacity,
+setting up block bitmaps, inode bitmaps, and inode tables.</li>
+<li><strong>Descriptor and Superblock Updates:</strong> The kernel
+updates the Primary Superblock and Group Descriptors stored in memory to
+reflect the new block counts, free block totals, and filesystem
+geometry.</li>
+<li><strong>Transaction Commit:</strong> These metadata updates are
+committed to the disk using the ext4 journaling layer (JBD2). This
+guarantees atomicity, ensuring that if a crash or power failure occurs
+mid-operation, the filesystem remains structurally consistent.</li>
+</ol>
+<h3 id="executing-the-command">Executing the Command</h3>
+<p>To expand an active ext4 filesystem to consume all newly allocated
+space on a block device, run <code>resize2fs</code> with administrative
+privileges, pointing directly to the target partition or logical
+volume:</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> resize2fs /dev/sda1</span></code></pre></div>
+<p>If using LVM, the device path points to the logical volume:</p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> resize2fs /dev/mapper/vg_data-lv_storage</span></code></pre></div>
+<p>If no size argument is provided, <code>resize2fs</code> defaults to
+filling the entire available capacity of the underlying block device.
+You can also specify an exact size (e.g.,
+<code>sudo resize2fs /dev/sda1 50G</code>), provided the size does not
+exceed the underlying partition.</p>
+<h3 id="key-considerations-and-limitations">Key Considerations and
+Limitations</h3>
+<ul>
+<li><strong>Expansion vs. Shrinking:</strong> The Linux ext4 driver
+supports online enlargement natively. However, reducing or shrinking an
+ext4 filesystem cannot be done while mounted; shrinking requires
+unmounting the device and running an offline check with
+<code>e2fsck</code> prior to resizing.</li>
+<li><strong>Reserved GDT Blocks:</strong> For large expansions across
+multiple terabytes, ext4 relies on reserved Global Descriptor Table
+(GDT) blocks created when the filesystem was initially formatted
+(<code>mkfs.ext4</code>). If an expansion exceeds the capacity supported
+by these pre-reserved blocks, the kernel may not be able to complete an
+online resize, requiring an offline resize instead.</li>
+</ul></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

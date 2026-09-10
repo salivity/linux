@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How Linux Implements LXC for Virtualization - linux</title>
+    <meta name="description" content="Linux Containers (LXC) implement lightweight system virtualization by using built-in Linux kernel primitives rather than emulating physical hardware through a hypervisor. By combining kernel namespaces for process isolation, control groups (cgroups) for">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-linux-implements-lxc-for-virtualization">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How Linux Implements LXC for Virtualization - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-linux-implements-lxc-for-virtualization" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="Linux Containers (LXC) implement lightweight system virtualization by using built-in Linux kernel primitives rather than emulating physical hardware through a hypervisor. By combining kernel namespaces for process isolation, control groups (cgroups) for" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-linux-implements-lxc-for-virtualization">How Linux
+Implements LXC for Virtualization</h1>
+<p>Linux Containers (LXC) implement lightweight system virtualization by
+using built-in Linux kernel primitives rather than emulating physical
+hardware through a hypervisor. By combining kernel namespaces for
+process isolation, control groups (cgroups) for resource constraints,
+and security modules for confinement, LXC creates isolated user
+environments that share the host system’s kernel. This architecture
+provides the look and feel of a traditional virtual machine—complete
+with init systems and system services—with near-native performance and
+minimal system overhead.</p>
+<h3 id="kernel-namespaces-complete-environment-isolation">Kernel
+Namespaces: Complete Environment Isolation</h3>
+<p>The core of LXC’s isolation mechanism is Linux namespaces. A
+namespace wraps a global system resource in an abstraction that makes it
+appear to processes within the namespace that they have their own
+isolated instance of the resource. LXC configures several key
+namespaces:</p>
+<ul>
+<li><strong>PID Namespace:</strong> Isolates the process ID space. The
+container's primary process becomes PID 1 (often an init system like
+<code>systemd</code>), completely unaware of processes running on the
+host or in other containers.</li>
+<li><strong>NET Namespace:</strong> Provides independent network stacks,
+including loopback interfaces, IP routing tables, firewall rules, and
+virtual network interfaces (such as <code>veth</code> pairs bridged to
+the host network).</li>
+<li><strong>MNT Namespace:</strong> Isolates filesystem mount points.
+The container can mount and unmount filesystems without affecting the
+host or other containers.</li>
+<li><strong>UTS Namespace:</strong> Isolates the hostname and NIS domain
+name, allowing the container to maintain its own unique network
+identity.</li>
+<li><strong>IPC Namespace:</strong> Isolates Inter-Process Communication
+resources, such as System V IPC objects and POSIX message queues,
+preventing cross-container messaging.</li>
+<li><strong>USER Namespace:</strong> Maps user and group IDs between the
+container and the host. A root user (UID 0) inside the container can be
+mapped to an unprivileged non-root UID on the host, neutralizing most
+container-breakout attacks.</li>
+</ul>
+<h3
+id="control-groups-cgroups-resource-metering-and-enforcement">Control
+Groups (cgroups): Resource Metering and Enforcement</h3>
+<p>While namespaces prevent processes from seeing outside their sandbox,
+control groups (cgroups) ensure they do not consume more than their
+allotted share of system resources. LXC leverages cgroups to define
+strict resource quotas:</p>
+<ul>
+<li><strong>Memory:</strong> Restricts total RAM and swap usage to
+prevent out-of-memory (OOM) conditions on the host.</li>
+<li><strong>CPU:</strong> Allocates CPU shares, caps execution time via
+the Completely Fair Scheduler (CFS), or pins processes to specific CPU
+cores using <code>cpuset</code>.</li>
+<li><strong>Block I/O (blkio):</strong> Throttles disk read and write
+speeds and assigns I/O priorities to prevent storage bottlenecks.</li>
+<li><strong>Devices:</strong> Restricts which character and block
+devices inside <code>/dev</code> the container can create or
+access.</li>
+</ul>
+<h3 id="filesystem-structure-and-pivot_root">Filesystem Structure and
+<code>pivot_root</code></h3>
+<p>Unlike traditional virtual machines that require separate virtual
+disk images formatted with an emulated filesystem, LXC directly uses
+host directories or storage volumes.</p>
+<p>During initialization, LXC prepares a root filesystem
+(<code>rootfs</code>) for the container. It uses the
+<code>pivot_root</code> system call—a more secure alternative to
+<code>chroot</code>—to switch the container's root directory to the new
+filesystem. The host's original root filesystem is then unmounted inside
+the container's mount namespace, making it inaccessible to the
+container’s processes. LXC can run on standard directories or take
+advantage of advanced storage backends like ZFS, Btrfs, or LVM for
+instantaneous snapshots and copy-on-write functionality.</p>
+<h3 id="security-confinement">Security Confinement</h3>
+<p>LXC secures the boundary between the container and the host kernel
+using multiple defense layers:</p>
+<ul>
+<li><strong>POSIX Capabilities:</strong> Linux divides root privileges
+into distinct capabilities. LXC drops dangerous capabilities—such as
+<code>CAP_SYS_ADMIN</code>, <code>CAP_SYS_RAWIO</code>, and
+<code>CAP_SYS_MODULE</code>—ensuring that a root process inside a
+container cannot modify hardware, load kernel modules, or disrupt the
+host.</li>
+<li><strong>Seccomp (Secure Computing Mode):</strong> LXC applies
+seccomp filters to block unwanted system calls that are not needed by
+normal user-space programs, reducing the kernel attack surface.</li>
+<li><strong>AppArmor and SELinux:</strong> Mandatory Access Control
+(MAC) profiles further restrict file access, network operations, and
+administrative functions, preventing processes inside the container from
+escaping their designated domains.</li>
+</ul>
+<h3 id="userspace-management-via-liblxc">Userspace Management via
+<code>liblxc</code></h3>
+<p>At the userspace level, LXC provides <code>liblxc</code>, an API and
+set of command-line tools (<code>lxc-create</code>,
+<code>lxc-start</code>, <code>lxc-attach</code>) that coordinate these
+kernel mechanisms. When a container is started, <code>liblxc</code>
+reads the configuration file, sets up the network interfaces, constructs
+the namespaces, applies cgroup rules, configures security policies,
+mounts the root filesystem, and executes the designated init process.
+The result is a fully functional, isolated Linux operating system
+running alongside the host with zero hardware virtualization
+overhead.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How SysVinit Managed the Linux Startup Sequence - linux</title>
+    <meta name="description" content="In older Linux distributions, System V Init (SysVinit) served as the standard init system responsible for bootstrapping user space after the Linux kernel loaded. It orchestrated the startup sequence using a deterministic, sequential mechanism centered ar">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-sysvinit-managed-the-linux-startup-sequence">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How SysVinit Managed the Linux Startup Sequence - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-sysvinit-managed-the-linux-startup-sequence" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="In older Linux distributions, System V Init (SysVinit) served as the standard init system responsible for bootstrapping user space after the Linux kernel loaded. It orchestrated the startup sequence using a deterministic, sequential mechanism centered ar" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-sysvinit-managed-the-linux-startup-sequence">How SysVinit
+Managed the Linux Startup Sequence</h1>
+<p>In older Linux distributions, System V Init (SysVinit) served as the
+standard init system responsible for bootstrapping user space after the
+Linux kernel loaded. It orchestrated the startup sequence using a
+deterministic, sequential mechanism centered around the first user-space
+process (<code>init</code> with PID 1), system runlevels, configuration
+directives defined in <code>/etc/inittab</code>, and a structured series
+of numbered shell scripts. This architecture ensured services launched
+in a precise order, transitioning the operating system from a bare
+kernel state to a fully operational, multi-user environment.</p>
+<h3 id="the-kernel-handoff-and-pid-1">The Kernel Handoff and PID 1</h3>
+<p>The boot sequence began once the Linux kernel finished initializing
+hardware drivers and mounting the root filesystem. The kernel then
+executed the <code>/sbin/init</code> binary as Process ID 1 (PID 1). As
+the parent of all subsequent processes, <code>init</code> immediately
+read its primary configuration file, <code>/etc/inittab</code>, to
+determine the default target state, known as the default runlevel, and
+execute early system preparation commands.</p>
+<h3 id="the-concept-of-runlevels">The Concept of Runlevels</h3>
+<p>SysVinit organized operating states into standard tiers called
+runlevels. Each runlevel represented a distinct system mode with a
+predefined set of running services:</p>
+<ul>
+<li><strong>Runlevel 0:</strong> System halt/shutdown.</li>
+<li><strong>Runlevel 1 / S:</strong> Single-user mode for maintenance,
+without networking.</li>
+<li><strong>Runlevel 2:</strong> Multi-user mode without network file
+sharing (distribution-dependent).</li>
+<li><strong>Runlevel 3:</strong> Standard multi-user mode with full
+networking and a command-line interface.</li>
+<li><strong>Runlevel 4:</strong> Unused/user-definable.</li>
+<li><strong>Runlevel 5:</strong> Multi-user mode with full networking
+and a graphical display manager (X11).</li>
+<li><strong>Runlevel 6:</strong> System reboot.</li>
+</ul>
+<p>The <code>/etc/inittab</code> file declared the default runlevel
+through the <code>initdefault</code> entry (for example,
+<code>id:3:initdefault:</code>).</p>
+<h3 id="the-inittab-and-the-etcrc-script">The Inittab and the
+<code>/etc/rc</code> Script</h3>
+<p>Upon reading the target runlevel, <code>init</code> ran initial
+system setup scripts—often <code>/etc/rc.sysinit</code>—to set the
+system clock, enable swap space, check and mount remaining filesystems,
+and configure hostnames.</p>
+<p>Once system initialization completed, <code>init</code> invoked the
+main runlevel controller script (typically <code>/etc/init.d/rc</code>
+or <code>/etc/rc</code>) passing the target runlevel number as an
+argument.</p>
+<h3 id="script-layout-and-the-naming-convention">Script Layout and the
+Naming Convention</h3>
+<p>SysVinit managed system services through modular shell scripts kept
+in a central directory, usually <code>/etc/init.d/</code>. These scripts
+accepted standard arguments such as <code>start</code>,
+<code>stop</code>, <code>restart</code>, and <code>status</code>.</p>
+<p>To manage which services ran at each runlevel, SysVinit used
+directories corresponding to each level, such as
+<code>/etc/rc0.d/</code> through <code>/etc/rc6.d/</code>. These
+directories did not contain actual executables; instead, they contained
+symbolic links pointing back to the master scripts in
+<code>/etc/init.d/</code>.</p>
+<p>The symbolic links followed a strict naming convention:</p>
+<ul>
+<li><strong>Prefix <code>K</code> (Kill):</strong> Denoted services that
+must be stopped when entering the runlevel.</li>
+<li><strong>Prefix <code>S</code> (Start):</strong> Denoted services
+that must be started when entering the runlevel.</li>
+<li><strong>Two-digit number (00–99):</strong> Defined the exact
+execution order.</li>
+<li><strong>Service Name:</strong> Identified the target service (e.g.,
+<code>S10network</code>, <code>S50sshd</code>,
+<code>K20apache2</code>).</li>
+</ul>
+<h3 id="sequential-execution">Sequential Execution</h3>
+<p>When transitioning into a new runlevel, the <code>/etc/rc</code>
+program executed the directory's symlinks in strict alphanumeric
+sequence:</p>
+<ol type="1">
+<li><strong>Kill Scripts First:</strong> The system executed all scripts
+starting with <code>K</code> in ascending numerical order, invoking them
+with the <code>stop</code> argument. This gracefully terminated services
+not intended to run in the target runlevel.</li>
+<li><strong>Start Scripts Second:</strong> The system executed all
+scripts starting with <code>S</code> in ascending numerical order,
+invoking them with the <code>start</code> argument. Low-numbered
+services (e.g., <code>S10network</code>) started before high-numbered
+dependencies (e.g., <code>S80apache2</code>), ensuring prerequisites
+were met prior to application initialization.</li>
+</ol>
+<p>Because SysVinit ran these scripts serially in a single-threaded
+queue, any stalled or slow script directly delayed the entire boot
+process.</p>
+<h3 id="finalizing-the-boot">Finalizing the Boot</h3>
+<p>Once all runlevel scripts completed, <code>init</code> returned to
+<code>/etc/inittab</code> to launch lingering processes set to respawn
+automatically, such as <code>getty</code> processes on virtual terminals
+(ttys) or graphical display managers (like GDM or LightDM in runlevel
+5). With the login prompts active, the SysVinit startup sequence was
+complete.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linux systemd-timesyncd NTP Synchronization Guide - linux</title>
+    <meta name="description" content="The Linux operating system maintains precise system clocks using various time synchronization services, with systemd-timesyncd serving as the standard lightweight alternative to comprehensive daemons like Chrony or NTPd. This article provides an overview">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/linux-systemd-timesyncd-ntp-synchronization-guide">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Linux systemd-timesyncd NTP Synchronization Guide - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/linux-systemd-timesyncd-ntp-synchronization-guide" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="The Linux operating system maintains precise system clocks using various time synchronization services, with systemd-timesyncd serving as the standard lightweight alternative to comprehensive daemons like Chrony or NTPd. This article provides an overview" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="linux-systemd-timesyncd-ntp-synchronization-guide">Linux
+systemd-timesyncd NTP Synchronization Guide</h1>
+<p>The Linux operating system maintains precise system clocks using
+various time synchronization services, with
+<code>systemd-timesyncd</code> serving as the standard lightweight
+alternative to comprehensive daemons like Chrony or NTPd. This article
+provides an overview of how <code>systemd-timesyncd</code> functions as
+a Simple Network Time Protocol (SNTP) client, its architectural
+advantages for everyday computing and embedded devices, how to configure
+its settings, and the commands required to monitor and manage time
+synchronization directly through <code>systemd</code>.</p>
+<h2 id="understanding-systemd-timesyncd">Understanding
+systemd-timesyncd</h2>
+<p><code>systemd-timesyncd</code> is a built-in system daemon provided
+by the <code>systemd</code> suite. Unlike full NTP implementations such
+as <code>ntpd</code> or <code>chrony</code>, which can act as both NTP
+servers and clients while handling complex multi-source algorithms,
+<code>systemd-timesyncd</code> is strictly a client-side implementation.
+It utilizes the Simple Network Time Protocol (SNTP, RFC 4330), making it
+exceptionally lightweight in terms of memory footprint, CPU utilization,
+and network traffic.</p>
+<p>Its primary purpose is to synchronize the local system clock with
+remote NTP servers without the complexity of managing server-grade
+time-distribution infrastructure. This makes it the default
+time-synchronization tool on modern distributions like Ubuntu, Debian,
+and Arch Linux for desktop, cloud instances, and resource-constrained
+devices like the Raspberry Pi.</p>
+<h2 id="core-mechanisms-and-operation">Core Mechanisms and
+Operation</h2>
+<p><code>systemd-timesyncd</code> operates through three key
+mechanisms:</p>
+<ol type="1">
+<li><strong>SNTP Polling:</strong> The daemon periodically sends unicast
+UDP requests on port 123 to designated NTP servers. Because it does not
+continuously track drift across numerous complex server pools
+simultaneously, it consumes minimal network and system resources.</li>
+<li><strong>Clock Discipline (Slewing and Stepping):</strong> When a
+time delta is detected, the service adjusts the local clock. For small
+offsets, it uses system calls like <code>adjtimex</code> to gradually
+adjust the clock rate (slewing), preventing sudden temporal jumps that
+could corrupt logs or database transactions. For large discrepancies, it
+steps the clock directly to the correct time.</li>
+<li><strong>Monotonic File Modification Tracking:</strong> On devices
+lacking a hardware Real-Time Clock (RTC) with battery backup, system
+reboots can cause the clock to reset to an epoch or earlier date.
+<code>systemd-timesyncd</code> mitigates this by touching a local file
+on disk (<code>/var/lib/systemd/timesync/clock</code>) during runtime
+and shutdown. Upon boot, the service reads the timestamp of this file to
+ensure the system clock never moves backward relative to the last
+recorded shutdown time until network connectivity is established.</li>
+</ol>
+<h2 id="configuring-systemd-timesyncd">Configuring
+systemd-timesyncd</h2>
+<p>Configuration is managed through a single plain-text file located at
+<code>/etc/systemd/timesyncd.conf</code> or via drop-in files in
+<code>/etc/systemd/timesyncd.conf.d/</code>.</p>
+<p>A standard configuration file contains the following directives under
+the <code>[Time]</code> section:</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode ini"><code class="sourceCode ini"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">[Time]</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="dt">NTP</span><span class="ot">=</span><span class="st">0.pool.ntp.org 1.pool.ntp.org</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="dt">FallbackNTP</span><span class="ot">=</span><span class="st">time.cloudflare.com time.google.com</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="dt">RootDistanceMaxSec</span><span class="ot">=</span><span class="dv">5</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="dt">PollIntervalMinSec</span><span class="ot">=</span><span class="dv">32</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="dt">PollIntervalMaxSec</span><span class="ot">=</span><span class="dv">2048</span></span></code></pre></div>
+<ul>
+<li><strong>NTP:</strong> A space-separated list of hostnames or IP
+addresses representing the primary NTP servers.</li>
+<li><strong>FallbackNTP:</strong> Secondary servers queried only if the
+primary servers are unreachable.</li>
+<li><strong>PollIntervalMinSec / PollIntervalMaxSec:</strong> Defines
+the minimum and maximum intervals between NTP requests, allowing the
+daemon to poll more frequently during network changes and less
+frequently when time is stable.</li>
+</ul>
+<p>After editing the configuration, apply the changes by restarting the
+service:</p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> systemctl restart systemd-timesyncd</span></code></pre></div>
+<h2 id="management-and-verification-with-timedatectl">Management and
+Verification with timedatectl</h2>
+<p>The primary user interface for <code>systemd-timesyncd</code> is the
+<code>timedatectl</code> utility.</p>
+<p>To enable and activate network time synchronization:</p>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> timedatectl set-ntp true</span></code></pre></div>
+<p>To verify the current time settings, status, and synchronization
+state:</p>
+<div class="sourceCode" id="cb4"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="ex">timedatectl</span></span></code></pre></div>
+<p>The output indicates whether the service is active, if the clock is
+synchronized, and the current state of the RTC.</p>
+<p>For detailed synchronization metrics provided directly by
+<code>systemd-timesyncd</code>, run:</p>
+<div class="sourceCode" id="cb5"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="ex">timedatectl</span> timesync-status</span></code></pre></div>
+<p>This command outputs crucial diagnostic data, including:</p>
+<ul>
+<li><strong>Server:</strong> The remote NTP server currently in
+use.</li>
+<li><strong>Poll interval:</strong> The duration between time
+queries.</li>
+<li><strong>Offset:</strong> The time difference between the system
+clock and the remote source.</li>
+<li><strong>Delay:</strong> The round-trip network latency.</li>
+<li><strong>Jitter:</strong> The statistical variance in network latency
+across polls.</li>
+</ul>
+<h2 id="limitations">Limitations</h2>
+<p>While ideal for standard computing environments,
+<code>systemd-timesyncd</code> is not designed for environments
+requiring microsecond-level accuracy, time-serving functionality across
+a local subnet, or support for hardware timestamping and PPS (Pulse Per
+Second) signals. In scenarios requiring high-precision timekeeping or
+complex multi-server redundancy, standard NTP daemons such as
+<code>chrony</code> should be deployed instead.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

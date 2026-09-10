@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linux ps Command: Display Active Processes - linux</title>
+    <meta name="description" content="The ps (process status) command is a core utility in Linux used to view an instantaneous snapshot of currently running processes. This article explains the internal mechanisms behind how ps extracts process data from the operating system's kernel, the pr">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/linux-ps-command-display-active-processes">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Linux ps Command: Display Active Processes - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/linux-ps-command-display-active-processes" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="The ps (process status) command is a core utility in Linux used to view an instantaneous snapshot of currently running processes. This article explains the internal mechanisms behind how ps extracts process data from the operating system's kernel, the pr" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="linux-ps-command-display-active-processes">Linux ps Command:
+Display Active Processes</h1>
+<p>The <code>ps</code> (process status) command is a core utility in
+Linux used to view an instantaneous snapshot of currently running
+processes. This article explains the internal mechanisms behind how
+<code>ps</code> extracts process data from the operating system's
+kernel, the primary syntax standards used to query this data, how to
+interpret the default output fields, and common practical examples for
+managing system workloads.</p>
+<h3 id="how-ps-retrieves-process-data">How <code>ps</code> Retrieves
+Process Data</h3>
+<p>Unlike graphical monitors or continuous CLI tools like
+<code>top</code>, the <code>ps</code> command does not monitor the
+system continuously. Instead, it captures the exact state of active
+tasks at the specific millisecond the command is executed.</p>
+<p>The command works by reading the <code>/proc</code> filesystem, a
+virtual pseudo-filesystem created on the fly by the Linux kernel. The
+kernel maintains dedicated subdirectories for every active task, named
+after their numerical Process ID (PID) (for example,
+<code>/proc/1234/</code>). Within each directory, <code>ps</code> parses
+specific kernel data files:</p>
+<ul>
+<li><strong>/proc/[PID]/stat</strong>: Contains status information about
+the process, such as CPU utilization, state, and execution flags.</li>
+<li><strong>/proc/[PID]/status</strong>: Human-readable process
+metadata, including memory consumption and user identifiers.</li>
+<li><strong>/proc/[PID]/cmdline</strong>: The complete command-line
+invocation that launched the process.</li>
+</ul>
+<p>The <code>ps</code> utility translates this raw kernel data into
+formatted, human-readable text columns displayed in your terminal.</p>
+<h3 id="the-three-syntax-styles">The Three Syntax Styles</h3>
+<p>Linux <code>ps</code> is unique because it supports three distinct
+command syntaxes due to historical Unix developments:</p>
+<ol type="1">
+<li><strong>UNIX (POSIX) Style</strong>: Options must be preceded by a
+single dash (e.g., <code>ps -ef</code>).</li>
+<li><strong>BSD Style</strong>: Options must not use a dash (e.g.,
+<code>ps aux</code>).</li>
+<li><strong>GNU Long Options</strong>: Options are preceded by two
+dashes (e.g., <code>ps --forest</code>).</li>
+</ol>
+<p>These styles can be mixed, though doing so can occasionally produce
+conflicting behavior.</p>
+<h3 id="standard-output-columns">Standard Output Columns</h3>
+<p>When running general commands such as <code>ps aux</code> or
+<code>ps -ef</code>, the output organizes process information into
+specific headers:</p>
+<ul>
+<li><strong>USER / UID</strong>: The user account that owns and executed
+the process.</li>
+<li><strong>PID</strong>: The unique Process Identifier.</li>
+<li><strong>%CPU / %MEM</strong>: The percentage of available processor
+power and physical RAM currently consumed.</li>
+<li><strong>VSZ and RSS</strong>: Virtual memory size (in KiB) versus
+Resident Set Size (non-swapped physical memory actively used).</li>
+<li><strong>TTY</strong>: The terminal device controlling the process (a
+<code>?</code> indicates a daemon or system service detached from any
+terminal).</li>
+<li><strong>STAT / S</strong>: The current process state. Common
+indicators include <code>R</code> (running), <code>S</code>
+(interruptible sleep), <code>D</code> (uninterruptible disk sleep),
+<code>T</code> (stopped), and <code>Z</code> (zombie).</li>
+<li><strong>START / TIME</strong>: When the process was initiated and
+the total cumulative CPU time consumed.</li>
+<li><strong>COMMAND / CMD</strong>: The executable name, script, or
+system binary along with any arguments passed.</li>
+</ul>
+<h3 id="essential-ps-commands">Essential <code>ps</code> Commands</h3>
+<p>To inspect processes effectively, administrators rely on a few common
+flag combinations:</p>
+<ul>
+<li><strong>View every active system process (BSD syntax):</strong>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ps</span> aux</span></code></pre></div></li>
+<li><strong>View every active system process with full detail (POSIX
+syntax):</strong>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ps</span> <span class="at">-ef</span></span></code></pre></div></li>
+<li><strong>Display a process hierarchy (tree view):</strong>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ps</span> <span class="at">-ejH</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="co"># or using GNU style:</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="fu">ps</span> aux <span class="at">--forest</span></span></code></pre></div></li>
+<li><strong>View threads for a specific PID:</strong>
+<div class="sourceCode" id="cb4"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ps</span> <span class="at">-T</span> <span class="at">-p</span> <span class="op">&lt;</span>PID<span class="op">&gt;</span></span></code></pre></div></li>
+<li><strong>Custom output columns for tailored monitoring:</strong>
+<div class="sourceCode" id="cb5"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ps</span> <span class="at">-eo</span> pid,user,%cpu,%mem,comm <span class="at">--sort</span><span class="op">=</span>-%cpu</span></code></pre></div></li>
+</ul>
+<p>By accessing the kernel's <code>/proc</code> hierarchy directly, the
+<code>ps</code> command provides a lightweight, dependency-free method
+to diagnose system bottlenecks, identify unresponsive programs, and
+verify security permissions across all running processes.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

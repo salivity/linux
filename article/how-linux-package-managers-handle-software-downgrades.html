@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How Linux Package Managers Handle Software Downgrades - linux</title>
+    <meta name="description" content="Downgrading software in the Linux operating system involves replacing a current, newer version of a package with an older release through system package managers. While Linux package managers are designed by default to upgrade to the highest version avai">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-linux-package-managers-handle-software-downgrades">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How Linux Package Managers Handle Software Downgrades - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-linux-package-managers-handle-software-downgrades" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="Downgrading software in the Linux operating system involves replacing a current, newer version of a package with an older release through system package managers. While Linux package managers are designed by default to upgrade to the highest version avai" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-linux-package-managers-handle-software-downgrades">How Linux
+Package Managers Handle Software Downgrades</h1>
+<p>Downgrading software in the Linux operating system involves replacing
+a current, newer version of a package with an older release through
+system package managers. While Linux package managers are designed by
+default to upgrade to the highest version available, they also provide
+mechanisms to retrieve specific older versions, resolve accompanying
+reverse dependencies, and replace binaries. This article explains how
+package managers handle version resolution, process downgrades across
+major distributions, manage potential dependency conflicts, and lock
+versions to prevent unwanted automated upgrades.</p>
+<h2 id="version-comparison-and-default-behavior">Version Comparison and
+Default Behavior</h2>
+<p>Package managers track software using Epoch, Version, and Release
+(EVR) metadata strings. By default, the dependency solver calculates the
+highest EVR available in the active repositories and flags it as the
+target state.</p>
+<p>When an administrator requests a downgrade, the package manager
+suppresses this standard logic:</p>
+<ol type="1">
+<li>It queries local package caches or external repositories for older
+package files matching the requested version.</li>
+<li>It parses the dependency tree in reverse, checking whether the older
+package requires older library versions (shared libraries or
+<code>.so</code> files).</li>
+<li>It alerts the user to breaking changes or suggests
+downgrading/removing dependent packages that rely on the newer
+version.</li>
+</ol>
+<h2 id="downgrading-in-major-package-managers">Downgrading in Major
+Package Managers</h2>
+<p>Different Linux distribution families use distinct package management
+tools, each with its own method for downgrading:</p>
+<h3 id="apt-debian-ubuntu-linux-mint">APT (Debian, Ubuntu, Linux
+Mint)</h3>
+<p>Debian-based systems handle package management via <code>apt</code>
+and <code>dpkg</code>. To downgrade, a user specifies the exact version
+string:</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> apt install <span class="op">&lt;</span>package-name<span class="op">&gt;</span>=<span class="op">&lt;</span>version-number<span class="op">&gt;</span></span></code></pre></div>
+<p><code>apt</code> queries the configured repositories. If the
+requested package is available, it informs the user that a downgrade
+will occur, downloads the specified <code>.deb</code> file, and passes
+it to <code>dpkg</code> with the <code>--force-downgrade</code> flag
+automatically enabled.</p>
+<h3 id="dnf-and-yum-fedora-rhel-centos">DNF and YUM (Fedora, RHEL,
+CentOS)</h3>
+<p>Red Hat-based systems utilize <code>dnf</code> (or legacy
+<code>yum</code>), which includes a dedicated command for
+downgrading:</p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> dnf downgrade <span class="op">&lt;</span>package-name<span class="op">&gt;</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Or to a specific version:</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> dnf downgrade <span class="op">&lt;</span>package-name<span class="op">&gt;</span>-<span class="op">&lt;</span>version-number<span class="op">&gt;</span></span></code></pre></div>
+<p><code>dnf</code> checks active repositories for the preceding release
+or a specific version tag. It calculates whether the transaction creates
+broken dependencies across the RPM database and prompts for confirmation
+before swapping the RPM packages.</p>
+<h3 id="pacman-arch-linux">Pacman (Arch Linux)</h3>
+<p>Because Arch Linux is a rolling-release distribution, its
+repositories typically only host the latest version. Downgrading usually
+involves reinstalling an older package from the local cache:</p>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> pacman <span class="at">-U</span> /var/cache/pacman/pkg/<span class="op">&lt;</span>package-name<span class="op">&gt;</span>-<span class="op">&lt;</span>version-number<span class="op">&gt;</span>.pkg.tar.zst</span></code></pre></div>
+<p>If the package is not cached locally, users pull historical packages
+from the Arch Linux Archive and install them directly with
+<code>pacman -U</code>.</p>
+<h3 id="zypper-opensuse">Zypper (openSUSE)</h3>
+<p>openSUSE uses <code>zypper</code> with the <code>--oldpackage</code>
+switch to allow the installation of earlier builds:</p>
+<div class="sourceCode" id="cb4"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> zypper install <span class="at">--oldpackage</span> <span class="op">&lt;</span>package-name<span class="op">&gt;</span>=<span class="op">&lt;</span>version-number<span class="op">&gt;</span></span></code></pre></div>
+<h2 id="dependency-and-configuration-file-management">Dependency and
+Configuration File Management</h2>
+<p>Executing a downgrade creates specific challenges that the package
+manager must mitigate:</p>
+<ul>
+<li><strong>Shared Libraries (ABI Breakage):</strong> If a shared
+library is downgraded, any other software compiled against the newer
+Application Binary Interface (ABI) may fail to run. Modern package
+managers warn users if a downgrade will break dependencies elsewhere in
+the system.</li>
+<li><strong>Configuration Files:</strong> Most package managers preserve
+user modifications to configuration files in <code>/etc</code>. However,
+while application upgrades often automatically migrate configuration
+schemas forward, older software rarely understands newer configuration
+structures. The package manager installs the older defaults (often
+appending <code>.dpkg-dist</code>, <code>.rpmnew</code>, or
+<code>.pacnew</code> extensions if conflicts arise), leaving the
+resolution of configuration syntax to the administrator.</li>
+<li><strong>Database Formats:</strong> Data files stored in formats
+updated by the newer software (such as databases or internal application
+caches) are not handled by the package manager. The software itself must
+handle data compatibility.</li>
+</ul>
+<h2 id="preventing-automatic-re-upgrades">Preventing Automatic
+Re-Upgrades</h2>
+<p>Once a package is downgraded, standard update routines will
+immediately attempt to upgrade it again unless the package manager is
+instructed to hold it back:</p>
+<ul>
+<li><strong>APT:</strong> Managed by pinning the package in
+<code>/etc/apt/preferences</code> or using
+<code>apt-mark hold &lt;package-name&gt;</code>.</li>
+<li><strong>DNF:</strong> Managed via the <code>versionlock</code>
+plugin using <code>dnf versionlock add &lt;package-name&gt;</code>.</li>
+<li><strong>Pacman:</strong> Managed by adding the package name to the
+<code>IgnorePkg</code> directive in <code>/etc/pacman.conf</code>.</li>
+<li><strong>Zypper:</strong> Managed using the lock command via
+<code>zypper addlock &lt;package-name&gt;</code>.</li>
+</ul></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

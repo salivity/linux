@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How to Keep Linux Clean Using DNF Autoremove - linux</title>
+    <meta name="description" content="The dnf autoremove command keeps a Linux operating system clean by identifying and eliminating orphaned dependencies that are no longer required by any installed software. When applications are installed via the DNF package manager on distributions like">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-to-keep-linux-clean-using-dnf-autoremove">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How to Keep Linux Clean Using DNF Autoremove - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-to-keep-linux-clean-using-dnf-autoremove" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="The dnf autoremove command keeps a Linux operating system clean by identifying and eliminating orphaned dependencies that are no longer required by any installed software. When applications are installed via the DNF package manager on distributions like" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-to-keep-linux-clean-using-dnf-autoremove">How to Keep Linux
+Clean Using DNF Autoremove</h1>
+<p>The <code>dnf autoremove</code> command keeps a Linux operating
+system clean by identifying and eliminating orphaned dependencies that
+are no longer required by any installed software. When applications are
+installed via the DNF package manager on distributions like Fedora, Red
+Hat Enterprise Linux, and CentOS, supporting packages called
+dependencies are installed alongside them. Over time, removing these
+primary applications often leaves unused libraries and utilities behind,
+cluttering the storage drive. Running <code>dnf autoremove</code>
+ensures that your system remains free of bloat, reduces security attack
+surfaces, and prevents software conflicts by systematically pruning
+these unnecessary packages.</p>
+<h3 id="how-orphaned-dependencies-occur">How Orphaned Dependencies
+Occur</h3>
+<p>When you install software using
+<code>dnf install &lt;package&gt;</code>, DNF reads the metadata of that
+package and pulls in every external library and tool required for it to
+run. However, if you later uninstall that program with a standard
+<code>dnf remove &lt;package&gt;</code> command, DNF primarily targets
+the specified package.</p>
+<p>By default, the dependencies that were pulled in during the original
+installation remain untouched on the system. This behavior exists
+because other applications might theoretically rely on those same
+components. When no other applications use them, these lingering files
+become "orphans"—consuming storage capacity and lingering in the package
+manager's database without serving any functional purpose.</p>
+<h3 id="the-mechanism-of-dnf-autoremove">The Mechanism of
+<code>dnf autoremove</code></h3>
+<p>The <code>dnf autoremove</code> command operates by querying the
+system's package database to cross-reference installed software with
+dependency requirements:</p>
+<ol type="1">
+<li><strong>Dependency Tracking:</strong> DNF maintains a state database
+that distinguishes between packages explicitly requested by the user and
+packages pulled in automatically as dependencies.</li>
+<li><strong>Reverse Dependency Checking:</strong> When you run
+<code>dnf autoremove</code>, the package manager scans the entire
+dependency tree. It searches specifically for packages marked as
+"installed as dependency."</li>
+<li><strong>Usage Evaluation:</strong> For every dependency found, DNF
+verifies whether any remaining, user-installed package requires it.</li>
+<li><strong>Queueing for Deletion:</strong> If a dependency has zero
+parent packages relying on it, DNF flags it as an orphan and queues it
+for deletion, presenting you with a confirmation prompt before taking
+action.</li>
+</ol>
+<h3 id="system-benefits-of-running-the-command">System Benefits of
+Running the Command</h3>
+<ul>
+<li><strong>Reclaiming Disk Space:</strong> Orphaned packages, along
+with their related documentation and configuration templates, take up
+drive space. Regular cleanup frees up this space, which is critical for
+systems with small root partitions or solid-state drives.</li>
+<li><strong>Streamlining System Updates:</strong> Every installed
+package must be checked, downloaded, and updated during regular system
+upgrades. Fewer unused packages mean faster update cycles and reduced
+network bandwidth usage.</li>
+<li><strong>Minimizing Security Vulnerabilities:</strong> Unused
+libraries left on a machine can still contain unpatched security
+vulnerabilities. Removing code that does not need to be present
+minimizes your attack surface.</li>
+<li><strong>Preventing Library Conflicts:</strong> Retaining obsolete
+libraries can occasionally cause conflicts during major version upgrades
+of the operating system. Cleaning the environment keeps the system state
+predictable.</li>
+</ul>
+<h3 id="best-practice-for-safe-removal">Best Practice for Safe
+Removal</h3>
+<p>Before confirming the removal by pressing <code>y</code>, always
+review the list of packages that DNF intends to delete. On rare
+occasions, a development library or tool that you use manually—such as a
+library compiled from source rather than installed through DNF—might be
+classified as unused. Scanning the transaction summary guarantees you do
+not inadvertently remove packages critical to custom workflows.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

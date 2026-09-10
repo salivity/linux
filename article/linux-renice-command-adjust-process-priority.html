@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linux renice Command: Adjust Process Priority - linux</title>
+    <meta name="description" content="The renice command in Linux modifies the scheduling priority of already running processes, allowing administrators and users to reallocate CPU resources dynamically without restarting tasks. While the standard nice command sets a process's priority at la">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/linux-renice-command-adjust-process-priority">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Linux renice Command: Adjust Process Priority - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/linux-renice-command-adjust-process-priority" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="The renice command in Linux modifies the scheduling priority of already running processes, allowing administrators and users to reallocate CPU resources dynamically without restarting tasks. While the standard nice command sets a process's priority at la" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="linux-renice-command-adjust-process-priority">Linux renice
+Command: Adjust Process Priority</h1>
+<p>The <code>renice</code> command in Linux modifies the scheduling
+priority of already running processes, allowing administrators and users
+to reallocate CPU resources dynamically without restarting tasks. While
+the standard <code>nice</code> command sets a process's priority at
+launch, <code>renice</code> adjusts that priority on the fly. This
+article details the purpose of the <code>renice</code> command, how the
+"niceness" scale functions, and how to apply it effectively in a Linux
+environment.</p>
+<h2 id="what-is-the-renice-command">What is the renice Command?</h2>
+<p>In Linux, process scheduling determines how much CPU time a process
+receives. Every process is assigned a "niceness" value, which directly
+impacts its priority. The <code>renice</code> command allows you to
+alter this value for any active process identified by its Process ID
+(PID), Process Group ID (PGID), or the username of the process
+owner.</p>
+<h2 id="the-niceness-scale">The Niceness Scale</h2>
+<p>The priority scale ranges from <strong>-20 to 19</strong>:</p>
+<ul>
+<li><strong>-20 (Highest Priority):</strong> The process is the "least
+nice" to other processes and consumes as much CPU time as the scheduler
+allows.</li>
+<li><strong>0 (Default Priority):</strong> Standard priority assigned to
+most user-initiated processes.</li>
+<li><strong>19 (Lowest Priority):</strong> The process is the "nicest"
+to other processes, only utilizing CPU cycles when other tasks are
+idle.</li>
+</ul>
+<h3 id="permissions-and-limitations">Permissions and Limitations</h3>
+<p>Linux enforces permission boundaries on the <code>renice</code>
+command to maintain system stability:</p>
+<ul>
+<li><strong>Standard Users:</strong> Can only alter processes they own
+and can only increase the nice value (make processes lower priority).
+Standard users cannot decrease nice values to grant higher
+priority.</li>
+<li><strong>Root / Superusers:</strong> Can adjust the nice value to any
+number between -20 and 19 for any process on the system.</li>
+</ul>
+<h2 id="basic-syntax-and-options">Basic Syntax and Options</h2>
+<p>The standard syntax for the command is:</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">renice</span> <span class="pp">[-</span><span class="ss">n</span><span class="pp">]</span> priority [-g<span class="kw">|</span><span class="ex">-p</span><span class="kw">|</span><span class="ex">-u]</span> identifier</span></code></pre></div>
+<p>Common flags include:</p>
+<ul>
+<li><code>-p</code>, <code>--pid</code>: Targets one or more specific
+Process IDs (default behavior).</li>
+<li><code>-g</code>, <code>--pgrp</code>: Targets all processes in a
+specified Process Group ID.</li>
+<li><code>-u</code>, <code>--user</code>: Targets all processes owned by
+a specific user or User ID.</li>
+<li><code>-n</code>, <code>--priority</code>: Explicitly defines the new
+scheduling priority value.</li>
+</ul>
+<h2 id="common-usage-examples">Common Usage Examples</h2>
+<h3 id="1-lowering-the-priority-of-a-running-process">1. Lowering the
+Priority of a Running Process</h3>
+<p>To prevent a CPU-heavy background task (such as video encoding or
+compression) from slowing down the system, increase its nice value:</p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="ex">renice</span> +10 <span class="at">-p</span> 4521</span></code></pre></div>
+<h3 id="2-granting-high-priority-to-a-critical-process">2. Granting High
+Priority to a Critical Process</h3>
+<p>If a critical service is struggling due to resource competition,
+superuser privileges can raise its priority:</p>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> renice <span class="at">-n</span> <span class="at">-10</span> <span class="at">-p</span> 1845</span></code></pre></div>
+<h3 id="3-adjusting-multiple-processes-at-once">3. Adjusting Multiple
+Processes at Once</h3>
+<p>You can alter several PIDs simultaneously:</p>
+<div class="sourceCode" id="cb4"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> renice <span class="at">-n</span> 5 <span class="at">-p</span> 1204 1205 1206</span></code></pre></div>
+<h3 id="4-adjusting-all-processes-owned-by-a-specific-user">4. Adjusting
+All Processes Owned by a Specific User</h3>
+<p>To reduce the system impact of all processes run by a specific
+user:</p>
+<div class="sourceCode" id="cb5"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> renice +15 <span class="at">-u</span> john</span></code></pre></div>
+<h2 id="when-to-use-renice">When to Use renice</h2>
+<p>The <code>renice</code> command is essential in server management and
+resource monitoring. Use it when:</p>
+<ul>
+<li>A background backup script or data processing task degrades system
+responsiveness.</li>
+<li>A database or web server process requires temporary performance
+prioritization during traffic spikes.</li>
+<li>System administrators need to prevent a runaway process from
+freezing the desktop or server environment before troubleshooting
+it.</li>
+</ul></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

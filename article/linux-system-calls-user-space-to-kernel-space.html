@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linux System Calls: User Space to Kernel Space - linux</title>
+    <meta name="description" content="In the Linux operating system, system calls serve as the essential bridge between untrusted user applications and the privileged core of the operating system. Because direct hardware access by user programs would compromise system security and stability,">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/linux-system-calls-user-space-to-kernel-space">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Linux System Calls: User Space to Kernel Space - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/linux-system-calls-user-space-to-kernel-space" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="In the Linux operating system, system calls serve as the essential bridge between untrusted user applications and the privileged core of the operating system. Because direct hardware access by user programs would compromise system security and stability," />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="linux-system-calls-user-space-to-kernel-space">Linux System
+Calls: User Space to Kernel Space</h1>
+<p>In the Linux operating system, system calls serve as the essential
+bridge between untrusted user applications and the privileged core of
+the operating system. Because direct hardware access by user programs
+would compromise system security and stability, the CPU isolates memory
+into user space and kernel space. This article explores how system calls
+safely cross this boundary using hardware-enforced privilege
+transitions, architecture-specific instructions, and internal kernel
+dispatch tables.</p>
+<h2 id="the-need-for-separation-user-space-vs-kernel-space">The Need for
+Separation: User Space vs. Kernel Space</h2>
+<p>Modern CPUs utilize privilege rings to enforce boundaries between
+different types of code. In x86 architecture, these range from Ring 0
+(highest privilege) to Ring 3 (lowest privilege). Linux maps these rings
+into two primary execution environments:</p>
+<ul>
+<li><strong>User Space (Ring 3):</strong> Where normal processes,
+background services, and graphical interfaces execute. Code running here
+cannot directly access physical hardware, modify page tables, or read
+memory allocated to other processes.</li>
+<li><strong>Kernel Space (Ring 0):</strong> Where the core Linux kernel
+executes. Code here possesses unrestricted access to hardware, device
+drivers, interrupt controllers, and physical system memory.</li>
+</ul>
+<p>Without a structured mechanism to request services from Ring 0,
+user-space applications would be incapable of performing essential tasks
+such as reading files, creating network connections, or allocating new
+memory blocks.</p>
+<h2 id="the-role-of-the-c-standard-library-glibc">The Role of the C
+Standard Library (glibc)</h2>
+<p>User-space applications rarely invoke system calls directly. Instead,
+they interact with wrapper functions provided by standard libraries,
+such as the GNU C Library (<code>glibc</code>).</p>
+<p>When a developer calls a POSIX function like <code>open()</code>,
+<code>read()</code>, or <code>write()</code>, the library function
+prepares the arguments according to the Application Binary Interface
+(ABI) of the host architecture. It assigns a unique system call number
+(such as <code>__NR_write</code>) to a designated CPU register (e.g.,
+<code>RAX</code> on x86_64) and places the function arguments in other
+specific registers (such as <code>RDI</code>, <code>RSI</code>, and
+<code>RDX</code>).</p>
+<h2 id="triggering-the-transition">Triggering the Transition</h2>
+<p>Once the registers are configured, the library executes a specialized
+CPU instruction that triggers a synchronous transition from user mode to
+kernel mode:</p>
+<ul>
+<li><strong>Modern Systems (<code>syscall</code>/<code>sysret</code> or
+<code>sysenter</code>/<code>sysexit</code>):</strong> Modern x86_64
+processors use dedicated, high-speed instructions designed specifically
+for system calls. The <code>syscall</code> instruction instantly
+switches the CPU privilege level from Ring 3 to Ring 0, saves the
+instruction pointer, and points execution to a predefined kernel entry
+point.</li>
+<li><strong>Legacy Systems (<code>int 0x80</code>):</strong>
+Historically, system calls relied on software interrupts. A program
+triggered interrupt vector <code>0x80</code>, forcing the CPU to pause
+execution, switch to Ring 0, and transfer control to the interrupt
+handler table.</li>
+</ul>
+<p>Regardless of the instruction used, the CPU hardware enforces the
+privilege elevation and ensures execution can only begin at
+predetermined entry points specified by the kernel, preventing user code
+from executing arbitrary kernel addresses.</p>
+<h2 id="kernel-dispatch-and-execution">Kernel Dispatch and
+Execution</h2>
+<p>Once the CPU enters Ring 0, the kernel takes control through an entry
+point typically named <code>entry_SYSCALL_64</code>:</p>
+<ol type="1">
+<li><strong>State Preservation:</strong> The kernel saves the user-space
+register states onto the process's kernel stack so that execution can
+resume seamlessly later.</li>
+<li><strong>Lookup in the System Call Table:</strong> The kernel reads
+the system call number stored in the register. It references the
+<code>sys_call_table</code>, an array of function pointers mapping
+system call numbers to their respective kernel implementations (such as
+<code>sys_read</code> or <code>sys_write</code>).</li>
+<li><strong>Parameter Verification:</strong> Before executing the
+routine, the kernel strictly validates all incoming pointers and buffer
+lengths to ensure they originate from valid, accessible user-space
+memory, preventing privilege escalation vulnerabilities.</li>
+<li><strong>Routine Execution:</strong> The target kernel function
+executes with full hardware privileges to complete the requested
+operation.</li>
+</ol>
+<h2 id="returning-to-user-space">Returning to User Space</h2>
+<p>After the kernel function completes its task, it stores the return
+value (or an error code) in a register (such as <code>RAX</code>). The
+kernel then restores the saved user-space registers from the kernel
+stack.</p>
+<p>Finally, the kernel executes an exit instruction, such as
+<code>sysret</code> on x86_64. This instruction lowers the CPU privilege
+level back to Ring 3, restores the program counter, and hands control
+back to the standard library wrapper, which then returns the result to
+the calling application.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

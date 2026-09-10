@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linux System V IPC Shared Memory Explained - linux</title>
+    <meta name="description" content="This article explores how the Linux operating system handles inter-process communication (IPC) via System V shared memory. It covers the core architecture of memory mapping across process address spaces, the fundamental system call lifecycle, the Linux k">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/linux-system-v-ipc-shared-memory-explained">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Linux System V IPC Shared Memory Explained - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/linux-system-v-ipc-shared-memory-explained" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="This article explores how the Linux operating system handles inter-process communication (IPC) via System V shared memory. It covers the core architecture of memory mapping across process address spaces, the fundamental system call lifecycle, the Linux k" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="linux-system-v-ipc-shared-memory-explained">Linux System V IPC
+Shared Memory Explained</h1>
+<p>This article explores how the Linux operating system handles
+inter-process communication (IPC) via System V shared memory. It covers
+the core architecture of memory mapping across process address spaces,
+the fundamental system call lifecycle, the Linux kernel's internal
+implementation using virtual file systems, synchronization necessities,
+and kernel resource tuning.</p>
+<h2 id="understanding-system-v-shared-memory-architecture">Understanding
+System V Shared Memory Architecture</h2>
+<p>Shared memory is the fastest form of Inter-Process Communication
+(IPC) available in Linux. Unlike message queues or pipes, which require
+data to be copied between user-space buffers and kernel space, shared
+memory maps a common region of physical RAM directly into the virtual
+address spaces of two or more independent processes. Once the mapping is
+established, processes read and write to this region just as they would
+with private memory, eliminating redundant kernel context switches and
+buffer copies.</p>
+<h2 id="the-system-v-shared-memory-lifecycle">The System V Shared Memory
+Lifecycle</h2>
+<p>Linux manages System V shared memory through four primary system
+calls, which govern the creation, attachment, detachment, and
+destruction of segments.</p>
+<h3 id="1-key-generation-ftok">1. Key Generation: <code>ftok</code></h3>
+<p>Processes locate the same shared memory segment using an IPC key of
+type <code>key_t</code>. The <code>ftok()</code> utility function hashes
+a file path and a project identifier to generate a reproducible key:</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode c"><code class="sourceCode c"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>key_t key <span class="op">=</span> ftok<span class="op">(</span><span class="st">&quot;/path/to/valid/file&quot;</span><span class="op">,</span> <span class="ch">&#39;R&#39;</span><span class="op">);</span></span></code></pre></div>
+<h3 id="2-allocation-shmget">2. Allocation: <code>shmget</code></h3>
+<p>The <code>shmget()</code> (shared memory get) system call allocates a
+new shared memory segment or retrieves an existing one associated with
+the key:</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode c"><code class="sourceCode c"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="dt">int</span> shmid <span class="op">=</span> shmget<span class="op">(</span>key<span class="op">,</span> size<span class="op">,</span> IPC_CREAT <span class="op">|</span> <span class="bn">0666</span><span class="op">);</span></span></code></pre></div>
+<p>If <code>IPC_CREAT</code> is specified, the Linux kernel sets up an
+internal descriptor (<code>struct shmid_kernel</code>) and assigns a
+unique non-negative integer identifier known as the
+<code>shmid</code>.</p>
+<h3 id="3-attachment-shmat">3. Attachment: <code>shmat</code></h3>
+<p>Calling <code>shmget()</code> does not make the memory accessible to
+the calling process. The process must attach the segment to its own
+address space using <code>shmat()</code>:</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode c"><code class="sourceCode c"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="dt">void</span> <span class="op">*</span>addr <span class="op">=</span> shmat<span class="op">(</span>shmid<span class="op">,</span> NULL<span class="op">,</span> <span class="dv">0</span><span class="op">);</span></span></code></pre></div>
+<p>Passing <code>NULL</code> allows the Linux kernel to choose an
+unmapped page-aligned address in the process’s virtual memory space. The
+kernel updates the process's page table entries to point to the physical
+memory frames backing the shared segment.</p>
+<h3 id="4-detachment-shmdt">4. Detachment: <code>shmdt</code></h3>
+<p>When a process finishes using the segment, it detaches it with
+<code>shmdt()</code>:</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode c"><code class="sourceCode c"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>shmdt<span class="op">(</span>addr<span class="op">);</span></span></code></pre></div>
+<p>Detaching removes the segment from the process's page tables, but the
+memory segment and its contents persist in the kernel.</p>
+<h3 id="5-control-and-removal-shmctl">5. Control and Removal:
+<code>shmctl</code></h3>
+<p>Segments persist until explicitly destroyed or until the system
+reboots. To delete a segment, <code>shmctl()</code> must be invoked with
+the <code>IPC_RMID</code> command:</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode c"><code class="sourceCode c"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>shmctl<span class="op">(</span>shmid<span class="op">,</span> IPC_RMID<span class="op">,</span> NULL<span class="op">);</span></span></code></pre></div>
+<p>This marks the segment as destroyed. The kernel frees the physical
+pages as soon as the last attached process calls <code>shmdt()</code> or
+exits.</p>
+<h2 id="kernel-implementation-mechanics">Kernel Implementation
+Mechanics</h2>
+<p>Under the hood, Linux treats System V shared memory segments as
+pseudo-files residing in an internal instance of <code>tmpfs</code>
+(often referred to as <code>shmfs</code>).</p>
+<ol type="1">
+<li><strong>Page Table Manipulation:</strong> When <code>shmat()</code>
+is called, the kernel creates a <code>vm_area_struct</code> in the
+process's memory map (<code>mm_struct</code>). This virtual memory area
+is backed by pages allocated from the page cache of the internal
+<code>tmpfs</code> file.</li>
+<li><strong>Copy-on-Demand (Demand Paging):</strong> Physical memory
+pages are typically not allocated immediately during
+<code>shmget()</code>. Instead, physical frames are assigned on demand
+when a process triggers a page fault by reading from or writing to the
+mapped virtual address.</li>
+<li><strong>Reference Counting:</strong> The kernel maintains a counter
+of active attachments (<code>shm_nattch</code>). When a process
+terminates, the kernel automatically detaches any attached shared
+segments, decrementing this count.</li>
+</ol>
+<h2 id="synchronization-requirements">Synchronization Requirements</h2>
+<p>Because the kernel does not mediate read and write operations inside
+an attached segment, System V shared memory does not provide implicit
+synchronization or mutual exclusion. Simultaneous writes by multiple
+processes can cause race conditions and data corruption.</p>
+<p>To maintain consistency, developers must pair shared memory with
+synchronization primitives:</p>
+<ul>
+<li><strong>System V Semaphores:</strong> The traditional companion
+mechanism (<code>semget</code>, <code>semop</code>), providing
+array-based counting semaphores.</li>
+<li><strong>POSIX Semaphores / Mutexes:</strong> Named POSIX semaphores
+(<code>sem_open</code>) or process-shared POSIX mutexes
+(<code>PTHREAD_PROCESS_SHARED</code>) placed directly within the shared
+memory block.</li>
+<li><strong>Futexes:</strong> Fast user-space locking primitives used by
+modern threading libraries for high-performance locking.</li>
+</ul>
+<h2 id="monitoring-and-kernel-tunables">Monitoring and Kernel
+Tunables</h2>
+<p>Linux provides both command-line tools and kernel interfaces to
+inspect and configure System V IPC parameters.</p>
+<h3 id="system-utilities">System Utilities</h3>
+<ul>
+<li><code>ipcs -m</code>: Lists all active shared memory segments, their
+IDs, owners, permissions, sizes, and attachment counts.</li>
+<li><code>ipcrm -m &lt;shmid&gt;</code>: Manually removes an orphaned
+shared memory segment from user space.</li>
+</ul>
+<h3 id="kernel-limits">Kernel Limits</h3>
+<p>System limits can be inspected and adjusted via
+<code>/proc/sys/kernel/</code>:</p>
+<ul>
+<li><code>shmmax</code>: The maximum size (in bytes) of a single shared
+memory segment.</li>
+<li><code>shmall</code>: The total amount of shared memory pages that
+can be used system-wide.</li>
+<li><code>shmmni</code>: The maximum number of shared memory segments
+system-wide.</li>
+</ul></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

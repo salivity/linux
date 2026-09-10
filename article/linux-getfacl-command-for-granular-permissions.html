@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linux getfacl Command for Granular Permissions - linux</title>
+    <meta name="description" content="Standard Linux file permissions follow the traditional User-Group-Other (UGO) model, which often lacks the flexibility required for complex environments. To overcome this limitation, Linux utilizes POSIX Access Control Lists (ACLs), and the getfacl (get">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/linux-getfacl-command-for-granular-permissions">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Linux getfacl Command for Granular Permissions - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/linux-getfacl-command-for-granular-permissions" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="Standard Linux file permissions follow the traditional User-Group-Other (UGO) model, which often lacks the flexibility required for complex environments. To overcome this limitation, Linux utilizes POSIX Access Control Lists (ACLs), and the getfacl (get" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="linux-getfacl-command-for-granular-permissions">Linux getfacl
+Command for Granular Permissions</h1>
+<p>Standard Linux file permissions follow the traditional
+User-Group-Other (UGO) model, which often lacks the flexibility required
+for complex environments. To overcome this limitation, Linux utilizes
+POSIX Access Control Lists (ACLs), and the <code>getfacl</code> (get
+file access control list) command is the primary utility used to display
+and verify these granular permissions. This article explains how the
+Linux operating system retrieves, interprets, and displays file ACLs
+using <code>getfacl</code>, covering underlying system calls, extended
+file attributes, and permission evaluation mechanics.</p>
+<h3 id="how-linux-stores-granular-permissions">How Linux Stores Granular
+Permissions</h3>
+<p>Traditional Linux permissions use 9 mode bits (read, write, execute
+for owner, group, and others) stored directly inside the file's inode
+metadata. Because an inode has limited space, it cannot store arbitrary
+numbers of user or group rules.</p>
+<p>To support ACLs, Linux relies on Extended Attributes
+(<code>xattr</code>). When you assign granular permissions using
+<code>setfacl</code>, the filesystem stores these additional rules in a
+dedicated extended attribute namespace named
+<code>system.posix_acl_access</code>. For directories, default
+inheritance rules are stored under
+<code>system.posix_acl_default</code>.</p>
+<h3 id="how-the-os-executes-getfacl">How the OS Executes
+<code>getfacl</code></h3>
+<p>When a user executes <code>getfacl &lt;path&gt;</code>, the Linux
+operating system handles the request through several internal steps:</p>
+<ol type="1">
+<li><strong>System Calls Execution:</strong> The <code>getfacl</code>
+binary invokes system calls such as <code>getxattr()</code> or
+<code>fgetxattr()</code> targeting the specified path, requesting the
+<code>system.posix_acl_access</code> attribute.</li>
+<li><strong>Virtual File System (VFS) Routing:</strong> The Linux VFS
+layer determines whether the underlying filesystem (such as ext4, XFS,
+or Btrfs) was mounted with ACL support (typically enabled by default on
+modern distributions).</li>
+<li><strong>Data Retrieval from Disk:</strong> The filesystem driver
+reads the extended attribute blocks linked to the inode and passes the
+raw binary ACL structure back to user space.</li>
+<li><strong>Binary Parsing:</strong> The <code>libacl</code> library
+unpacks the binary representation into human-readable text and outputs
+it to standard output.</li>
+</ol>
+<h3 id="anatomy-of-getfacl-output">Anatomy of <code>getfacl</code>
+Output</h3>
+<p>Running <code>getfacl</code> produces a structured report containing
+file metadata and security descriptors:</p>
+<pre class="text"><code># file: project_report.txt
+# owner: alice
+# group: developers
+user::rw-
+user:bob:r--
+group::r--
+group:qa:rw-
+mask::rw-
+other::---</code></pre>
+<p>Each component serves a specific function in permission
+verification:</p>
+<ul>
+<li><strong>File Metadata:</strong> Lines preceded by <code>#</code>
+indicate the file path, owner, and primary group.</li>
+<li><strong>Base Owner/Other:</strong> <code>user::</code> and
+<code>other::</code> represent the traditional owner and world
+permissions.</li>
+<li><strong>Named User Entries:</strong> <code>user:bob:r--</code>
+grants specific permissions to a named user without modifying file
+ownership.</li>
+<li><strong>Named Group Entries:</strong> <code>group:qa:rw-</code>
+grants specific permissions to a secondary group without changing the
+file's primary group.</li>
+<li><strong>The Mask:</strong> <code>mask::</code> defines the upper
+ceiling of permissions granted to all named users, named groups, and the
+owning group.</li>
+</ul>
+<h3 id="resolving-effective-permissions-and-the-mask">Resolving
+Effective Permissions and the Mask</h3>
+<p>A critical role of <code>getfacl</code> is displaying effective
+permissions. If a named user has permissions that exceed the mask limit,
+<code>getfacl</code> computes the bitwise AND between the entry and the
+mask, appending a comment to show the effective rights:</p>
+<pre class="text"><code>user:bob:rwx           #effective:r-x
+mask::r-x</code></pre>
+<p>In this scenario, Linux prevents <code>bob</code> from writing to the
+file because the mask restricts write access, regardless of the explicit
+<code>rwx</code> grant.</p>
+<h3 id="evaluating-directory-inheritance">Evaluating Directory
+Inheritance</h3>
+<p>When run against directories, <code>getfacl</code> also queries the
+<code>system.posix_acl_default</code> attribute. Default permissions do
+not restrict the directory itself; instead, the Linux kernel reads them
+upon creating any new child file or subdirectory within that parent,
+automatically applying the specified ACL rules to the newly created
+inode.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

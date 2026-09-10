@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Network Time Security with Chrony on Linux - linux</title>
+    <meta name="description" content="Network Time Security (NTS) provides cryptographic authentication and integrity verification for the Network Time Protocol (NTP), protecting Linux systems against time spoofing and man-in-the-middle attacks. This article explains how the NTS protocol fun">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/network-time-security-with-chrony-on-linux">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Network Time Security with Chrony on Linux - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/network-time-security-with-chrony-on-linux" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="Network Time Security (NTS) provides cryptographic authentication and integrity verification for the Network Time Protocol (NTP), protecting Linux systems against time spoofing and man-in-the-middle attacks. This article explains how the NTS protocol fun" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="network-time-security-with-chrony-on-linux">Network Time
+Security with Chrony on Linux</h1>
+<p>Network Time Security (NTS) provides cryptographic authentication and
+integrity verification for the Network Time Protocol (NTP), protecting
+Linux systems against time spoofing and man-in-the-middle attacks. This
+article explains how the NTS protocol functions within Chrony—the
+default NTP client and server on modern Linux distributions—detailing
+its two-phase architecture, client and server configuration, and the
+commands required to verify secure time synchronization.</p>
+<h2 id="understanding-nts-architecture-in-chrony">Understanding NTS
+Architecture in Chrony</h2>
+<p>Traditional NTP relies on unencrypted UDP packets sent over port 123,
+leaving network systems vulnerable to packet alteration and replay
+attacks. NTS resolves this by combining public key infrastructure (PKI)
+with symmetric cryptography. Chrony implements NTS through two distinct
+phases:</p>
+<ol type="1">
+<li><strong>NTS Key Establishment (NTS-KE):</strong> The Chrony client
+establishes a standard TLS connection to an NTS-KE server over TCP port
+4460. During this handshake, the client validates the server's identity
+using standard TLS certificates. Once verified, the server generates
+symmetric encryption keys and encapsulates them inside cryptographic
+cookies, which are then passed back to the client over TLS. The TLS
+session is closed once this exchange completes.</li>
+<li><strong>NTS-Secured NTP:</strong> The Chrony client sends standard
+NTP packets over UDP port 123, supplemented with NTS extension fields.
+These extensions include one of the received cookies and a cryptographic
+authentication code (AEAD). The server uses its master key to decrypt
+the cookie, retrieve the symmetric key, verify packet integrity, and
+attach a fresh cookie to the response.</li>
+</ol>
+<p>This dual-stage mechanism enables stateless operation on the server
+side, ensuring high scalability while guaranteeing that the Linux host
+only synchronizes with authenticated time sources.</p>
+<h2 id="configuring-chrony-as-an-nts-client">Configuring Chrony as an
+NTS Client</h2>
+<p>Most modern Linux distributions, such as Debian, Ubuntu, Fedora, and
+RHEL, ship with Chrony versions supporting NTS (version 4.0 and newer).
+To enable NTS, adjust Chrony’s primary configuration file, typically
+located at <code>/etc/chrony.conf</code> or
+<code>/etc/chrony/chrony.conf</code>.</p>
+<h3 id="1-define-nts-time-sources">1. Define NTS Time Sources</h3>
+<p>Add NTS-capable time servers by appending the <code>nts</code>
+directive to the server declaration:</p>
+<pre class="text"><code>server time.cloudflare.com iburst nts
+server ptbtime1.ptb.de iburst nts
+server nts.netnod.se iburst nts</code></pre>
+<h3 id="2-specify-trusted-certificates">2. Specify Trusted
+Certificates</h3>
+<p>Chrony must validate the TLS certificates presented during the NTS-KE
+handshake. You can declare the path to the system CA bundle using the
+<code>ntstrustedcerts</code> directive:</p>
+<ul>
+<li><strong>RHEL/CentOS/Fedora:</strong>
+<pre class="text"><code>ntstrustedcerts /etc/pki/tls/certs/ca-bundle.crt</code></pre></li>
+<li><strong>Debian/Ubuntu:</strong>
+<pre class="text"><code>ntstrustedcerts /etc/ssl/certs/ca-certificates.crt</code></pre></li>
+</ul>
+<p>If no certificate path is explicitly defined, Chrony attempts to use
+the default system trust store automatically.</p>
+<h3 id="3-apply-configuration">3. Apply Configuration</h3>
+<p>Restart the Chrony service via <code>systemctl</code> to apply
+changes:</p>
+<div class="sourceCode" id="cb4"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> systemctl restart chronyd</span></code></pre></div>
+<p><em>(On Debian/Ubuntu systems, the service name may be
+<code>chrony</code> instead of <code>chronyd</code>.)</em></p>
+<h2 id="configuring-chrony-as-an-nts-server">Configuring Chrony as an
+NTS Server</h2>
+<p>To configure a Linux machine as an NTS server for local or network
+clients, Chrony requires valid TLS certificates (such as those obtained
+via Let's Encrypt):</p>
+<pre class="text"><code># NTP server settings
+local stratum 2
+allow 192.168.1.0/24
+
+# NTS server settings
+ntsservercert /etc/ssl/certs/ntp-server.crt
+ntsserverkey /etc/ssl/private/ntp-server.key</code></pre>
+<p>Chrony will automatically bind to TCP port 4460 to serve NTS-KE
+requests and UDP port 123 for secure NTP transactions.</p>
+<h2 id="verifying-nts-operation">Verifying NTS Operation</h2>
+<p>To confirm that Chrony is actively communicating via NTS, execute the
+<code>chronyc</code> command-line utility.</p>
+<p>Run the <code>authdata</code> command:</p>
+<div class="sourceCode" id="cb6"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="ex">chronyc</span> authdata</span></code></pre></div>
+<p>In the output table, observe the <strong>KeyID</strong> and
+<strong>Type</strong> columns:</p>
+<ul>
+<li><strong>NTS</strong> should appear in the <code>Type</code>
+column.</li>
+<li>An active key identifier, cookie counts, and verification statuses
+should be visible. A non-zero number of cookies demonstrates that key
+rotation is functioning correctly.</li>
+</ul>
+<p>Run the <code>sources</code> command:</p>
+<div class="sourceCode" id="cb7"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="ex">chronyc</span> sources <span class="at">-v</span></span></code></pre></div>
+<p>Look for the state flag next to the configured server. A
+<code>*</code> indicates that the clock is actively synchronizing with
+that authenticated source. If authentication fails, Chrony rejects the
+response and refuses to adjust the system clock, preventing unauthorized
+network manipulations from compromising system logs, cryptographic
+tokens, or scheduled tasks.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

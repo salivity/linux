@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linux Pipe Operator: How Command Chaining Works - linux</title>
+    <meta name="description" content="The pipe operator is a fundamental feature of the Linux command line that enables users to combine multiple distinct utilities into a unified workflow. This article explains how the pipe operator (|) functions, breaking down its internal mechanisms, how">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/linux-pipe-operator-how-command-chaining-works">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Linux Pipe Operator: How Command Chaining Works - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/linux-pipe-operator-how-command-chaining-works" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="The pipe operator is a fundamental feature of the Linux command line that enables users to combine multiple distinct utilities into a unified workflow. This article explains how the pipe operator (|) functions, breaking down its internal mechanisms, how" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="linux-pipe-operator-how-command-chaining-works">Linux Pipe
+Operator: How Command Chaining Works</h1>
+<p>The pipe operator is a fundamental feature of the Linux command line
+that enables users to combine multiple distinct utilities into a unified
+workflow. This article explains how the pipe operator (<code>|</code>)
+functions, breaking down its internal mechanisms, how it redirects
+standard streams between processes, and how you can use it to build
+efficient command chains.</p>
+<h2 id="what-is-the-linux-pipe-operator">What is the Linux Pipe
+Operator?</h2>
+<p>Represented by the vertical bar symbol (<code>|</code>), the pipe
+operator redirects the standard output (<code>stdout</code>) of one
+process directly into the standard input (<code>stdin</code>) of another
+process. Instead of saving intermediate results to temporary files on
+disk, the pipe operator transfers data directly through memory, creating
+a seamless stream from command to command.</p>
+<p>The basic syntax is:</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">command1</span> <span class="kw">|</span> <span class="ex">command2</span></span></code></pre></div>
+<p>In this setup, <code>command1</code> produces data, and
+<code>command2</code> immediately processes that data as its input.</p>
+<h2 id="how-the-pipe-works-internally">How the Pipe Works
+Internally</h2>
+<p>To understand how pipes work, you need to understand three core
+concepts in Unix-like operating systems: standard streams, file
+descriptors, and the <code>pipe()</code> system call.</p>
+<h3 id="1-standard-streams-and-file-descriptors">1. Standard Streams and
+File Descriptors</h3>
+<p>Every standard Linux process starts with three default input/output
+channels, managed as file descriptors:</p>
+<ul>
+<li><strong>Standard Input (<code>stdin</code>, FD 0):</strong> Where
+the process receives text data (default is the keyboard).</li>
+<li><strong>Standard Output (<code>stdout</code>, FD 1):</strong> Where
+the process sends text data (default is the terminal display).</li>
+<li><strong>Standard Error (<code>stderr</code>, FD 2):</strong> Where
+the process sends diagnostic or error messages (default is the terminal
+display).</li>
+</ul>
+<h3 id="2-the-pipe-system-call">2. The <code>pipe()</code> System
+Call</h3>
+<p>When the shell encounters a pipe character, it requests that the
+Linux kernel allocate an anonymous, unidirectional data channel in
+memory using the <code>pipe()</code> system call. The kernel returns two
+file descriptors: one for reading and one for writing.</p>
+<h3 id="3-process-execution-and-concurrency">3. Process Execution and
+Concurrency</h3>
+<p>Unlike scripts that run commands sequentially by waiting for the
+first command to finish before starting the next, piped processes run
+<strong>concurrently</strong> (at the same time):</p>
+<ol type="1">
+<li>The shell uses the <code>fork()</code> system call to create child
+processes for both <code>command1</code> and <code>command2</code>.</li>
+<li>Using the <code>dup2()</code> system call, the shell closes
+<code>stdout</code> (FD 1) for <code>command1</code> and points it to
+the write end of the kernel pipe.</li>
+<li>Simultaneously, the shell closes <code>stdin</code> (FD 0) for
+<code>command2</code> and points it to the read end of the pipe.</li>
+<li>The kernel manages a circular memory buffer (typically 64KB on
+modern Linux systems) between the two processes. If
+<code>command1</code> produces data faster than <code>command2</code>
+can consume it, the kernel pauses <code>command1</code> until space
+frees up. If <code>command2</code> needs more data, it waits until
+<code>command1</code> writes it.</li>
+</ol>
+<p>Because <code>stderr</code> is not redirected by the standard pipe
+operator, any error messages generated by either command are still
+printed directly to the terminal screen rather than being fed into the
+next command.</p>
+<h2 id="practical-examples-of-command-chaining">Practical Examples of
+Command Chaining</h2>
+<p>You can chain more than two commands together. The data simply flows
+through the pipeline from left to right.</p>
+<h3 id="filtering-and-searching">Filtering and Searching</h3>
+<p>To search for running processes without manually scrolling through a
+long list:</p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ps</span> aux <span class="kw">|</span> <span class="fu">grep</span> <span class="st">&quot;nginx&quot;</span></span></code></pre></div>
+<p><code>ps aux</code> outputs all active processes to
+<code>stdout</code>. The pipe forwards that list directly to
+<code>grep</code>, which scans the stream and displays only lines
+containing the term "nginx".</p>
+<h3 id="sorting-and-aggregating-data">Sorting and Aggregating Data</h3>
+<p>To find the number of unique IP addresses accessing a web server:</p>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span> access.log <span class="kw">|</span> <span class="fu">awk</span> <span class="st">&#39;{print $1}&#39;</span> <span class="kw">|</span> <span class="fu">sort</span> <span class="kw">|</span> <span class="fu">uniq</span> <span class="at">-c</span> <span class="kw">|</span> <span class="fu">sort</span> <span class="at">-nr</span></span></code></pre></div>
+<p>The data flows through multiple transformations:</p>
+<ol type="1">
+<li><code>cat</code> outputs the log file.</li>
+<li><code>awk</code> extracts only the first column (IP addresses).</li>
+<li><code>sort</code> organizes the IP addresses alphabetically
+(required for <code>uniq</code>).</li>
+<li><code>uniq -c</code> collapses duplicate lines and prefixes each
+with a count.</li>
+<li><code>sort -nr</code> sorts the final list numerically in reverse
+order to show the most frequent visitors at the top.</li>
+</ol>
+<h3 id="paging-long-output">Paging Long Output</h3>
+<p>To view system logs one screen at a time:</p>
+<div class="sourceCode" id="cb4"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="ex">journalctl</span> <span class="at">-b</span> <span class="kw">|</span> <span class="fu">less</span></span></code></pre></div>
+<p><code>journalctl</code> generates the boot log, and <code>less</code>
+receives it as input, giving you an interactive interface to scroll up
+and down.</p>
+<h2 id="pipe--vs-redirection-">Pipe (<code>|</code>) vs. Redirection
+(<code>&gt;</code>)</h2>
+<p>It is important to distinguish between piping and redirection:</p>
+<ul>
+<li><strong>Pipe (<code>|</code>):</strong> Connects the output of a
+<strong>process</strong> to the input of another
+<strong>process</strong>.</li>
+<li><strong>Redirect (<code>&gt;</code> or <code>&lt;</code>):</strong>
+Connects a <strong>process</strong> to a <strong>file</strong> on the
+filesystem.</li>
+</ul>
+<p>For example, <code>command1 &gt; output.txt</code> writes data to a
+file, whereas <code>command1 | command2</code> sends data directly to
+<code>command2</code> via memory. If you want to direct both
+<code>stdout</code> and <code>stderr</code> through a pipeline, modern
+shells like Bash support the <code>|&amp;</code> syntax (shorthand for
+<code>2&gt;&amp;1 |</code>).</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

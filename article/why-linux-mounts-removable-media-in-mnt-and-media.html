@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Why Linux Mounts Removable Media in /mnt and /media - linux</title>
+    <meta name="description" content="In the Linux operating system, storage devices do not use drive letters like Windows; instead, they are attached to specific directories within a single, unified filesystem tree. Removable storage devices such as USB flash drives, external hard drives, a">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/why-linux-mounts-removable-media-in-mnt-and-media">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Why Linux Mounts Removable Media in /mnt and /media - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/why-linux-mounts-removable-media-in-mnt-and-media" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="In the Linux operating system, storage devices do not use drive letters like Windows; instead, they are attached to specific directories within a single, unified filesystem tree. Removable storage devices such as USB flash drives, external hard drives, a" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="why-linux-mounts-removable-media-in-mnt-and-media">Why Linux
+Mounts Removable Media in /mnt and /media</h1>
+<p>In the Linux operating system, storage devices do not use drive
+letters like Windows; instead, they are attached to specific directories
+within a single, unified filesystem tree. Removable storage devices such
+as USB flash drives, external hard drives, and optical discs are
+traditionally mounted inside the <code>/mnt</code> or
+<code>/media</code> directories to conform to the Filesystem Hierarchy
+Standard (FHS). While both directories serve as designated access points
+for temporary storage, <code>/mnt</code> was historically designed for
+system administrators to mount filesystems manually, whereas
+<code>/media</code> was introduced to allow modern desktop environments
+to automatically detect and mount removable devices safely and
+predictably.</p>
+<h3 id="the-unified-directory-tree-and-mount-points">The Unified
+Directory Tree and Mount Points</h3>
+<p>Unlike operating systems that assign letters like <code>C:</code> or
+<code>D:</code> to physical partitions, Linux treats everything as a
+file, organizing all data under a single root directory
+(<code>/</code>). For a storage device to become accessible, its
+filesystem must be "mounted"—or grafted—onto an existing directory.</p>
+<p>Because mounting a device onto an arbitrary system folder could
+obscure vital system files or create confusion, standardized locations
+were established to keep the root directory organized and secure.</p>
+<h3 id="the-historic-role-of-mnt">The Historic Role of
+<code>/mnt</code></h3>
+<p>The <code>/mnt</code> directory—short for "mount"—is one of the
+oldest standard locations in Unix and Linux history.</p>
+<ul>
+<li><strong>Manual Administration:</strong> System administrators use
+<code>/mnt</code> to manually attach filesystems on a temporary basis.
+For example, during system recovery, disk repairs, or network filesystem
+testing, an admin might mount a partition using the
+<code>mount /dev/sdb1 /mnt</code> command.</li>
+<li><strong>Temporary Use:</strong> Under the Filesystem Hierarchy
+Standard, <code>/mnt</code> is explicitly defined as a temporary mount
+point. It was never intended to support multiple, constantly changing
+consumer devices simultaneously. When desktop environments began
+auto-mounting multiple devices like floppy disks, CDs, and flash drives
+at the same time, using <code>/mnt</code> directly caused clutter and
+namespace collisions.</li>
+</ul>
+<h3 id="the-introduction-of-media">The Introduction of
+<code>/media</code></h3>
+<p>To resolve the limitations of <code>/mnt</code>, the Filesystem
+Hierarchy Standard introduced <code>/media</code> in FHS version
+2.3.</p>
+<ul>
+<li><strong>Automated Device Handling:</strong> Modern desktop Linux
+distributions use background services (such as <code>udev</code> and
+<code>udisks</code>) to detect when a hardware device is plugged in. The
+system automatically creates a subfolder inside
+<code>/media</code>—often structured as
+<code>/media/&lt;username&gt;/&lt;device_label&gt;</code>—and mounts the
+device there without requiring root privileges or manual terminal
+commands.</li>
+<li><strong>Dynamic Clean-up:</strong> When the user unmounts and ejects
+the removable medium, the system automatically removes the temporary
+directory it created inside <code>/media</code>, ensuring the filesystem
+stays clean.</li>
+<li><strong>Separation of Concerns:</strong> By segregating automated
+user devices into <code>/media</code>, the system preserves
+<code>/mnt</code> for administrators who need a clean, static, and
+predictable location to mount filesystems manually without interference
+from desktop automation tools.</li>
+</ul>
+<h3 id="summary-of-differences">Summary of Differences</h3>
+<ul>
+<li><strong><code>/mnt</code>:</strong> Intended for the system
+administrator to manually mount temporary filesystems (such as network
+shares, secondary recovery drives, or disk images) via the command
+line.</li>
+<li><strong><code>/media</code>:</strong> Intended for the operating
+system to automatically mount user-level, physical removable media (such
+as USB thumb drives, external HDDs, and SD cards).</li>
+</ul></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

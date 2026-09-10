@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linux RAID Controller Management Using StorCLI - linux</title>
+    <meta name="description" content="This article provides an overview of how the Linux operating system communicates with hardware RAID controllers through the Storage Command Line Tool (storcli). It examines the underlying communication path, spanning from user-space execution and Linux k">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/linux-raid-controller-management-using-storcli">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Linux RAID Controller Management Using StorCLI - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/linux-raid-controller-management-using-storcli" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="This article provides an overview of how the Linux operating system communicates with hardware RAID controllers through the Storage Command Line Tool (storcli). It examines the underlying communication path, spanning from user-space execution and Linux k" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="linux-raid-controller-management-using-storcli">Linux RAID
+Controller Management Using StorCLI</h1>
+<p>This article provides an overview of how the Linux operating system
+communicates with hardware RAID controllers through the Storage Command
+Line Tool (storcli). It examines the underlying communication path,
+spanning from user-space execution and Linux kernel device drivers to
+standard input/output control system calls, detailing how administrative
+commands directly manipulate controller firmware and physical drive
+arrays.</p>
+<h2 id="architectural-overview">Architectural Overview</h2>
+<p>Hardware RAID controllers operate independently from the host CPU,
+managing attached physical disks and presenting configured virtual
+drives to the operating system as standard block storage devices. While
+standard Linux I/O handles read and write requests to these virtual
+drives via typical block drivers, administrative management—such as
+checking controller health, managing drive groups, or flashing
+firmware—requires an out-of-band communication channel. The
+<code>storcli</code> utility serves as the user-space interface for this
+channel, predominantly supporting Broadcom, LSI, and MegaRAID-based
+controller families.</p>
+<h2 id="the-kernel-driver-layer">The Kernel Driver Layer</h2>
+<p>Before <code>storcli</code> can interact with the controller, the
+Linux kernel must load the appropriate hardware driver module during
+boot or upon device discovery. For modern MegaRAID controllers, this is
+typically the <code>megaraid_sas</code> driver; for newer Tri-Mode or
+SAS/SATA host bus adapters, it may be the <code>mpt3sas</code> or
+<code>mpi3mr</code> driver.</p>
+<p>When initialized, these kernel drivers register two distinct
+functional interfaces:</p>
+<ol type="1">
+<li><strong>SCSI Mid-Layer Integration:</strong> Exposes configured
+logical volumes (Virtual Drives) to the Linux SCSI subsystem, making
+them accessible as standard block devices (<code>/dev/sdX</code>).</li>
+<li><strong>Character Device Control Nodes:</strong> Creates specialized
+character device nodes, commonly located at
+<code>/dev/megaraid_sas_ioctl_node</code> or through dynamic
+<code>/dev/megaraid_sas_ioctl</code> endpoints.</li>
+</ol>
+<h2 id="the-ioctl-communication-mechanism">The IOCTL Communication
+Mechanism</h2>
+<p>The interaction between <code>storcli</code> and the RAID card
+bypasses the standard file system and Linux block I/O stack
+completely:</p>
+<ol type="1">
+<li><strong>Command Generation:</strong> When an administrator runs a
+command (such as <code>storcli /c0 show</code>), the
+<code>storcli</code> binary compiles the requested action into a
+structured hardware command packet formatted according to the
+controller's proprietary command interface protocol (such as MegaRAID
+Firmware Interface, or MFI).</li>
+<li><strong>System Call (<code>ioctl</code>):</strong>
+<code>storcli</code> opens the corresponding character control node
+provided by the kernel driver and issues an <code>ioctl()</code>
+(input/output control) system call containing the command packet
+payload.</li>
+<li><strong>Driver Passing:</strong> The kernel driver receives the
+<code>ioctl()</code> request. Rather than processing it within the OS
+storage subsystem, the driver encapsulates the payload into a direct
+PCIe message frame (often using direct memory access / DMA for large
+data transfers, such as firmware updates or event logs).</li>
+<li><strong>Firmware Execution:</strong> The controller's onboard
+processor reads the command from PCIe memory, executes the request
+across the connected SAS/SATA fabric or onboard NVRAM, and writes the
+execution status and return data back to host memory.</li>
+<li><strong>Return Path:</strong> The kernel driver catches the hardware
+interrupt signaling completion, updates the <code>ioctl()</code>
+response, and passes the output back up to <code>storcli</code> in user
+space, where it is formatted as plain text or JSON output.</li>
+</ol>
+<h2 id="operational-capabilities-via-storcli">Operational Capabilities
+via StorCLI</h2>
+<p>Through this direct hardware path, <code>storcli</code> provides
+granular control over hardware that the native Linux operating system
+cannot manage directly:</p>
+<ul>
+<li><strong>Physical and Virtual Drive Management:</strong> Creating,
+expanding, migrating, and deleting RAID arrays, as well as assigning
+dedicated or global hot spares.</li>
+<li><strong>Firmware Configuration:</strong> Adjusting controller-level
+cache policies (WriteBack, WriteThrough, ReadAhead), updating firmware,
+and managing BIOS settings.</li>
+<li><strong>Health and Telemetry Monitoring:</strong> Reading controller
+temperature sensors, battery backup unit (BBU) or CacheVault capacitor
+charge levels, enclosure environmental services, and raw physical disk
+SMART diagnostics.</li>
+<li><strong>Drive Identification:</strong> Triggering physical enclosure
+LEDs to locate failing drives or confirm drive slot mappings without
+physical chassis inspection.</li>
+</ul></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

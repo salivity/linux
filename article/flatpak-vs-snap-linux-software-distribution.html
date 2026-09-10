@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flatpak vs Snap: Linux Software Distribution - linux</title>
+    <meta name="description" content="This article explores the fundamental differences between Flatpak and Snap, two leading universal package management systems designed for the Linux operating system. While both formats solve dependency management and software isolation challenges by bund">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/flatpak-vs-snap-linux-software-distribution">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Flatpak vs Snap: Linux Software Distribution - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/flatpak-vs-snap-linux-software-distribution" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="This article explores the fundamental differences between Flatpak and Snap, two leading universal package management systems designed for the Linux operating system. While both formats solve dependency management and software isolation challenges by bund" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="flatpak-vs-snap-linux-software-distribution">Flatpak vs Snap:
+Linux Software Distribution</h1>
+<p>This article explores the fundamental differences between Flatpak and
+Snap, two leading universal package management systems designed for the
+Linux operating system. While both formats solve dependency management
+and software isolation challenges by bundling applications with their
+dependencies, they diverge significantly in architectural philosophy,
+primary targets, backend infrastructure, and system integration. Below
+is a direct comparison of how these two formats function and differ.</p>
+<h3 id="target-environment-and-scope">Target Environment and Scope</h3>
+<ul>
+<li><strong>Flatpak:</strong> Primarily built for the Linux desktop. It
+focuses exclusively on graphical user interface (GUI) desktop
+applications and does not support command-line tools, system daemons, or
+OS kernel modules.</li>
+<li><strong>Snap:</strong> Built for both desktop and headless
+environments. It supports desktop software, command-line utilities,
+background services (daemons), system components, and Internet of Things
+(IoT) deployments.</li>
+</ul>
+<h3 id="centralization-and-ecosystem-control">Centralization and
+Ecosystem Control</h3>
+<ul>
+<li><strong>Flatpak:</strong> Decentralized by design. Users and
+organizations can host their own remote repositories without
+restriction. While Flathub serves as the primary community-driven hub,
+users are free to add multiple third-party or private sources. Both
+client and server implementations are fully open source.</li>
+<li><strong>Snap:</strong> Centralized by design. Canonical (the company
+behind Ubuntu) maintains the exclusive, closed-source backend for the
+Snap Store. By default, the Snap daemon (<code>snapd</code>) only
+connects to Canonical's official repository, preventing multi-store
+setups without hard-forking the software.</li>
+</ul>
+<h3 id="sandboxing-and-security-architecture">Sandboxing and Security
+Architecture</h3>
+<ul>
+<li><strong>Flatpak:</strong> Employs Bubblewrap, cgroups, network
+namespaces, and SELinux for isolation. Desktop permissions (camera,
+microphone, file system access) are managed dynamically through XDG
+Desktop Portals, prompting users for permission at runtime much like
+mobile operating systems.</li>
+<li><strong>Snap:</strong> Relies heavily on AppArmor for security
+confinement alongside seccomp and cgroups. While AppArmor works natively
+on Ubuntu and SUSE, distributions using SELinux by default (such as
+Fedora or RHEL) may run Snaps with reduced or unconfined sandbox
+protections unless configured manually.</li>
+</ul>
+<h3 id="storage-and-runtimes">Storage and Runtimes</h3>
+<ul>
+<li><strong>Flatpak:</strong> Utilizes shared base "Runtimes" (such as
+GNOME, KDE, or Freedesktop SDKs). Applications targeting the same
+runtime share these dependencies via OSTree deduplication, saving disk
+space across multiple installations.</li>
+<li><strong>Snap:</strong> Packages each application as a compressed
+read-only SquashFS filesystem image. While Snaps share common base snaps
+(like <code>core20</code> or <code>core22</code>), each installed snap
+creates an individual virtual loop device on the host system to mount
+its filesystem.</li>
+</ul>
+<h3 id="startup-performance">Startup Performance</h3>
+<ul>
+<li><strong>Flatpak:</strong> Generally delivers faster cold startup
+times because applications are already expanded within the OSTree system
+structure and do not require on-the-fly mounting of disk images.</li>
+<li><strong>Snap:</strong> Has historically faced slower cold startup
+times because the system must decompress and mount the SquashFS
+filesystem upon initial launch, although Canonical has significantly
+reduced this overhead in recent iterations using optimized compression
+algorithms (such as LZO).</li>
+</ul>
+<h3 id="summary-of-strengths">Summary of Strengths</h3>
+<ul>
+<li>Choose <strong>Flatpak</strong> for desktop-first workflows, better
+cross-distribution consistency, native desktop theming integration, and
+an open, decentralized distribution model.</li>
+<li>Choose <strong>Snap</strong> for server-side software, command-line
+applications, IoT devices, and deep integration with Ubuntu-based
+infrastructure.</li>
+</ul></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

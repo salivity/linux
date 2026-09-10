@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>What is the Sysfs File System in Linux? - linux</title>
+    <meta name="description" content="The sysfs virtual file system in Linux is an essential kernel feature that exports information about hardware devices, drivers, and kernel subsystems to user space. This article provides a clear breakdown of what sysfs is, how it represents the system's">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/what-is-the-sysfs-file-system-in-linux">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="What is the Sysfs File System in Linux? - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/what-is-the-sysfs-file-system-in-linux" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="The sysfs virtual file system in Linux is an essential kernel feature that exports information about hardware devices, drivers, and kernel subsystems to user space. This article provides a clear breakdown of what sysfs is, how it represents the system's" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="what-is-the-sysfs-file-system-in-linux">What is the Sysfs File
+System in Linux?</h1>
+<p>The <code>sysfs</code> virtual file system in Linux is an essential
+kernel feature that exports information about hardware devices, drivers,
+and kernel subsystems to user space. This article provides a clear
+breakdown of what <code>sysfs</code> is, how it represents the system's
+hardware topology, its role in runtime device configuration, and how it
+differs from other pseudo-file systems.</p>
+<h3 id="understanding-sysfs">Understanding Sysfs</h3>
+<p>Introduced in Linux kernel 2.6, <code>sysfs</code> is an in-memory,
+pseudo-file system typically mounted at the <code>/sys</code> directory.
+Unlike conventional file systems (such as ext4 or Btrfs),
+<code>sysfs</code> does not occupy physical storage on a disk. Instead,
+the Linux kernel dynamically generates its files and directories in RAM
+to mirror the kernel’s internal Unified Device Model.</p>
+<p>Each directory in <code>sysfs</code> represents a kernel object
+(<code>kobject</code>), such as a device, bus, or driver. The files
+within these directories represent attributes of those objects.</p>
+<h3 id="primary-uses-of-sysfs">Primary Uses of Sysfs</h3>
+<h4 id="1-hardware-representation-and-discovery">1. Hardware
+Representation and Discovery</h4>
+<p><code>sysfs</code> organizes hardware into a clear, hierarchical
+view. It allows users and system utilities to inspect the physical and
+logical relationships between components, such as seeing which USB
+controller a specific peripheral is plugged into or checking the
+topology of PCI buses.</p>
+<h4 id="2-runtime-hardware-configuration">2. Runtime Hardware
+Configuration</h4>
+<p>Many attributes in <code>sysfs</code> are writable. This allows
+system administrators and user-space programs to modify hardware and
+driver behavior at runtime without restarting the system or reloading
+modules.</p>
+<p>Common operations include:</p>
+<ul>
+<li><strong>Power Management:</strong> Modifying CPU governors,
+adjusting sleep states, or enabling runtime power savings for specific
+PCI devices.</li>
+<li><strong>Device Control:</strong> Toggling LED indicators,
+controlling fan speeds, or adjusting display brightness.</li>
+<li><strong>Storage Operations:</strong> Rescanning a SCSI bus or safely
+taking a block device offline.</li>
+</ul>
+<p>These adjustments are performed using standard file I/O operations,
+such as reading with <code>cat</code> or modifying values with
+<code>echo</code>.</p>
+<h4 id="3-integration-with-device-managers-udev">3. Integration with
+Device Managers (udev)</h4>
+<p><code>sysfs</code> works closely with <code>udev</code>, the Linux
+device manager. When hardware is attached or removed, the kernel
+generates an event (<code>uevent</code>) and updates the
+<code>sysfs</code> hierarchy. The <code>udev</code> daemon reads these
+<code>sysfs</code> attributes (such as vendor IDs, serial numbers, and
+device classes) to dynamically create and name device nodes in the
+<code>/dev</code> directory.</p>
+<h3 id="key-directories-under-sys">Key Directories Under /sys</h3>
+<ul>
+<li><strong>/sys/block:</strong> Contains entries for each block device
+detected on the system (e.g., hard drives, partitions).</li>
+<li><strong>/sys/bus:</strong> Organizes devices by the physical bus
+they communicate through (e.g., <code>pci</code>, <code>usb</code>,
+<code>i2c</code>).</li>
+<li><strong>/sys/class:</strong> Groups devices by functional type
+rather than connection type (e.g., <code>net</code> for network
+interfaces, <code>sound</code> for audio devices).</li>
+<li><strong>/sys/devices:</strong> The central device tree containing
+the global representation of all device objects in the system.</li>
+<li><strong>/sys/module:</strong> Contains directories for every kernel
+module currently loaded into memory.</li>
+<li><strong>/sys/power:</strong> Controls system-wide power states like
+suspend and hibernation.</li>
+</ul>
+<h3 id="sysfs-vs-procfs">Sysfs vs. Procfs</h3>
+<p>While both are virtual file systems, they serve distinct
+purposes:</p>
+<ul>
+<li><strong><code>procfs</code> (<code>/proc</code>):</strong>
+Historically used for everything, it is now primarily intended to expose
+process-related information and general kernel runtime metrics.</li>
+<li><strong><code>sysfs</code> (<code>/sys</code>):</strong>
+Specifically designed to represent the hardware layout, device drivers,
+and device hierarchy, following a strict "one value per file" standard
+to ensure simplicity and machine readability.</li>
+</ul></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

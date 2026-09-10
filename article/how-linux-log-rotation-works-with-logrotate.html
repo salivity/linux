@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How Linux Log Rotation Works with Logrotate - linux</title>
+    <meta name="description" content="Linux systems generate continuous streams of log data that can quickly consume available disk space if left unmanaged. The logrotate utility solves this problem by automating the rotation, compression, removal, and mailing of log files based on predefine">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-linux-log-rotation-works-with-logrotate">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How Linux Log Rotation Works with Logrotate - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-linux-log-rotation-works-with-logrotate" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="Linux systems generate continuous streams of log data that can quickly consume available disk space if left unmanaged. The logrotate utility solves this problem by automating the rotation, compression, removal, and mailing of log files based on predefine" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-linux-log-rotation-works-with-logrotate">How Linux Log
+Rotation Works with Logrotate</h1>
+<p>Linux systems generate continuous streams of log data that can
+quickly consume available disk space if left unmanaged. The
+<code>logrotate</code> utility solves this problem by automating the
+rotation, compression, removal, and mailing of log files based on
+predefined schedules or size limits. This article explains the
+underlying mechanics of <code>logrotate</code>, its configuration
+structure, execution methods, and the primary rotation strategies used
+by the operating system.</p>
+<hr />
+<h3 id="execution-mechanism-cron-and-systemd">Execution Mechanism: Cron
+and Systemd</h3>
+<p>Unlike persistent daemons, <code>logrotate</code> does not run
+continuously in the background. Instead, it is a command-line tool
+executed at regular intervals by the system's scheduling system:</p>
+<ul>
+<li><strong>Cron:</strong> Traditionally, <code>logrotate</code> is
+invoked daily via a shell script located at
+<code>/etc/cron.daily/logrotate</code>.</li>
+<li><strong>Systemd Timers:</strong> Modern distributions often trigger
+the service using <code>logrotate.timer</code>, which runs
+<code>logrotate.service</code> once per day.</li>
+</ul>
+<p>When triggered, <code>logrotate</code> reads its configuration files,
+verifies whether any log files meet the criteria for rotation (such as
+age or file size), and applies the specified actions.</p>
+<hr />
+<h3 id="configuration-architecture">Configuration Architecture</h3>
+<p>The behavior of <code>logrotate</code> is governed by a hierarchical
+configuration system:</p>
+<ol type="1">
+<li><strong>Global Configuration
+(<code>/etc/logrotate.conf</code>):</strong> Defines system-wide default
+settings, such as default rotation frequency, compression options, and
+retention counts. It also includes an
+<code>include /etc/logrotate.d</code> directive.</li>
+<li><strong>Application-Specific Directory
+(<code>/etc/logrotate.d/</code>):</strong> Packages installed on the
+system (like NGINX, Apache, or Rsyslog) place their own rotation files
+here. Directives defined in these files override the global
+defaults.</li>
+</ol>
+<p>A typical configuration block defines target files and directives
+within curly braces:</p>
+<pre class="text"><code>/var/log/app/*.log {
+    daily
+    missingok
+    rotate 7
+    compress
+    delaycompress
+    notifempty
+    create 0640 appuser appgroup
+    sharedscripts
+    postrotate
+        systemctl reload app &gt; /dev/null 2&gt;&amp;1 || true
+    endscript
+}</code></pre>
+<hr />
+<h3 id="key-directives-and-behaviors">Key Directives and Behaviors</h3>
+<ul>
+<li><strong>Rotation Frequency:</strong> Driven by time
+(<code>daily</code>, <code>weekly</code>, <code>monthly</code>) or size
+limits (<code>size 100M</code>, <code>maxsize 50M</code>).</li>
+<li><strong>Retention (<code>rotate &lt;count&gt;</code>):</strong>
+Specifies how many rotated log files to retain before older ones are
+deleted. Setting <code>rotate 4</code> with <code>weekly</code> keeps
+four weeks of historical logs.</li>
+<li><strong>Compression (<code>compress</code> /
+<code>delaycompress</code>):</strong> Compresses rotated files with
+<code>gzip</code> by default. <code>delaycompress</code> defers
+compression of the most recently rotated log until the next cycle to
+prevent issues with processes that still hold an open file handle.</li>
+<li><strong>File Creation (<code>create</code>):</strong> Immediately
+creates a new, empty log file with specified permissions and ownership
+after rotating the old file.</li>
+<li><strong>Error Handling (<code>missingok</code> /
+<code>notifempty</code>):</strong> <code>missingok</code> prevents
+errors if the log file is absent; <code>notifempty</code> skips rotation
+if the file is zero bytes.</li>
+</ul>
+<hr />
+<h3 id="rotation-methods-rename-vs-copytruncate">Rotation Methods:
+Rename vs. Copytruncate</h3>
+<p>Applications continuously write to log files via open file
+descriptors. <code>logrotate</code> manages this using one of two
+primary methods:</p>
+<h4 id="1-rename-and-signal-default">1. Rename and Signal (Default)</h4>
+<ol type="1">
+<li><code>logrotate</code> renames <code>app.log</code> to
+<code>app.log.1</code>.</li>
+<li>A new, empty <code>app.log</code> is created using the
+<code>create</code> directive.</li>
+<li>The application is signaled (usually via <code>SIGHUP</code> or
+<code>systemctl reload</code> inside a <code>postrotate</code> script
+block) to reopen its log file and begin writing to the new
+<code>app.log</code>.</li>
+</ol>
+<h4 id="2-copytruncate-copytruncate">2. Copytruncate
+(<code>copytruncate</code>)</h4>
+<ol type="1">
+<li><code>logrotate</code> copies the current contents of
+<code>app.log</code> to <code>app.log.1</code>.</li>
+<li><code>logrotate</code> then truncates the original
+<code>app.log</code> in-place to zero bytes.</li>
+</ol>
+<p>This approach is used for applications that cannot be easily signaled
+to reopen log files. However, there is a minimal risk of losing log data
+written between the copy and truncate steps.</p>
+<hr />
+<h3 id="state-tracking-and-testing">State Tracking and Testing</h3>
+<p>To avoid rotating logs multiple times within a single period,
+<code>logrotate</code> tracks historical activity in a state file,
+typically located at <code>/var/lib/logrotate/status</code> or
+<code>/var/lib/logrotate.status</code>. This file records the date and
+time each log was last rotated.</p>
+<p>Administrators can test configurations and verify rotation logic
+using two built-in flags:</p>
+<ul>
+<li><strong>Debug Mode
+(<code>logrotate -d /etc/logrotate.conf</code>):</strong> Simulates the
+rotation process, outputs detailed decisions to stdout, and makes no
+actual changes to files.</li>
+<li><strong>Force Mode
+(<code>logrotate -f /etc/logrotate.conf</code>):</strong> Forces
+rotation immediately, ignoring schedule constraints and updating the
+state file.</li>
+</ul></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

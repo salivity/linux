@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linux Tickless Kernel NO_HZ Power Saving Explained - linux</title>
+    <meta name="description" content="The Linux tickless kernel, designated by the configuration option NOHZ, significantly improves energy efficiency by eliminating periodic timer interrupts when a CPU is idle. In standard kernels, periodic hardware interrupts wake processors at fixed inter">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/linux-tickless-kernel-no-hz-power-saving-explained">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Linux Tickless Kernel NO_HZ Power Saving Explained - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/linux-tickless-kernel-no-hz-power-saving-explained" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="The Linux tickless kernel, designated by the configuration option NOHZ, significantly improves energy efficiency by eliminating periodic timer interrupts when a CPU is idle. In standard kernels, periodic hardware interrupts wake processors at fixed inter" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="linux-tickless-kernel-no_hz-power-saving-explained">Linux
+Tickless Kernel NO_HZ Power Saving Explained</h1>
+<p>The Linux tickless kernel, designated by the configuration option
+<code>NO_HZ</code>, significantly improves energy efficiency by
+eliminating periodic timer interrupts when a CPU is idle. In standard
+kernels, periodic hardware interrupts wake processors at fixed intervals
+regardless of system load, which prevents hardware from remaining in
+low-power states. By replacing fixed-rate ticks with on-demand, dynamic
+timers, the tickless infrastructure allows idle CPU cores to enter and
+maintain deep sleep states for longer durations, dramatically lowering
+overall power consumption in both mobile devices and data centers.</p>
+<h2 id="the-problem-with-periodic-timer-ticks">The Problem with Periodic
+Timer Ticks</h2>
+<p>Historically, Unix-like operating systems rely on a periodic timer
+tick—typically firing at frequencies like 100 Hz, 250 Hz, or 1000 Hz
+(defined by <code>CONFIG_HZ</code>). Every time the tick fires, an
+interrupt is raised to:</p>
+<ul>
+<li>Update system time and process accounting.</li>
+<li>Check if the currently running task has exceeded its time
+slice.</li>
+<li>Trigger software interrupts and evaluate timers.</li>
+</ul>
+<p>While this mechanism ensures fairness in multi-tasking environments,
+it forces the CPU to wake up continuously—often hundreds or thousands of
+times per second—even when no user or kernel tasks require
+execution.</p>
+<h2 id="how-the-tickless-no_hz-architecture-works">How the Tickless
+(NO_HZ) Architecture Works</h2>
+<p>The tickless design replaces repetitive periodic interrupts with
+dynamic, single-shot timers powered by the kernel's high-resolution
+timer (<code>hrtimer</code>) subsystem.</p>
+<ol type="1">
+<li><strong>Entering the Idle State:</strong> When a CPU has no runnable
+tasks in its runqueue, the operating system executes the idle task.</li>
+<li><strong>Calculating the Next Event:</strong> Instead of waiting for
+the next periodic tick, the kernel inspects the timer queue to identify
+the earliest scheduled event or deadline across all active processes and
+hardware drivers.</li>
+<li><strong>Reprogramming the Clock:</strong> The kernel reprograms the
+local CPU timer hardware to trigger a single interrupt at that specific
+future timestamp.</li>
+<li><strong>Stopping the Tick:</strong> The regular, repetitive tick is
+disabled (<code>CONFIG_NO_HZ_IDLE</code>). The CPU remains inactive
+until that programmed deadline arrives or an external hardware interrupt
+(such as an incoming network packet or peripheral event) forces it to
+wake.</li>
+</ol>
+<h2 id="prolonging-deep-cpu-sleep-states-c-states">Prolonging Deep CPU
+Sleep States (C-States)</h2>
+<p>Modern processors save power through sleep states, known as C-states.
+While <code>C0</code> is the operational state where the CPU executes
+instructions, states from <code>C1</code> upward (e.g.,
+<code>C1E</code>, <code>C3</code>, <code>C6</code>, <code>C8</code>)
+progressively turn off internal clocks, flush caches, and reduce core
+voltages.</p>
+<p>Deeper C-states yield massive energy savings, but they come with a
+transition latency penalty—the CPU takes time and energy to enter and
+exit these states. If a CPU is interrupted every millisecond by a 1000
+Hz periodic tick:</p>
+<ul>
+<li>It cannot remain idle long enough to satisfy the "target residency"
+of deep C-states.</li>
+<li>Entering deep C-states becomes counterproductive because the CPU
+would waste energy constantly transitioning between sleep and wake
+cycles.</li>
+</ul>
+<p>By using <code>NO_HZ</code>, the Linux kernel extends contiguous idle
+durations from milliseconds to hundreds of milliseconds or even seconds.
+This enables power management subsystems like <code>CPUIdle</code> to
+safely place cores into their deepest low-power states, minimizing
+active power draw and heat generation.</p>
+<h2 id="no_hz-configuration-modes">NO_HZ Configuration Modes</h2>
+<p>Linux provides different levels of tickless operation depending on
+the workload and power profile:</p>
+<ul>
+<li><strong><code>CONFIG_NO_HZ_IDLE</code> (Standard Dynamic
+Ticks):</strong> The default configuration on modern desktop, mobile,
+and server distributions. It disables the tick solely when the processor
+core is idle and resumes ticks as soon as a task begins execution.</li>
+<li><strong><code>CONFIG_NO_HZ_FULL</code> (Full Tickless):</strong>
+Extends the tickless mechanism by stopping the timer tick even when a
+user task is running, provided that exactly one task is pinned to that
+isolated CPU core. While primarily designed to reduce jitter in
+real-time computing and high-performance computing (HPC), it also avoids
+unnecessary context-switching overhead.</li>
+<li><strong><code>CONFIG_HZ_PERIODIC</code>:</strong> Disables tickless
+functionality entirely, maintaining fixed periodic interrupts regardless
+of CPU activity.</li>
+</ul>
+<h2 id="impact-on-battery-life-and-thermal-efficiency">Impact on Battery
+Life and Thermal Efficiency</h2>
+<p>By allowing hardware to remain in low-power idle states
+uninterrupted, the <code>NO_HZ</code> subsystem delivers measurable
+efficiency improvements. On battery-powered systems like laptops,
+tablets, and smartphones, the reduction in baseline idle power
+significantly extends battery endurance. In multi-socket enterprise
+servers, prolonged deep C-states lower idle power draw across dozens of
+physical cores, reducing both electricity consumption and cooling
+requirements in data centers.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

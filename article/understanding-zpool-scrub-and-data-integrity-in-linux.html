@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Understanding zpool scrub and Data Integrity in Linux - linux</title>
+    <meta name="description" content="The zpool scrub operation is an essential maintenance task within OpenZFS on Linux, serving as the primary defense against silent data corruption, bit rot, and undetected drive degradation. This article details the mechanics of the scrub command, explain">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/understanding-zpool-scrub-and-data-integrity-in-linux">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Understanding zpool scrub and Data Integrity in Linux - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/understanding-zpool-scrub-and-data-integrity-in-linux" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="The zpool scrub operation is an essential maintenance task within OpenZFS on Linux, serving as the primary defense against silent data corruption, bit rot, and undetected drive degradation. This article details the mechanics of the scrub command, explain" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1
+id="understanding-zpool-scrub-and-data-integrity-in-linux">Understanding
+zpool scrub and Data Integrity in Linux</h1>
+<p>The <code>zpool scrub</code> operation is an essential maintenance
+task within OpenZFS on Linux, serving as the primary defense against
+silent data corruption, bit rot, and undetected drive degradation. This
+article details the mechanics of the scrub command, explains how it
+leverages checksumming and pool redundancy to verify and repair stored
+data, and outlines best practices for running scrubs to guarantee
+long-term data reliability without degrading system performance.</p>
+<h2 id="what-is-a-zpool-scrub">What Is a zpool scrub?</h2>
+<p>A scrub is a proactive background verification process that reads
+every active data block, snapshot, and piece of metadata across a ZFS
+storage pool. Unlike traditional filesystem check utilities (such as
+<code>fsck</code>), which only inspect filesystem metadata while the
+pool is offline, <code>zpool scrub</code> operates entirely online while
+reads and writes continue normally.</p>
+<h2 id="protection-against-silent-data-corruption">Protection Against
+Silent Data Corruption</h2>
+<p>Storage media inevitably suffers from bit rot—phenomena such as
+magnetic degradation, cosmic rays, firmware bugs, or controller faults
+that alter data bits on disk without triggering an input/output (I/O)
+error. Traditional Linux filesystems (like ext4 or XFS) trust that the
+underlying hardware will report read errors. When a drive returns
+corrupted bits without reporting an error, standard filesystems pass
+that bad data to applications undetected.</p>
+<p>ZFS bypasses hardware trust through end-to-end cryptographic
+checksums. Every block written to a pool has its checksum stored in its
+parent block pointer. During a <code>zpool scrub</code>, the system:</p>
+<ol type="1">
+<li>Reads every allocated block from the physical drives.</li>
+<li>Recomputes the checksum of the data read.</li>
+<li>Compares the result against the expected checksum recorded in the
+parent block.</li>
+</ol>
+<h2 id="automatic-self-healing">Automatic Self-Healing</h2>
+<p>Detecting corruption is only the first stage of the process. If a
+pool is configured with redundancy—such as mirrored drives (RAID-1
+style) or RAIDZ arrays (RAID-5/6 equivalent)—<code>zpool scrub</code>
+automatically repairs the damaged data.</p>
+<p>When a checksum mismatch is detected on a specific drive, ZFS issues
+a read to the redundant mirror or calculates the correct data using the
+parity blocks in a RAIDZ configuration. Once the pristine copy is
+retrieved, ZFS writes the correct data back to the disk containing the
+corrupted block. This self-healing process occurs without administrator
+intervention, ensuring that minor bit-flips do not accumulate into
+unrecoverable array failures over time.</p>
+<h2 id="scrubbing-vs-resilvering">Scrubbing vs. Resilvering</h2>
+<p>While both operations verify and repair data, their triggers and
+scopes differ:</p>
+<ul>
+<li><strong>Resilver:</strong> Initiated automatically when a faulted
+drive is replaced. It focuses on copying and calculating data needed to
+bring the newly added drive up to parity with the rest of the pool.</li>
+<li><strong>Scrub:</strong> Initiated manually or via a scheduled timer
+across all existing, healthy drives. It validates all current data
+across the entire pool, ensuring that latent read errors are not hiding
+in rarely accessed cold storage.</li>
+</ul>
+<h2 id="scheduling-best-practices">Scheduling Best Practices</h2>
+<p>Running a scrub generates substantial read I/O across all disks.
+However, ZFS assigns scrub operations a lower scheduling priority than
+real-time application I/O, minimizing the impact on active
+workloads.</p>
+<p>For standard Linux production environments, recommended scheduling
+includes:</p>
+<ul>
+<li><strong>Enterprise-grade SAS/SATA/NVMe drives:</strong> Run
+<code>zpool scrub</code> once a month.</li>
+<li><strong>Consumer-grade drives:</strong> Run <code>zpool scrub</code>
+once every one to two weeks.</li>
+</ul>
+<p>Most modern Linux distributions running OpenZFS automatically install
+systemd timers or cron scripts (often located in
+<code>/etc/cron.d/zfsutils-linux</code>) that automate monthly scrubs
+for all discovered pools. System administrators should monitor pool
+health after scrubs complete by regularly inspecting the output of
+<code>zpool status</code>.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

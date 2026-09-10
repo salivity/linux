@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linux Real-Time Schedulers: SCHED_FIFO and SCHED_RR - linux</title>
+    <meta name="description" content="The Linux kernel implements real-time scheduling policies to provide deterministic, low-latency execution for mission-critical tasks that cannot tolerate the unpredictable delays of standard scheduling. Primarily defined by the POSIX standard, the two co">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/linux-real-time-schedulers-sched-fifo-and-sched-rr">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Linux Real-Time Schedulers: SCHED_FIFO and SCHED_RR - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/linux-real-time-schedulers-sched-fifo-and-sched-rr" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="The Linux kernel implements real-time scheduling policies to provide deterministic, low-latency execution for mission-critical tasks that cannot tolerate the unpredictable delays of standard scheduling. Primarily defined by the POSIX standard, the two co" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="linux-real-time-schedulers-sched_fifo-and-sched_rr">Linux
+Real-Time Schedulers: SCHED_FIFO and SCHED_RR</h1>
+<p>The Linux kernel implements real-time scheduling policies to provide
+deterministic, low-latency execution for mission-critical tasks that
+cannot tolerate the unpredictable delays of standard scheduling.
+Primarily defined by the POSIX standard, the two core real-time
+policies—<code>SCHED_FIFO</code> (First-In, First-Out) and
+<code>SCHED_RR</code> (Round-Robin)—grant designated processes strict
+priority over standard workloads. This article explains the
+architectural role of these policies, how they manage CPU execution,
+their core operational differences, and the safety considerations
+required when deploying them.</p>
+<h2 id="the-role-of-real-time-scheduling-in-linux">The Role of Real-Time
+Scheduling in Linux</h2>
+<p>Standard Linux processes utilize the Completely Fair Scheduler
+(<code>SCHED_OTHER</code> or <code>SCHED_NORMAL</code>), which is
+designed to maximize overall system throughput and balance CPU time
+equitably among all processes. However, multimedia streaming, industrial
+automation, robotics, and telecommunications require immediate CPU
+access rather than throughput fairness.</p>
+<p>To meet these strict deadlines, Linux implements a priority-based
+preemptive scheduling architecture. Real-time priorities range from 1
+(lowest real-time priority) to 99 (highest real-time priority). Any task
+configured with a real-time policy and a priority between 1 and 99 will
+instantly preempt any standard process operating at priority 0. A
+real-time task will hold the CPU until it yields, sleeps, finishes, or
+is preempted by a task with an even higher real-time priority.</p>
+<h2 id="sched_fifo-first-in-first-out">SCHED_FIFO (First In, First
+Out)</h2>
+<p><code>SCHED_FIFO</code> is a static, run-to-completion scheduling
+policy for threads of equal priority. It does not use time-slicing.</p>
+<h3 id="execution-model">Execution Model</h3>
+<ul>
+<li><strong>Queue Placement:</strong> When a <code>SCHED_FIFO</code>
+task becomes runnable, it is placed at the end of the run queue for its
+specific priority level.</li>
+<li><strong>Continuous Execution:</strong> Once the task gains control
+of the CPU, it continues running until one of the following events
+occurs:
+<ol type="1">
+<li>It blocks on an I/O operation or waits for a synchronization
+primitive (e.g., a mutex).</li>
+<li>It voluntarily yields the processor using the
+<code>sched_yield()</code> system call.</li>
+<li>It terminates.</li>
+<li>A higher-priority real-time task becomes runnable, preempting
+it.</li>
+</ol></li>
+<li><strong>Preemption Recovery:</strong> If a higher-priority task
+preempts a <code>SCHED_FIFO</code> task, the preempted task retains its
+position at the head of the queue for its priority level and resumes
+immediately once the higher-priority task stops running.</li>
+</ul>
+<h3 id="primary-use-case">Primary Use Case</h3>
+<p><code>SCHED_FIFO</code> is designed for time-critical, discrete
+operations that must complete with minimal context-switching overhead,
+such as real-time audio synthesis, hardware controller loops, or direct
+device driver interactions.</p>
+<h2 id="sched_rr-round-robin">SCHED_RR (Round-Robin)</h2>
+<p><code>SCHED_RR</code> is an extension of <code>SCHED_FIFO</code>
+designed to provide fair execution time among multiple real-time tasks
+running at the exact same priority level.</p>
+<h3 id="execution-model-1">Execution Model</h3>
+<ul>
+<li><strong>Time Quantum Allocation:</strong> Unlike
+<code>SCHED_FIFO</code>, tasks assigned to <code>SCHED_RR</code> are
+allocated a predetermined time slice (quantum).</li>
+<li><strong>Round-Robin Rotation:</strong> A <code>SCHED_RR</code> task
+runs until its time quantum expires. Once the quantum is exhausted, the
+scheduler moves the task to the tail of the list for its priority level,
+allowing the next equal-priority task to run.</li>
+<li><strong>Preemption Behavior:</strong> Preemption remains strictly
+priority-driven. A <code>SCHED_RR</code> task of priority 50 will
+immediately preempt any task (whether <code>SCHED_FIFO</code> or
+<code>SCHED_RR</code>) of priority 49 or lower, regardless of remaining
+time slices.</li>
+</ul>
+<h3 id="primary-use-case-1">Primary Use Case</h3>
+<p><code>SCHED_RR</code> is suitable when multiple real-time threads
+need equal access to CPU resources at the same urgency level, such as
+parallel data-processing pipelines handling real-time sensor
+streams.</p>
+<h2 id="key-differences">Key Differences</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Feature</th>
+<th style="text-align: left;">SCHED_FIFO</th>
+<th style="text-align: left;">SCHED_RR</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>Time Slicing</strong></td>
+<td style="text-align: left;">None</td>
+<td style="text-align: left;">Yes (fixed time quantum)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Equal-Priority
+Handling</strong></td>
+<td style="text-align: left;">Run-to-completion (FIFO order)</td>
+<td style="text-align: left;">Cyclic execution (Round-Robin)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Context Switch
+Overhead</strong></td>
+<td style="text-align: left;">Lower</td>
+<td style="text-align: left;">Slightly higher due to quantum
+expiration</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Starvation within Priority
+Level</strong></td>
+<td style="text-align: left;">Possible if a task does not yield or
+block</td>
+<td style="text-align: left;">Prevented by time-slice rotation</td>
+</tr>
+</tbody>
+</table>
+<h2 id="safety-and-throttling">Safety and Throttling</h2>
+<p>Because real-time tasks strictly dominate standard processes, an
+infinite loop in a <code>SCHED_FIFO</code> or <code>SCHED_RR</code> task
+can starve standard user applications, system daemons, and even the
+interactive shell, completely freezing the system.</p>
+<p>To mitigate this risk, modern Linux kernels include real-time
+bandwidth management via the <code>sysctl</code> parameters:</p>
+<ul>
+<li><code>/proc/sys/kernel/sched_rt_period_us</code>: Defines the
+measurement period in microseconds (typically 1,000,000 µs / 1
+second).</li>
+<li><code>/proc/sys/kernel/sched_rt_runtime_us</code>: Defines the
+maximum total execution time allocated to all real-time tasks within
+that period (typically 950,000 µs / 0.95 seconds).</li>
+</ul>
+<p>This default configuration reserves 5% of CPU time for non-real-time
+tasks, ensuring administrators retain terminal access to recover or
+terminate misbehaving real-time processes.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

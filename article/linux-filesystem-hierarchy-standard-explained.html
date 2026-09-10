@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linux Filesystem Hierarchy Standard Explained - linux</title>
+    <meta name="description" content="The Filesystem Hierarchy Standard (FHS) is a reference specification that defines the directory structure and directory contents in Linux and other Unix-like operating systems. This article provides a clear, concise overview of what the FHS is, why it wa">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/linux-filesystem-hierarchy-standard-explained">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Linux Filesystem Hierarchy Standard Explained - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/linux-filesystem-hierarchy-standard-explained" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="The Filesystem Hierarchy Standard (FHS) is a reference specification that defines the directory structure and directory contents in Linux and other Unix-like operating systems. This article provides a clear, concise overview of what the FHS is, why it wa" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="linux-filesystem-hierarchy-standard-explained">Linux Filesystem
+Hierarchy Standard Explained</h1>
+<p>The Filesystem Hierarchy Standard (FHS) is a reference specification
+that defines the directory structure and directory contents in Linux and
+other Unix-like operating systems. This article provides a clear,
+concise overview of what the FHS is, why it was established, and the
+specific roles of the primary directories located within the root
+filesystem. Understanding this layout allows system administrators,
+developers, and users to navigate, manage, and troubleshoot any
+standardized Linux distribution effectively.</p>
+<h3 id="what-is-the-filesystem-hierarchy-standard">What is the
+Filesystem Hierarchy Standard?</h3>
+<p>Maintained by the Linux Foundation, the Filesystem Hierarchy Standard
+establishes a predictable layout for files and directories. Prior to
+standardizing this structure, different Unix-like distributions often
+stored configuration files, executables, and libraries in varying
+locations. The FHS eliminates this fragmentation by ensuring that
+software developers, system administrators, and users can rely on
+consistent file locations across various Linux distributions, such as
+Ubuntu, Fedora, Debian, and CentOS.</p>
+<p>The standard categorizes files along two main axes:</p>
+<ul>
+<li><strong>Shareable vs. Unshareable:</strong> Shareable files can be
+stored on one host and used on another (e.g., user home directories or
+application libraries), whereas unshareable files are unique to a
+specific system (e.g., bootloader configurations or lock files).</li>
+<li><strong>Static vs. Variable:</strong> Static files remain unchanged
+without direct administrator intervention (e.g., binaries,
+documentation), while variable files change continuously during normal
+operation (e.g., logs, spool queues).</li>
+</ul>
+<h3 id="the-root-directory--and-essential-subdirectories">The Root
+Directory (/) and Essential Subdirectories</h3>
+<p>In Linux, all files and directories exist under a single hierarchy
+originating at the root directory, represented by a single forward slash
+(<code>/</code>). Under the FHS, the root partition contains only the
+directories necessary to boot, restore, recover, or repair the
+system.</p>
+<ul>
+<li><strong>/bin</strong>: Essential user command binaries required for
+system booting, repairing, or running in single-user mode (e.g.,
+<code>ls</code>, <code>cp</code>, <code>cat</code>). On modern systems,
+this is often a symlink to <code>/usr/bin</code>.</li>
+<li><strong>/sbin</strong>: Essential system binaries used primarily for
+system maintenance, administration, and booting by the root user (e.g.,
+<code>iptables</code>, <code>fdisk</code>, <code>reboot</code>).
+Frequently symlinked to <code>/usr/sbin</code>.</li>
+<li><strong>/boot</strong>: Static files required to boot the system,
+including the Linux kernel, the initial RAM disk image
+(<code>initramfs</code>), and bootloader configurations (such as
+GRUB).</li>
+<li><strong>/dev</strong>: Location of special device files that
+represent hardware devices (like hard drives, partitions, and terminals)
+or pseudo-devices (like <code>/dev/null</code> and
+<code>/dev/random</code>).</li>
+<li><strong>/etc</strong>: Host-specific system-wide configuration files
+and startup scripts. It contains only static configuration data and must
+not contain executable binaries.</li>
+<li><strong>/home</strong>: Default location for regular user home
+directories, storing personal data, settings, and user-specific
+configurations.</li>
+<li><strong>/root</strong>: The home directory for the administrative
+superuser (<code>root</code>), kept separate from <code>/home</code> to
+ensure access even if the <code>/home</code> partition fails to
+mount.</li>
+<li><strong>/lib</strong>, <strong>/lib64</strong>: Essential shared
+libraries and kernel modules required to boot the system and run
+commands found in <code>/bin</code> and <code>/sbin</code>.</li>
+</ul>
+<h3 id="secondary-hierarchies-and-data-stores">Secondary Hierarchies and
+Data Stores</h3>
+<ul>
+<li><strong>/usr</strong>: The secondary hierarchy intended for
+shareable, read-only user data. It mirrors the root layout with its own
+<code>/usr/bin</code>, <code>/usr/sbin</code>, and <code>/usr/lib</code>
+containing non-critical applications, libraries, and documentation.</li>
+<li><strong>/var</strong>: Variable data files generated dynamically by
+system services. This includes system logs (<code>/var/log</code>), mail
+and print spools (<code>/var/spool</code>), temporary operational caches
+(<code>/var/cache</code>), and lock files.</li>
+<li><strong>/tmp</strong>: Temporary files created by the system and
+running applications. Files placed here are typically cleared upon
+reboot or automatically deleted after a specified period.</li>
+<li><strong>/opt</strong>: Add-on application software packages,
+typically used by third-party, proprietary, or self-contained
+applications that do not follow the standard distribution packaging
+scheme.</li>
+<li><strong>/media</strong>: Mount points for removable media, such as
+USB drives, CDs, and SD cards, typically handled automatically by modern
+desktop environments.</li>
+<li><strong>/mnt</strong>: Temporarily mounted filesystems manually
+attached by a system administrator for maintenance or migration.</li>
+<li><strong>/srv</strong>: Site-specific data served by the system, such
+as data for web servers (<code>/srv/www</code>) or FTP
+repositories.</li>
+</ul>
+<h3 id="virtual-filesystems">Virtual Filesystems</h3>
+<ul>
+<li><strong>/proc</strong>: A pseudo-filesystem providing a mechanism
+for the kernel to send information to and receive information from
+processes. Files here do not exist on disk; they reside in memory and
+represent process and kernel states.</li>
+<li><strong>/sys</strong>: A sysfs virtual filesystem that exports
+information about kernel subsystems, hardware devices, and associated
+device drivers to user space.</li>
+</ul>
+<h3 id="the-importance-of-the-fhs">The Importance of the FHS</h3>
+<p>Adherence to the FHS ensures software interoperability across the
+broader Linux ecosystem. It guarantees that scripts, compiled binaries,
+and package managers work reliably without extensive path
+reconfigurations, maintaining stability, security, and predictability
+across heterogeneous system environments.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

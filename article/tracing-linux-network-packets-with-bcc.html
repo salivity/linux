@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tracing Linux Network Packets with BCC - linux</title>
+    <meta name="description" content="The BPF Compiler Collection (BCC) is a foundational framework for modern Linux systems observability, enabling engineers to inspect, trace, and manipulate network traffic directly within the kernel. By leveraging extended Berkeley Packet Filters (eBPF),">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/tracing-linux-network-packets-with-bcc">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Tracing Linux Network Packets with BCC - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/tracing-linux-network-packets-with-bcc" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="The BPF Compiler Collection (BCC) is a foundational framework for modern Linux systems observability, enabling engineers to inspect, trace, and manipulate network traffic directly within the kernel. By leveraging extended Berkeley Packet Filters (eBPF)," />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="tracing-linux-network-packets-with-bcc">Tracing Linux Network
+Packets with BCC</h1>
+<p>The BPF Compiler Collection (BCC) is a foundational framework for
+modern Linux systems observability, enabling engineers to inspect,
+trace, and manipulate network traffic directly within the kernel. By
+leveraging extended Berkeley Packet Filters (eBPF), BCC eliminates the
+historical trade-offs between performance and visibility, allowing
+granular packet-level inspection without high CPU overhead or the risks
+of custom kernel modules. This article explores how BCC functions, why
+it represents a paradigm shift for Linux network analysis, and the
+primary tools and use cases that demonstrate its significance.</p>
+<h2 id="the-architecture-of-bcc">The Architecture of BCC</h2>
+<p>Before eBPF and BCC, tracing network activity on Linux required
+either userspace packet capture tools like <code>tcpdump</code> (which
+use raw sockets and copy full packets into userspace) or invasive
+out-of-tree kernel modules. Both approaches introduce substantial
+performance degradation under high-throughput environments and pose
+system stability risks.</p>
+<p>BCC solves this by providing a Python and C-based toolkit that
+simplifies the development of eBPF programs. Users write safe C code
+that is compiled via LLVM at runtime and loaded directly into the Linux
+kernel. A built-in kernel verifier ensures that the code cannot crash
+the operating system, enter infinite loops, or violate memory safety
+boundaries. BCC then exposes Python and Lua bindings to collect,
+aggregate, and visualize this in-kernel data within userspace.</p>
+<h2 id="key-advantages-for-network-packet-tracing">Key Advantages for
+Network Packet Tracing</h2>
+<p>BCC introduces several critical capabilities that distinguish it from
+legacy networking diagnostic tools:</p>
+<ul>
+<li><strong>Negligible Performance Overhead:</strong> BCC allows
+developers to execute logic at native kernel execution points—such as
+kernel probes (<code>kprobes</code>), tracepoints, network traffic
+control (<code>tc</code>), and eXpress Data Path (<code>XDP</code>).
+Packet filtering and aggregation happen entirely inside the kernel,
+meaning only relevant metrics or summary events are passed to
+userspace.</li>
+<li><strong>Process-to-Packet Context:</strong> Traditional network
+sniffers operate at the interface layer and cannot natively correlate a
+specific TCP packet with the user, thread, or process ID that generated
+it. BCC hooks directly into kernel data structures (like
+<code>struct sock</code> and <code>struct sk_buff</code>), allowing
+engineers to trace packets directly to their originating process (PID)
+and command name.</li>
+<li><strong>Fine-Grained Latency Analysis:</strong> Instead of inferring
+latency from packet arrival timestamps, BCC can measure latency across
+internal kernel functions, tracking time elapsed between a socket write
+(<code>tcp_sendmsg</code>) and the physical network transmission or TCP
+acknowledgment.</li>
+</ul>
+<h2 id="essential-bcc-tools-for-network-tracing">Essential BCC Tools for
+Network Tracing</h2>
+<p>BCC comes with a comprehensive suite of pre-built tracing tools
+tailored for Linux network debugging:</p>
+<ul>
+<li><strong><code>tcpconnect</code> / <code>tcpaccept</code>:</strong>
+Traces active and passive TCP connections in real time, displaying
+source, destination, port, and the associated process name without
+reading entire packet payloads.</li>
+<li><strong><code>tcptracer</code>:</strong> Traces TCP connection state
+transitions (e.g., <code>SYN_SENT</code>, <code>ESTABLISHED</code>,
+<code>CLOSE</code>), making it possible to identify hanging connections
+and socket leaks.</li>
+<li><strong><code>tcptop</code>:</strong> Provides an interactive,
+top-like display of TCP throughput per process, showing read and write
+operations along with throughput metrics in real time.</li>
+<li><strong><code>tcpdrop</code>:</strong> Inspects when and why the
+Linux kernel drops a TCP packet, providing the exact kernel stack trace
+that triggered the drop. This is crucial for isolating subtle issues
+like buffer exhaustion or firewall drops.</li>
+<li><strong><code>solisten</code>:</strong> Traces any program invoking
+the <code>listen()</code> system call, giving immediate visibility into
+newly opened network ports.</li>
+</ul>
+<h2 id="programmability-and-custom-tracing">Programmability and Custom
+Tracing</h2>
+<p>Beyond its pre-packaged utilities, the true significance of BCC lies
+in its programmability. When encountering edge cases—such as atypical
+packet retransmissions or subtle socket option
+misconfigurations—engineers can write custom Python scripts to attach to
+arbitrary kernel functions.</p>
+<p>By targeting specific kernel hooks like <code>ip_rcv</code> or
+<code>dev_hard_start_xmit</code>, a BCC program can inspect packet
+headers, track queue lengths, and maintain kernel-level hash maps of
+network statistics. This enables custom alerting and real-time data
+pipelines without modifying application code or restarting services.</p>
+<h2 id="conclusion">Conclusion</h2>
+<p>The BPF Compiler Collection fundamentally changes Linux network
+packet tracing by transforming the operating system kernel into a fully
+programmable sensor. By combining kernel-level execution safety, deep
+process context, and minimal resource usage, BCC enables real-time
+packet inspection and bottleneck analysis at enterprise and cloud-native
+scale.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

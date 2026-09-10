@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>What Is a Zombie Process in Linux? - linux</title>
+    <meta name="description" content="This article provides a clear overview of zombie processes in Linux, explaining what they are, how they are created, and why they matter. You will learn about the standard Linux process lifecycle, the breakdown in parent-child communication that results">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/what-is-a-zombie-process-in-linux">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="What Is a Zombie Process in Linux? - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/what-is-a-zombie-process-in-linux" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="This article provides a clear overview of zombie processes in Linux, explaining what they are, how they are created, and why they matter. You will learn about the standard Linux process lifecycle, the breakdown in parent-child communication that results" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="what-is-a-zombie-process-in-linux">What Is a Zombie Process in
+Linux?</h1>
+<p>This article provides a clear overview of zombie processes in Linux,
+explaining what they are, how they are created, and why they matter. You
+will learn about the standard Linux process lifecycle, the breakdown in
+parent-child communication that results in a "defunct" state, how to
+detect these processes on your system, and the proper methods for
+removing them.</p>
+<h2 id="understanding-zombie-processes">Understanding Zombie
+Processes</h2>
+<p>In Linux, a zombie process (also referred to as a "defunct" process)
+is an execution thread that has completed its task but still occupies an
+entry in the system's process table. Unlike active processes, a zombie
+process is dead; it consumes no system memory, processor cycles, or
+active CPU time. It exists solely as an entry containing the process ID
+(PID), its exit status, and some termination metadata.</p>
+<p>In system monitoring tools like <code>top</code> or <code>ps</code>,
+these processes are flagged with a status code of <strong>Z</strong> or
+labeled as <code>&lt;defunct&gt;</code>.</p>
+<h2 id="how-a-zombie-process-occurs">How a Zombie Process Occurs</h2>
+<p>Zombie processes occur naturally as part of the standard Linux
+process lifecycle, though they usually vanish in milliseconds. A process
+becomes a persistent zombie when communication between a parent process
+and a child process fails.</p>
+<p>The lifecycle works as follows:</p>
+<ol type="1">
+<li><strong>Process Creation:</strong> A parent process spawns a child
+process using the <code>fork()</code> system call.</li>
+<li><strong>Execution:</strong> The child process executes its
+instructions, often loading a new binary via <code>exec()</code>.</li>
+<li><strong>Termination:</strong> When the child finishes execution, it
+sends a <code>SIGCHLD</code> signal to the parent process and releases
+all of its allocated memory and system resources.</li>
+<li><strong>The Zombie State:</strong> Before completely vanishing, the
+operating system holds the child process's exit code and PID in the
+process table so the parent can inspect whether the task succeeded or
+failed.</li>
+<li><strong>Reaping:</strong> Normally, the parent process reads the
+exit status using the <code>wait()</code> or <code>waitpid()</code>
+system calls. Once this status is read, the operating system removes the
+PID entry entirely. This final step is called "reaping."</li>
+</ol>
+<p>A persistent zombie process occurs when the parent process fails to
+call <code>wait()</code> or <code>waitpid()</code> after the child
+exits. This failure is typically caused by poor programming, deadlocks,
+or bugs in the parent application that leave it ignoring or failing to
+process the <code>SIGCHLD</code> signal.</p>
+<h2 id="why-zombie-processes-are-a-problem">Why Zombie Processes Are a
+Problem</h2>
+<p>A few zombie processes do not harm the operating system since they do
+not consume RAM or CPU resources. However, Linux has a finite number of
+available Process IDs (governed by the system parameter
+<code>/proc/sys/kernel/pid_max</code>).</p>
+<p>If a buggy application continually spawns child processes and fails
+to reap them, the process table can become saturated with zombie
+entries. Once the PID limit is reached, the operating system cannot
+launch any new processes, leading to service outages and system
+instability.</p>
+<h2 id="identifying-and-resolving-zombie-processes">Identifying and
+Resolving Zombie Processes</h2>
+<p>To identify zombie processes on a Linux machine, run the following
+command in your terminal:</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ps</span> aux <span class="kw">|</span> <span class="fu">grep</span> <span class="st">&#39;Z&#39;</span></span></code></pre></div>
+<p>Alternatively, you can view the total number of zombie processes in
+the header summary of the <code>top</code> command.</p>
+<p>Because a zombie process is already dead, it cannot be terminated
+using standard signals like <code>kill -9 &lt;PID&gt;</code>. To remove
+a zombie, you have two primary options:</p>
+<ol type="1">
+<li><strong>Signal the Parent Process:</strong> Send a signal to the
+parent process to prompt it to reap its dead children:
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="bu">kill</span> <span class="at">-s</span> SIGCHLD <span class="op">&lt;</span>Parent_PID<span class="op">&gt;</span></span></code></pre></div></li>
+<li><strong>Terminate the Parent Process:</strong> If the parent process
+is unresponsive or improperly coded, kill the parent:
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="bu">kill</span> <span class="at">-9</span> <span class="op">&lt;</span>Parent_PID<span class="op">&gt;</span></span></code></pre></div>
+When a parent process terminates, its orphaned zombie children are
+automatically adopted by the system's root process (<code>systemd</code>
+or <code>init</code>, PID 1). The <code>init</code> process periodically
+checks for terminated children and immediately reaps any zombie entries,
+clearing them safely from the process table.</li>
+</ol></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

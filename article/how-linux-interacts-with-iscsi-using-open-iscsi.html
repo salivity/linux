@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How Linux Interacts with iSCSI Using Open-iSCSI - linux</title>
+    <meta name="description" content="This article explains how the Linux operating system utilizes the Open-iSCSI initiator framework to discover, connect, and communicate with remote iSCSI storage targets over standard TCP/IP networks. It covers the dual-layer architecture spanning user-sp">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-linux-interacts-with-iscsi-using-open-iscsi">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How Linux Interacts with iSCSI Using Open-iSCSI - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-linux-interacts-with-iscsi-using-open-iscsi" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="This article explains how the Linux operating system utilizes the Open-iSCSI initiator framework to discover, connect, and communicate with remote iSCSI storage targets over standard TCP/IP networks. It covers the dual-layer architecture spanning user-sp" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-linux-interacts-with-iscsi-using-open-iscsi">How Linux
+Interacts with iSCSI Using Open-iSCSI</h1>
+<p>This article explains how the Linux operating system utilizes the
+Open-iSCSI initiator framework to discover, connect, and communicate
+with remote iSCSI storage targets over standard TCP/IP networks. It
+covers the dual-layer architecture spanning user-space tools and kernel
+modules, the process of target discovery and authentication, the
+encapsulation of SCSI commands into network packets, and how the OS
+presents remote Logical Unit Numbers (LUNs) as local block devices.</p>
+<h3 id="architecture-user-space-vs-kernel-space">Architecture: User
+Space vs. Kernel Space</h3>
+<p>The Open-iSCSI subsystem splits responsibilities between user-space
+daemons and kernel-space drivers to optimize management and I/O
+performance.</p>
+<ul>
+<li><strong>User Space:</strong> Driven by two primary components:
+<ul>
+<li><code>iscsid</code>: The background daemon responsible for managing
+connections, processing login/logout negotiations, handling error
+recovery, and maintaining the Open-iSCSI configuration database
+(typically located in <code>/var/lib/iscsi/</code>).</li>
+<li><code>iscsiadm</code>: The command-line management interface used by
+administrators to discover targets, create session nodes, and initiate
+connections.</li>
+</ul></li>
+<li><strong>Kernel Space:</strong> Composed of the core Linux SCSI
+mid-layer, the <code>scsi_transport_iscsi</code> transport class, and
+transport-specific drivers such as <code>iscsi_tcp</code>
+(software-based TCP/IP encapsulation) or hardware-assisted offload
+drivers (like <code>bnx2i</code> or <code>qedi</code>). The kernel
+handles raw I/O, serialization, and packet framing without entering user
+space.</li>
+</ul>
+<h3 id="the-discovery-phase">The Discovery Phase</h3>
+<p>Before interacting with storage, the initiator must locate the
+available targets on the network.</p>
+<ol type="1">
+<li><strong>Command Execution:</strong> An administrator runs
+<code>iscsiadm -m discovery -t sendtargets -p &lt;Target_IP&gt;</code>.</li>
+<li><strong>Target Interrogation:</strong> <code>iscsid</code> opens a
+temporary TCP socket (typically on port 3260) to the target's portal,
+issues a <code>SendTargets</code> query, and parses the returned list of
+available iSCSI Qualified Names (IQNs).</li>
+<li><strong>Database Population:</strong> The discovery results are
+parsed and stored as persistent target and node records in
+<code>/var/lib/iscsi/nodes/</code>.</li>
+</ol>
+<h3 id="session-establishment-and-authentication">Session Establishment
+and Authentication</h3>
+<p>Once targets are identified, the initiator transitions to session
+establishment:</p>
+<ol type="1">
+<li><strong>TCP Handshake:</strong> <code>iscsid</code> establishes a
+permanent TCP/IP connection to the target portal.</li>
+<li><strong>iSCSI Login Phase:</strong> The initiator transmits an iSCSI
+Login Request Protocol Data Unit (PDU). During this stage, parameters
+like maximum data segment lengths, header/data digests, and immediate
+data allowances are negotiated.</li>
+<li><strong>Authentication:</strong> If configured, mutual or one-way
+Challenge Handshake Authentication Protocol (CHAP) occurs. The target
+issues a challenge, which <code>iscsid</code> signs using the
+credentials configured in <code>/etc/iscsi/iscsid.conf</code> or the
+node-specific record.</li>
+<li><strong>Handoff to Kernel:</strong> Once authentication and
+parameter negotiation succeed, <code>iscsid</code> transfers the
+established socket and session parameters to the
+<code>scsi_transport_iscsi</code> kernel module.</li>
+</ol>
+<h3 id="io-processing-and-packet-encapsulation">I/O Processing and
+Packet Encapsulation</h3>
+<p>Once the session is active, the Linux kernel processes storage
+operations through the standard storage stack:</p>
+<ol type="1">
+<li><strong>Filesystem &amp; Block Layer:</strong> An application issues
+an I/O request (such as a read or write). The filesystem translates this
+into block I/O requests (<code>bio</code> structures) and forwards them
+to the Linux block layer.</li>
+<li><strong>SCSI Mid-Layer:</strong> The block layer queues the request
+to the SCSI mid-layer, which converts the generic block I/O into
+standard SCSI Command Descriptor Blocks (CDBs).</li>
+<li><strong>iSCSI Transport Encapsulation:</strong> The
+<code>iscsi_tcp</code> module wraps the SCSI CDB into an iSCSI PDU. If
+data digests (CRC32C) are enabled, checksums are calculated and
+appended.</li>
+<li><strong>Network Transmission:</strong> The iSCSI PDU is passed down
+to the standard Linux networking stack (TCP/IP), encapsulated within TCP
+segments and IP packets, and transmitted out the physical Network
+Interface Card (NIC) to the storage target.</li>
+<li><strong>Response Handling:</strong> When the target replies with an
+iSCSI Response PDU, the kernel extracts the SCSI status and data
+payload, completes the SCSI command, and signals the originating
+application.</li>
+</ol>
+<h3 id="device-representation-in-linux">Device Representation in
+Linux</h3>
+<p>To the rest of the operating system, remote iSCSI LUNs behave
+identically to locally attached physical disks:</p>
+<ul>
+<li><strong>SCSI Device Scanning:</strong> Upon successful session
+creation, the SCSI mid-layer issues a <code>REPORT LUNS</code> command
+to identify attached storage units.</li>
+<li><strong>Device Nodes:</strong> The kernel maps each discovered LUN
+to a standard SCSI block device node (e.g., <code>/dev/sda</code>,
+<code>/dev/sdb</code>).</li>
+<li><strong>udev Integration:</strong> The <code>udev</code> daemon
+automatically monitors these new block devices, generating persistent
+symlinks under <code>/dev/disk/by-path/</code> and
+<code>/dev/disk/by-id/</code> reflecting the iSCSI IQN and LUN
+identifiers.</li>
+<li><strong>Mounting and Multipathing:</strong> Administrators can
+create filesystems directly on these nodes, use LVM, or bundle redundant
+paths into a single resilient device using
+<code>device-mapper-multipath</code>.</li>
+</ul>
+<h3 id="session-maintenance-and-failure-handling">Session Maintenance
+and Failure Handling</h3>
+<p><code>iscsid</code> continuously monitors the health of the
+connection using NOP-Out/NOP-In heartbeats:</p>
+<ul>
+<li><strong>Keepalive Probing:</strong> At configured intervals, the
+initiator sends an iSCSI <code>NOP-Out</code> PDU. The target must
+respond with a <code>NOP-In</code> PDU.</li>
+<li><strong>Handling Drops:</strong> If the network link drops or the
+target fails to respond within the replacement timeout window
+(<code>node.session.timeo.replacement_timeout</code>), the kernel pauses
+outstanding I/O queues and attempts session recovery.</li>
+<li><strong>Failover vs. Error:</strong> If multipathing is enabled, the
+multipath daemon redirects the queued I/O to an alternate active path;
+otherwise, if the connection cannot be re-established before the timeout
+expires, the kernel fails the pending I/O operations back to the issuing
+process.</li>
+</ul></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

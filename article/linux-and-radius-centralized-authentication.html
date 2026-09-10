@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linux and RADIUS Centralized Authentication - linux</title>
+    <meta name="description" content="This article explains how the Linux operating system integrates with the Remote Authentication Dial-In User Service (RADIUS) protocol to facilitate centralized user authentication, authorization, and accounting (AAA). It covers the role of Pluggable Auth">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/linux-and-radius-centralized-authentication">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Linux and RADIUS Centralized Authentication - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/linux-and-radius-centralized-authentication" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="This article explains how the Linux operating system integrates with the Remote Authentication Dial-In User Service (RADIUS) protocol to facilitate centralized user authentication, authorization, and accounting (AAA). It covers the role of Pluggable Auth" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="linux-and-radius-centralized-authentication">Linux and RADIUS
+Centralized Authentication</h1>
+<p>This article explains how the Linux operating system integrates with
+the Remote Authentication Dial-In User Service (RADIUS) protocol to
+facilitate centralized user authentication, authorization, and
+accounting (AAA). It covers the role of Pluggable Authentication Modules
+(PAM) on client systems, the communication lifecycle between the Linux
+kernel, client daemons, and remote servers, and how Linux functions as
+both a RADIUS client and a centralized RADIUS host.</p>
+<h3 id="the-role-of-pam-in-linux-radius-authentication">The Role of PAM
+in Linux RADIUS Authentication</h3>
+<p>Linux delegates authentication tasks through Pluggable Authentication
+Modules (PAM), an architecture that separates core applications from
+specific authentication mechanisms. To authenticate against a RADIUS
+server, Linux administrators integrate a module such as
+<code>pam_radius_auth</code>.</p>
+<p>When a user attempts to log into a Linux machine—whether locally, via
+OpenSSH, or through a virtual private network (VPN)—the login service
+invokes PAM. The PAM configuration file for that service routes the
+request to the RADIUS module. The module reads configuration parameters
+from a target file (typically <code>/etc/pam_radius_auth.conf</code>),
+which defines the remote server's IP address, port, shared secret, and
+timeout threshold.</p>
+<h3 id="the-network-authentication-lifecycle">The Network Authentication
+Lifecycle</h3>
+<p>The interaction between Linux and a RADIUS server follows a standard
+client-server request/response model operating primarily over UDP (ports
+1812 for authentication and 1813 for accounting):</p>
+<ol type="1">
+<li><strong>Request Creation:</strong> The PAM module or local
+application formats the user credentials into an
+<code>Access-Request</code> packet. The password attribute is obfuscated
+using an MD5 hash combined with the pre-shared secret configured on both
+the Linux host and the RADIUS server.</li>
+<li><strong>Transmission:</strong> The packet is sent to the designated
+RADIUS server via UDP port 1812.</li>
+<li><strong>Evaluation:</strong> The RADIUS server processes the request
+against its internal database, an LDAP directory, or Active
+Directory.</li>
+<li><strong>Response:</strong> The server returns one of three outcomes:
+<ul>
+<li><strong>Access-Accept:</strong> The user's credentials are valid.
+The packet may also return vendor-specific attributes (VSAs), such as
+assigned shell parameters, home directories, or group memberships.</li>
+<li><strong>Access-Reject:</strong> The credentials are invalid or the
+account is locked, causing PAM to deny entry to the user.</li>
+<li><strong>Access-Challenge:</strong> The server requires secondary
+verification, such as a multi-factor authentication (MFA) token, which
+the Linux PAM stack prompts the user to supply.</li>
+</ul></li>
+</ol>
+<h3 id="linux-as-a-radius-server-freeradius">Linux as a RADIUS Server:
+FreeRADIUS</h3>
+<p>Beyond acting as a client, Linux is the dominant platform for hosting
+RADIUS services, primarily through FreeRADIUS. When deployed as a
+server:</p>
+<ul>
+<li><strong>Backend Integration:</strong> The FreeRADIUS daemon binds to
+network interfaces to listen for incoming authentication requests from
+switches, wireless access points, VPN concentrators, or other Linux
+servers. It integrates directly with Linux system resources, including
+MySQL/PostgreSQL databases, local Unix user files, and OpenLDAP
+servers.</li>
+<li><strong>Accounting (AAA):</strong> Linux handles accounting data via
+UDP port 1813. When a session starts or terminates on a client device,
+the device sends <code>Accounting-Request</code> packets
+(<code>Start</code>, <code>Stop</code>, or <code>Interim-Update</code>).
+FreeRADIUS logs these metrics to text files (detail logs) or directly to
+a relational database to track network usage, session duration, and IP
+allocation.</li>
+</ul>
+<h3 id="local-user-identity-synchronization">Local User Identity
+Synchronization</h3>
+<p>A common challenge when authenticating Linux logins via RADIUS is
+that standard Linux utilities expect local system entities, such as a
+User ID (UID), Group ID (GID), and local home directory.</p>
+<p>To bridge this gap, Linux environments typically pair RADIUS
+authentication with an identity provider via the System Security
+Services Daemon (SSSD) or configure the PAM stack with
+<code>pam_mkhomedir</code>. This configuration allows RADIUS to handle
+the password verification remotely while the Linux operating system
+automatically creates local user environments dynamically upon the first
+successful login.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

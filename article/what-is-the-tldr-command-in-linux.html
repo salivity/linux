@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>What Is the TLDR Command in Linux? - linux</title>
+    <meta name="description" content="The Linux command line is powerful, but traditional documentation like man pages can often be overwhelming and excessively dense. The tldr command provides a simplified, community-driven alternative that focuses on practical, real-world examples rather t">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/what-is-the-tldr-command-in-linux">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="What Is the TLDR Command in Linux? - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/what-is-the-tldr-command-in-linux" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="The Linux command line is powerful, but traditional documentation like man pages can often be overwhelming and excessively dense. The tldr command provides a simplified, community-driven alternative that focuses on practical, real-world examples rather t" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="what-is-the-tldr-command-in-linux">What Is the TLDR Command in
+Linux?</h1>
+<p>The Linux command line is powerful, but traditional documentation
+like <code>man</code> pages can often be overwhelming and excessively
+dense. The <code>tldr</code> command provides a simplified,
+community-driven alternative that focuses on practical, real-world
+examples rather than exhaustive technical specifications. This article
+explains what the <code>tldr</code> tool is, how it transforms Linux
+documentation, and how you can install and use it to speed up your
+everyday terminal workflow.</p>
+<h3 id="the-challenge-with-traditional-man-pages">The Challenge with
+Traditional Man Pages</h3>
+<p>For decades, the standard way to look up command syntax in Unix-like
+operating systems has been the <code>man</code> (manual) command. While
+<code>man</code> pages are comprehensive, authoritative, and
+indispensable for deep technical dives, they have notable drawbacks:</p>
+<ul>
+<li><strong>Information Overload:</strong> A typical man page lists
+every single flag, argument, environment variable, and edge case.</li>
+<li><strong>Lack of Examples:</strong> Practical, copy-pasteable use
+cases are often buried at the very bottom of the document or omitted
+entirely.</li>
+<li><strong>Steep Learning Curve:</strong> New users often struggle to
+find the exact syntax needed for basic tasks like extracting an archive
+or changing file permissions.</li>
+</ul>
+<h3 id="what-is-the-tldr-command">What Is the TLDR Command?</h3>
+<p>The <code>tldr</code> command gets its name from the popular internet
+acronym "Too Long; Didn't Read." It is an open-source, community-driven
+project designed to act as a complementary reference tool alongside
+traditional manuals.</p>
+<p>Instead of presenting an entire manual, <code>tldr</code> outputs a
+short description of the command followed by 5 to 8 of the most common,
+real-world usage examples. Each example includes a brief explanation and
+the exact command structure, complete with highlighted placeholders for
+paths, filenames, or options.</p>
+<h3 id="how-tldr-simplifies-linux-documentation">How TLDR Simplifies
+Linux Documentation</h3>
+<ol type="1">
+<li><strong>Practicality Over Completeness:</strong> Most users only
+rely on a small fraction of a command's available flags.
+<code>tldr</code> focuses on the 20% of options used 80% of the time,
+dramatically reducing the time spent searching for basic commands.</li>
+<li><strong>Context-Driven Examples:</strong> Instead of parsing
+abstract syntax descriptions like <code>tar [-] custody...</code>,
+running <code>tldr tar</code> immediately shows you how to create an
+archive, extract a specific file, or compress using gzip.</li>
+<li><strong>Readable Formatting:</strong> The output is designed
+specifically for terminal readability. Most <code>tldr</code> clients
+feature color-coded syntax highlighting, making it easy to distinguish
+between options, commands, and user inputs.</li>
+<li><strong>Community Maintenance:</strong> The pages are hosted in a
+public GitHub repository. When commands evolve or common workflows
+change, the community rapidly updates the documentation.</li>
+</ol>
+<h3 id="how-to-install-and-use-tldr">How to Install and Use TLDR</h3>
+<p>The <code>tldr</code> specification has multiple clients written in
+different programming languages, such as Rust, Python, C, and
+Node.js.</p>
+<p>On Debian and Ubuntu-based systems, you can install the official Rust
+or C clients via the standard package manager:</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> apt update</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> apt install tldr</span></code></pre></div>
+<p>Alternatively, you can install the Node.js client using
+<code>npm</code>:</p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="ex">npm</span> install <span class="at">-g</span> tldr</span></code></pre></div>
+<p>Once installed, update the local cache of pages:</p>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="ex">tldr</span> <span class="at">--update</span></span></code></pre></div>
+<p>To view simplified documentation for any command, simply prepend
+<code>tldr</code> to the command name:</p>
+<div class="sourceCode" id="cb4"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="ex">tldr</span> curl</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="ex">tldr</span> grep</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="ex">tldr</span> chmod</span></code></pre></div>
+<p>The output will appear instantly, providing clear examples that you
+can immediately apply to your tasks without leaving the context of your
+terminal. While <code>man</code> remains the definitive source for
+exhaustive technical details, <code>tldr</code> serves as the fastest
+and most efficient cheat sheet for everyday Linux administration.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

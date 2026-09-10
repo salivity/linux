@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Find Power-Hungry Linux Processes with PowerTOP - linux</title>
+    <meta name="description" content="PowerTOP is a specialized diagnostic utility developed by Intel that monitors and analyzes power consumption on Linux-based operating systems. This guide explores how Linux integrates with PowerTOP to track energy use, details how the tool extracts telem">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/find-power-hungry-linux-processes-with-powertop">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Find Power-Hungry Linux Processes with PowerTOP - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/find-power-hungry-linux-processes-with-powertop" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="PowerTOP is a specialized diagnostic utility developed by Intel that monitors and analyzes power consumption on Linux-based operating systems. This guide explores how Linux integrates with PowerTOP to track energy use, details how the tool extracts telem" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="find-power-hungry-linux-processes-with-powertop">Find
+Power-Hungry Linux Processes with PowerTOP</h1>
+<p>PowerTOP is a specialized diagnostic utility developed by Intel that
+monitors and analyzes power consumption on Linux-based operating
+systems. This guide explores how Linux integrates with PowerTOP to track
+energy use, details how the tool extracts telemetry from the Linux
+kernel to pinpoint power-draining processes, and outlines the practical
+steps required to diagnose and reduce system power consumption.</p>
+<h3 id="how-powertop-interacts-with-the-linux-kernel">How PowerTOP
+Interacts with the Linux Kernel</h3>
+<p>PowerTOP does not estimate energy use arbitrarily; it queries
+multiple subsystems and measurement interfaces exposed by the Linux
+kernel.</p>
+<ul>
+<li><strong>Kernel Tracepoints and <code>perf</code> Subsystem:</strong>
+PowerTOP leverages Linux tracepoints to monitor kernel events,
+specifically CPU scheduling events, process context switches, and
+interrupt requests (IRQs).</li>
+<li><strong><code>/proc</code> and <code>/sys</code> Virtual
+Filesystems:</strong> The tool reads real-time processor statistics from
+<code>/proc/stat</code>, per-process details from
+<code>/proc/[pid]/</code>, and hardware-level power interfaces from
+<code>/sys/class/power_supply/</code>.</li>
+<li><strong>C-States and P-States:</strong> By accessing CPU frequency
+and idle frameworks (such as <code>cpufreq</code> and
+<code>cpuidle</code>), PowerTOP tracks how often processor cores are
+forced to leave low-power sleep states (C-states) to execute
+instructions.</li>
+</ul>
+<h3 id="installing-and-running-powertop">Installing and Running
+PowerTOP</h3>
+<p>PowerTOP is available through the package managers of most major
+Linux distributions:</p>
+<ul>
+<li><strong>Debian/Ubuntu:</strong>
+<code>sudo apt install powertop</code></li>
+<li><strong>Fedora/RHEL:</strong>
+<code>sudo dnf install powertop</code></li>
+<li><strong>Arch Linux:</strong>
+<code>sudo pacman -S powertop</code></li>
+</ul>
+<p>To launch the interactive interface, run the command with superuser
+privileges:</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> powertop</span></code></pre></div>
+<p>For optimal accuracy on battery-powered devices, calibrate the tool
+across various usage states using the command
+<code>sudo powertop --calibrate</code>. During this process, the screen
+may flicker and hardware devices will toggle states as PowerTOP measures
+their baseline power draw.</p>
+<h3 id="analyzing-the-overview-tab-to-spot-heavy-processes">Analyzing
+the Overview Tab to Spot Heavy Processes</h3>
+<p>When PowerTOP launches, it defaults to the <strong>Overview</strong>
+tab. This screen displays a continuously updated ranking of hardware and
+software components consuming the most energy.</p>
+<p>The columns in this view provide vital clues:</p>
+<ul>
+<li><strong>Usage:</strong> Displays active time (e.g., ms/s or
+percentage of CPU utilization).</li>
+<li><strong>Events/s:</strong> Indicates how many times per second a
+process or hardware device wakes up the processor. In modern computing,
+frequent wakeups often waste more energy than sustained workloads
+because they continuously kick the CPU out of deep power-saving
+states.</li>
+<li><strong>Category:</strong> Distinguishes between process workloads,
+kernel timers, hardware interrupts, and device drivers.</li>
+<li><strong>Description:</strong> Identifies the specific PID, command
+name, or kernel thread responsible for the activity.</li>
+</ul>
+<p>Processes appearing near the top with high "Events/s" numbers are
+generally the primary drivers of battery drain. For example, poorly
+optimized background daemons, browser tabs running heavy JavaScript
+timers, or misbehaving applications will register disproportionately
+high event frequencies even when their overall CPU percentage seems
+modest.</p>
+<h3 id="generating-comprehensive-reports">Generating Comprehensive
+Reports</h3>
+<p>PowerTOP can generate an HTML report for headless systems,
+automation, or offline analysis. Execute the following command to log
+activity over a 20-second window:</p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> powertop <span class="at">--html</span><span class="op">=</span>power_report.html <span class="at">--time</span><span class="op">=</span>20</span></code></pre></div>
+<p>The generated HTML file visualizes resource utilization and groups
+power consumers cleanly, making it easy to identify software that
+requires throttling, reconfiguration, or removal.</p>
+<h3 id="remediating-power-draining-configurations">Remediating
+Power-Draining Configurations</h3>
+<p>Beyond identifying rogue applications, PowerTOP helps adjust runtime
+configurations via the <strong>Tunables</strong> tab. This screen audits
+kernel and hardware settings (such as PCIe Active State Power
+Management, audio codec timeouts, and USB autosuspend).</p>
+<p>Items flagged as "Bad" can be selected and toggled to "Good" manually
+using the Enter key, or automated using the system tuning command:</p>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> powertop <span class="at">--auto-tune</span></span></code></pre></div>
+<p>This updates runtime sysfs entries to minimize overhead caused by
+peripheral components interacting with the operating system.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

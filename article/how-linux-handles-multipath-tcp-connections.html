@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How Linux Handles Multipath TCP Connections - linux</title>
+    <meta name="description" content="Multipath TCP (MPTCP) in Linux enables a single transport-layer connection to transmit data concurrently across multiple physical network interfaces, such as Wi-Fi, Ethernet, and cellular. By managing aggregated bandwidth, link redundancy, and transparen">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-linux-handles-multipath-tcp-connections">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How Linux Handles Multipath TCP Connections - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-linux-handles-multipath-tcp-connections" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="Multipath TCP (MPTCP) in Linux enables a single transport-layer connection to transmit data concurrently across multiple physical network interfaces, such as Wi-Fi, Ethernet, and cellular. By managing aggregated bandwidth, link redundancy, and transparen" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-linux-handles-multipath-tcp-connections">How Linux Handles
+Multipath TCP Connections</h1>
+<p>Multipath TCP (MPTCP) in Linux enables a single transport-layer
+connection to transmit data concurrently across multiple physical
+network interfaces, such as Wi-Fi, Ethernet, and cellular. By managing
+aggregated bandwidth, link redundancy, and transparent failover at the
+kernel level, Linux abstracts multiple distinct network paths into what
+appears as a standard TCP stream to user-space applications. This
+article explains how the Linux kernel natively orchestrates MPTCP,
+covering socket creation, path management, packet scheduling, and
+congestion control.</p>
+<h2 id="native-kernel-implementation">Native Kernel Implementation</h2>
+<p>MPTCP support was integrated upstream starting in Linux kernel
+version 5.6. Rather than rewriting the core networking stack, Linux
+implements MPTCP as a coordination layer sitting directly on top of
+traditional TCP.</p>
+<p>When an application requests an MPTCP connection using the
+<code>IPPROTO_MPTCP</code> socket protocol, the kernel creates an MPTCP
+master socket. Underneath this master socket, the kernel can spin up
+multiple standard TCP sockets, referred to as <strong>subflows</strong>.
+To the application, the interface operates identically to a standard
+POSIX socket API (<code>read</code>, <code>write</code>,
+<code>send</code>, <code>recv</code>), but the kernel distributes data
+across the underlying subflows transparently.</p>
+<p>If a remote peer does not support MPTCP, the Linux kernel gracefully
+falls back to standard single-path TCP during the initial three-way
+handshake by stripping MPTCP options.</p>
+<h2 id="path-management">Path Management</h2>
+<p>Path management dictates how subflows are established, maintained,
+and torn down across available network interfaces. Linux supports two
+primary path management modes:</p>
+<ol type="1">
+<li><strong>In-Kernel Path Manager:</strong> A lightweight, kernel-space
+implementation ideal for basic multi-homing. It automatically monitors
+system network interfaces, listens for new IP addresses, and establishes
+subflows or advertises addresses to the remote host using MPTCP
+<code>ADD_ADDR</code> and <code>REMOVE_ADDR</code> options.</li>
+<li><strong>Userspace Path Manager:</strong> Designed for advanced,
+policy-driven network environments. Linux exposes a Netlink interface
+that allows userspace daemons, such as <code>mptcpd</code>, to define
+complex routing policies, dictate interface priorities (such as
+preferring Wi-Fi over metered cellular), and manage subflow creation
+dynamically.</li>
+</ol>
+<h2 id="packet-scheduling">Packet Scheduling</h2>
+<p>Once multiple subflows are active, the Linux packet scheduler
+determines which subflow transmits each piece of outgoing data. The
+scheduler operates on the master socket's write queue and selects
+subflows based on specific algorithms:</p>
+<ul>
+<li><strong>Default / Lowest RTT:</strong> Directs packets to the path
+with the lowest Round-Trip Time (RTT) until its congestion window is
+full, spilling over to higher-latency links only when necessary.</li>
+<li><strong>Round-Robin:</strong> Distributes data evenly across all
+active subflows, prioritizing maximum throughput when links have
+comparable bandwidth and latency.</li>
+<li><strong>Redundant:</strong> Transmits the exact same data across
+multiple links simultaneously to provide zero-latency failover and
+minimal jitter for mission-critical traffic.</li>
+</ul>
+<p>Linux allows custom schedulers to be loaded via eBPF (Extended
+Berkeley Packet Filter), providing granular control over subflow
+selection based on real-time network metrics.</p>
+<h2 id="coupled-congestion-control">Coupled Congestion Control</h2>
+<p>Operating multiple TCP streams simultaneously risks consuming an
+unfair share of bandwidth when bottleneck links are shared with standard
+TCP traffic. To prevent this, Linux utilizes <strong>coupled congestion
+control</strong> algorithms, such as:</p>
+<ul>
+<li><strong>OLIA (Opportunistic Linked Increases
+Algorithm)</strong></li>
+<li><strong>BALIA (Balanced Linked Adaptation Algorithm)</strong></li>
+<li><strong>wVegas (Delay-based Congestion Control)</strong></li>
+</ul>
+<p>These algorithms link the congestion windows of all subflows
+belonging to the same MPTCP connection. If packet loss or latency spikes
+occur on one interface, the kernel slows down transmissions on that path
+while shifting traffic to healthier paths, ensuring network fairness
+across shared bottlenecks.</p>
+<h2 id="system-configuration-and-tooling">System Configuration and
+Tooling</h2>
+<p>MPTCP in Linux is managed directly via standard network configuration
+utilities:</p>
+<ul>
+<li><strong>Sysctl:</strong> Administrators enable and configure core
+behavior via variables located in <code>/proc/sys/net/mptcp/</code>,
+such as <code>net.mptcp.enabled</code>.</li>
+<li><strong>iproute2 (<code>ip mptcp</code>):</strong> Network
+administrators manage endpoints, limits, and flags using the
+<code>ip mptcp</code> command suite. For instance, setting an endpoint
+flag to <code>subflow</code> or <code>backup</code> dictates whether an
+interface actively aggregates throughput or waits in standby mode for
+redundancy.</li>
+</ul></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

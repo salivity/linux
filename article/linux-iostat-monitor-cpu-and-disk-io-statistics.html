@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linux iostat: Monitor CPU and Disk IO Statistics - linux</title>
+    <meta name="description" content="The iostat (Input/Output Statistics) command is a core utility within the Linux sysstat package used to monitor system input/output device loading by observing the time devices are active relative to their average transfer rates. This article explains ho">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/linux-iostat-monitor-cpu-and-disk-io-statistics">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Linux iostat: Monitor CPU and Disk IO Statistics - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/linux-iostat-monitor-cpu-and-disk-io-statistics" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="The iostat (Input/Output Statistics) command is a core utility within the Linux sysstat package used to monitor system input/output device loading by observing the time devices are active relative to their average transfer rates. This article explains ho" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="linux-iostat-monitor-cpu-and-disk-io-statistics">Linux iostat:
+Monitor CPU and Disk IO Statistics</h1>
+<p>The <code>iostat</code> (Input/Output Statistics) command is a core
+utility within the Linux <code>sysstat</code> package used to monitor
+system input/output device loading by observing the time devices are
+active relative to their average transfer rates. This article explains
+how <code>iostat</code> accesses kernel-level data to generate real-time
+metrics, breaks down the core CPU and storage reports it produces, and
+demonstrates how system administrators use these statistics to diagnose
+hardware bottlenecks.</p>
+<h3 id="where-iostat-collects-its-data">Where <code>iostat</code>
+Collects Its Data</h3>
+<p><code>iostat</code> does not directly poll storage hardware or CPU
+registers. Instead, it reads counters maintained by the Linux kernel via
+the <code>/proc</code> pseudo-filesystem:</p>
+<ul>
+<li><strong>/proc/stat:</strong> Provides system-wide CPU tick counters
+for time spent across user mode, system mode, idle time, and I/O wait
+states.</li>
+<li><strong>/proc/diskstats:</strong> Tracks cumulative I/O operations,
+sectors read and written, time spent doing I/O, and current queue
+lengths for each block device.</li>
+</ul>
+<p>Because these <code>/proc</code> files contain cumulative counters
+accrued since system boot, <code>iostat</code> computes statistics by
+taking snapshots. The first report generated reflects averages since
+system startup. If an update interval is specified (e.g.,
+<code>iostat 2</code>), each subsequent report calculates the delta
+between intervals, dividing the changes by elapsed time to show
+real-time rates.</p>
+<h3 id="cpu-statistics-explained">CPU Statistics Explained</h3>
+<p>By default, or when using the <code>-c</code> flag,
+<code>iostat</code> generates a CPU report that divides processor time
+into distinct percentages:</p>
+<ul>
+<li><strong>%user:</strong> Percentage of CPU utilization while running
+user-level applications (un-niced).</li>
+<li><strong>%nice:</strong> Percentage of CPU utilization running user
+processes with a modified priority.</li>
+<li><strong>%system:</strong> Percentage of CPU time executing
+system-level (kernel) tasks.</li>
+<li><strong>%iowait:</strong> Percentage of time the CPU was idle while
+the system had outstanding disk I/O requests. A high
+<code>%iowait</code> indicates that CPU capacity is constrained by slow
+storage operations.</li>
+<li><strong>%steal:</strong> Percentage of time a virtual CPU spent
+involuntarily waiting for the hypervisor to allocate real physical CPU
+time.</li>
+<li><strong>%idle:</strong> Percentage of time the CPU was idle with no
+outstanding disk I/O requests.</li>
+</ul>
+<h3 id="disk-io-statistics-explained">Disk I/O Statistics Explained</h3>
+<p>Using the <code>-d</code> flag displays disk utilization, and
+combining it with <code>-x</code> reveals extended metrics necessary for
+performance tuning:</p>
+<ul>
+<li><strong>r/s and w/s:</strong> The number of read and write requests
+issued to the device per second.</li>
+<li><strong>rMB/s and wMB/s:</strong> The volume of data read from or
+written to the device per second in megabytes.</li>
+<li><strong>rrqm/s and wrqm/s:</strong> The number of read and write
+requests merged per second by the Linux I/O scheduler into single
+hardware requests.</li>
+<li><strong>aqu-sz:</strong> The average queue length of requests issued
+to the device, including both requests in progress and requests waiting
+in the driver queue.</li>
+<li><strong>await:</strong> The average time (in milliseconds) for I/O
+requests to be served. This includes the time spent waiting in the queue
+and the time spent servicing the request. Modern extensions break this
+down into <strong>r_await</strong> (read latency) and
+<strong>w_await</strong> (write latency).</li>
+<li><strong>%util:</strong> The percentage of elapsed time during which
+the storage device had at least one active request. Values approaching
+100% indicate that the device is saturated, though modern multi-queue
+devices (such as NVMe drives and RAID arrays) can often handle higher
+throughput even at high utilization levels.</li>
+</ul>
+<h3 id="essential-iostat-commands">Essential <code>iostat</code>
+Commands</h3>
+<ul>
+<li><strong>Basic interval sampling:</strong> <code>iostat 2 5</code>
+(Collects metrics every 2 seconds, repeating 5 times).</li>
+<li><strong>Extended device statistics:</strong>
+<code>iostat -xz 1</code> (Displays extended I/O metrics every second,
+using <code>-z</code> to omit devices with zero activity during the
+interval).</li>
+<li><strong>Human-readable megabytes:</strong> <code>iostat -m</code>
+(Displays read and write rates in megabytes per second rather than
+default blocks or kilobytes).</li>
+</ul></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

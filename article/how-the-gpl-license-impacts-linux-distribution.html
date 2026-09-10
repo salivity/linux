@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How the GPL License Impacts Linux Distribution - linux</title>
+    <meta name="description" content="The GNU General Public License (GPL) fundamentally dictates how the Linux operating system is shared, modified, and commercialized across the globe. By enforcing a legal concept known as "copyleft," the GPL ensures that Linux remains permanently free and">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-the-gpl-license-impacts-linux-distribution">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How the GPL License Impacts Linux Distribution - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-the-gpl-license-impacts-linux-distribution" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="The GNU General Public License (GPL) fundamentally dictates how the Linux operating system is shared, modified, and commercialized across the globe. By enforcing a legal concept known as "copyleft," the GPL ensures that Linux remains permanently free and" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-the-gpl-license-impacts-linux-distribution">How the GPL
+License Impacts Linux Distribution</h1>
+<p>The GNU General Public License (GPL) fundamentally dictates how the
+Linux operating system is shared, modified, and commercialized across
+the globe. By enforcing a legal concept known as "copyleft," the GPL
+ensures that Linux remains permanently free and open-source software.
+Anyone who distributes the Linux kernel—whether as a free download or as
+part of a commercial product—must provide access to the underlying
+source code under the exact same license terms. This requirement has
+shaped the entire Linux ecosystem, balancing open collaboration with
+massive commercial enterprise.</p>
+<h2 id="the-core-mechanism-copyleft-and-source-code-availability">The
+Core Mechanism: Copyleft and Source Code Availability</h2>
+<p>The Linux kernel is licensed under the GPL version 2 (GPLv2). The
+central requirement of GPLv2 is reciprocity: if an individual or company
+modifies the Linux kernel and distributes the resulting binary (compiled
+code), they must also make the human-readable source code freely
+available under the GPLv2.</p>
+<p>This prevents any entity from taking the shared kernel, adding
+proprietary improvements, and distributing a closed-source derivative.
+Because the source code must accompany or be made available alongside
+any distributed binary, the ecosystem ensures that improvements made by
+one distributor can be examined, adopted, and improved upon by everyone
+else.</p>
+<h2 id="commercial-distribution-and-monetization">Commercial
+Distribution and Monetization</h2>
+<p>A common misconception is that the GPL prevents software from being
+sold for profit. In reality, the GPL explicitly permits commercial
+distribution. Companies such as Red Hat, Canonical, and SUSE can charge
+fees for distribution media, technical support, integration, and
+security updates.</p>
+<p>However, the GPL does constrain <em>how</em> companies package and
+monetize their distributions:</p>
+<ul>
+<li><strong>No Per-Copy Licensing Fees:</strong> Distributors cannot
+restrict a user's right to redistribute the software they receive. Once
+a customer legitimately obtains a GPL-licensed kernel, they have the
+legal right to share or redistribute that code to third parties without
+paying additional royalties to the original vendor.</li>
+<li><strong>Separation of Services from Code:</strong> Commercial Linux
+distributors generate revenue by selling warranties, certification,
+enterprise management platforms, and continuous maintenance
+subscriptions, rather than charging for the rights to use the kernel
+code itself.</li>
+</ul>
+<h2 id="the-kernel-space-vs-user-space-boundary">The Kernel Space vs.
+User Space Boundary</h2>
+<p>The distribution of a complete Linux-based operating system involves
+thousands of independent software packages beyond the Linux kernel
+itself, including desktop environments, system libraries, and user
+applications. The GPL’s reach depends heavily on how these components
+interact:</p>
+<ul>
+<li><strong>Kernel Space:</strong> Modifications to the kernel drivers
+and core subsystems fall strictly under GPLv2 and must be open-sourced
+if distributed.</li>
+<li><strong>The System Call Interface:</strong> Linus Torvalds and the
+core kernel developers explicitly clarified that regular user-space
+programs interacting with the kernel via standard system calls are not
+considered derivative works of the kernel. This vital legal boundary
+allows proprietary, closed-source software and differently licensed
+open-source programs (like MIT, Apache, or BSD) to run on top of Linux
+and be distributed alongside it, provided they remain in user
+space.</li>
+</ul>
+<h2 id="distribution-in-embedded-systems-and-hardware">Distribution in
+Embedded Systems and Hardware</h2>
+<p>The GPL affects hardware manufacturers who distribute Linux inside
+physical devices, such as network routers, smart televisions, and
+Android smartphones. Under the license:</p>
+<ul>
+<li>Manufacturers must provide the modified kernel source code used on
+the device.</li>
+<li>They must provide the device-specific modifications (such as Board
+Support Packages and open-source device drivers) so that users or
+developers can recompile the kernel for that hardware.</li>
+</ul>
+<p>While GPLv2 does not prevent hardware locks that restrict modified
+kernels from booting (a practice known as "Tivoization," which was
+addressed in GPLv3), it still guarantees that the source code
+corresponding to the running binary is accessible to buyers.</p>
+<h2 id="enforcement-and-upstream-collaboration">Enforcement and Upstream
+Collaboration</h2>
+<p>The legal enforceability of the GPL has established a culture of
+upstream contribution. Because vendors must release their kernel
+modifications anyway, maintaining a private fork of the Linux kernel
+becomes an expensive technical burden over time. Merging modifications
+back into the official "upstream" Linux kernel maintained by Linus
+Torvalds is often the most cost-effective path. Consequently, the GPL
+transforms competitive enterprises into co-developers, ensuring the
+long-term technical sustainability and widespread distribution of the
+operating system.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

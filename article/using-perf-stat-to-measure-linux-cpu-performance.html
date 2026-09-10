@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Using perf stat to Measure Linux CPU Performance - linux</title>
+    <meta name="description" content="The perf stat command is a powerful profiling tool in the Linux operating system designed to collect and aggregate hardware and software performance counter statistics. This article explains the primary purpose of perf stat, outlines the critical hardwar">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/using-perf-stat-to-measure-linux-cpu-performance">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Using perf stat to Measure Linux CPU Performance - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/using-perf-stat-to-measure-linux-cpu-performance" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="The perf stat command is a powerful profiling tool in the Linux operating system designed to collect and aggregate hardware and software performance counter statistics. This article explains the primary purpose of perf stat, outlines the critical hardwar" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="using-perf-stat-to-measure-linux-cpu-performance">Using perf
+stat to Measure Linux CPU Performance</h1>
+<p>The <code>perf stat</code> command is a powerful profiling tool in
+the Linux operating system designed to collect and aggregate hardware
+and software performance counter statistics. This article explains the
+primary purpose of <code>perf stat</code>, outlines the critical
+hardware events it monitors—such as instruction counts, cache misses,
+and branch mispredictions—and demonstrates how engineers use it to
+diagnose bottlenecks and evaluate execution efficiency across
+workloads.</p>
+<h3 id="understanding-the-purpose-of-perf-stat">Understanding the
+Purpose of perf stat</h3>
+<p>Part of the standard Linux <code>perf</code> subsystem,
+<code>perf stat</code> acts as a high-level profiling utility that runs
+a command and gathers performance counter statistics until that command
+terminates. Instead of performing detailed call-graph or sample-based
+profiling, <code>perf stat</code> provides an aggregated summary of
+resource utilization. Its primary purpose is to deliver immediate,
+low-overhead insight into how efficiently a program interacts with the
+underlying CPU architecture.</p>
+<h3 id="accessing-hardware-performance-counters">Accessing Hardware
+Performance Counters</h3>
+<p>Modern processors include a Performance Monitoring Unit (PMU)
+containing specialized hardware counters that track low-level CPU
+microarchitectural events. The <code>perf stat</code> command interfaces
+directly with the PMU through the Linux kernel to read these counters.
+By default, running a command through <code>perf stat</code> monitors
+several critical metrics:</p>
+<ul>
+<li><strong>Task Clock and CPU Utilization:</strong> Measures the actual
+time the target task spent executing on the CPU, distinguishing compute
+time from I/O wait states.</li>
+<li><strong>Context Switches and CPU Migrations:</strong> Tracks how
+frequently the operating system pauses the process to run another thread
+or moves the thread to a different physical core.</li>
+<li><strong>Cycles and Instructions:</strong> Records the raw number of
+CPU clock cycles elapsed and the total number of hardware instructions
+executed.</li>
+<li><strong>Instructions Per Cycle (IPC):</strong> Automatically
+calculates IPC (instructions divided by cycles), which serves as a
+primary indicator of CPU throughput. A low IPC (e.g., below 1.0) often
+suggests that the processor is stalling while waiting for memory or
+encountering branch mispredictions.</li>
+<li><strong>Cache Misses:</strong> Measures L1, L2, or Last-Level Cache
+(LLC) accesses and misses, indicating whether performance is degraded by
+memory access latency.</li>
+<li><strong>Branch Mispredictions:</strong> Quantifies how often the
+CPU's branch predictor guessed an execution path incorrectly, leading to
+pipeline stalls and flushed execution pipelines.</li>
+</ul>
+<h3 id="primary-use-cases">Primary Use Cases</h3>
+<ol type="1">
+<li><strong>Benchmarking and Workload Characterization:</strong>
+Developers use <code>perf stat</code> to establish performance
+baselines. By comparing runs before and after an optimization, engineers
+can verify whether changes reduced instruction counts or improved cache
+locality.</li>
+<li><strong>Diagnosing CPU vs. Memory Bottlenecks:</strong> By analyzing
+the relationship between cycles, instructions, and cache misses,
+<code>perf stat</code> rapidly indicates whether an application is bound
+by compute complexity or memory bandwidth.</li>
+<li><strong>Whole-System and Process Monitoring:</strong> Beyond
+wrapping individual commands, <code>perf stat</code> can attach to an
+existing process using the <code>-p</code> flag or monitor the entire
+system across all cores using the <code>-a</code> flag for a defined
+duration.</li>
+</ol>
+<p>By abstracting the complexity of CPU hardware performance monitoring
+units into simple, readable terminal output, <code>perf stat</code>
+serves as the foundational first step for performance engineering in
+Linux environments.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

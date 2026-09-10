@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recover Failing Drives with ddrescue on Linux - linux</title>
+    <meta name="description" content="GNU ddrescue is a specialized, open-source data recovery tool designed to extract data from failing, damaged, or error-prone storage drives on the Linux operating system. This article explains the primary function of ddrescue, detailing how its multi-pha">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/recover-failing-drives-with-ddrescue-on-linux">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Recover Failing Drives with ddrescue on Linux - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/recover-failing-drives-with-ddrescue-on-linux" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="GNU ddrescue is a specialized, open-source data recovery tool designed to extract data from failing, damaged, or error-prone storage drives on the Linux operating system. This article explains the primary function of ddrescue, detailing how its multi-pha" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="recover-failing-drives-with-ddrescue-on-linux">Recover Failing
+Drives with ddrescue on Linux</h1>
+<p>GNU <code>ddrescue</code> is a specialized, open-source data recovery
+tool designed to extract data from failing, damaged, or error-prone
+storage drives on the Linux operating system. This article explains the
+primary function of <code>ddrescue</code>, detailing how its multi-phase
+copying algorithm, non-destructive read strategy, and mapfile-tracking
+mechanism enable users to maximize the amount of recovered data while
+minimizing mechanical and physical stress on dying storage hardware.</p>
+<h3 id="core-function-and-the-limitation-of-standard-tools">Core
+Function and the Limitation of Standard Tools</h3>
+<p>Standard Linux cloning utilities like <code>dd</code> copy storage
+devices sequentially from beginning to end. When <code>dd</code>
+encounters a bad sector or I/O error on a failing hard drive or SSD, it
+typically aborts the operation, freezes, or fills the target image with
+corrupted zero-blocks while repeatedly stressing the damaged area.</p>
+<p>GNU <code>ddrescue</code> solves this problem by decoupling the
+cloning process from the assumption that the drive is healthy. Its
+primary function is to copy data at the block level from one file or
+block device to another while gracefully isolating and working around
+read errors.</p>
+<h3 id="the-phased-recovery-algorithm">The Phased Recovery
+Algorithm</h3>
+<p>Rather than halting at the first sign of damage,
+<code>ddrescue</code> uses an intelligent, multi-phase algorithm to
+retrieve as much healthy data as possible before attempting to read
+problematic areas:</p>
+<ol type="1">
+<li><strong>Copying Phase:</strong> The tool rapidly reads large,
+healthy blocks of data across the drive. When it hits an error, it skips
+ahead rather than wasting time and wearing out the drive trying to
+re-read the damaged sector.</li>
+<li><strong>Trimming Phase:</strong> Once the bulk of the undamaged data
+is secured, <code>ddrescue</code> returns to the edges of the skipped
+sections, narrowing down the exact boundaries of the bad sectors.</li>
+<li><strong>Scraping Phase:</strong> In the final pass,
+<code>ddrescue</code> attempts to read the individual bad sectors
+byte-by-byte or sector-by-sector, retrieving any residual readable data
+that was skipped during the initial fast passes.</li>
+</ol>
+<h3 id="state-tracking-via-the-mapfile">State Tracking via the
+Mapfile</h3>
+<p>A fundamental feature of <code>ddrescue</code> is its use of a
+mapfile (formerly referred to as a logfile). The mapfile records the
+status of every block on the source drive—marking blocks as non-tried,
+non-trimmed, non-scraped, bad, or finished.</p>
+<p>This state tracking serves several critical functions:</p>
+<ul>
+<li><strong>Interruption Safety:</strong> If the failing drive
+disconnects, overheats, or causes the system to crash, the recovery
+process can be resumed from the exact point it stopped without
+re-reading already-cloned data.</li>
+<li><strong>Multiple Recovery Passes:</strong> Users can run fast
+initial passes without retries, cool the drive down, and run subsequent
+passes with multiple retry attempts targeted strictly at unreadable
+blocks.</li>
+<li><strong>Reverse Direction Reads:</strong> If a drive consistently
+fails when reading forward, the mapfile allows <code>ddrescue</code> to
+attempt recovery in reverse mode to capture data situated on the other
+side of a physical defect.</li>
+</ul>
+<h3 id="preservation-of-fragile-hardware">Preservation of Fragile
+Hardware</h3>
+<p>Failing mechanical drives with damaged heads or degrading platters
+can experience catastrophic failure if subjected to continuous read
+attempts on bad sectors. By quickly capturing healthy sectors first and
+isolating bad blocks without repetitive head thrashing,
+<code>ddrescue</code> drastically lowers the chance of total drive death
+before critical files are retrieved.</p>
+<p>The standard best practice when using <code>ddrescue</code> is to
+clone the damaged drive directly to an image file or a healthy secondary
+drive. All subsequent partition repairs, file system checks
+(<code>fsck</code>), or file carving operations are then performed on
+the cloned copy, leaving the original failing hardware untouched.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

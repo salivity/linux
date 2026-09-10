@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How Linux CFS Bandwidth Control Works - linux</title>
+    <meta name="description" content="This article provides an architectural overview of how the Linux kernel implements Completely Fair Scheduler (CFS) bandwidth control. It examines the control group (cgroup) parameters governing CPU time limits, the split-accounting model between global p">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-linux-cfs-bandwidth-control-works">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How Linux CFS Bandwidth Control Works - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-linux-cfs-bandwidth-control-works" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="This article provides an architectural overview of how the Linux kernel implements Completely Fair Scheduler (CFS) bandwidth control. It examines the control group (cgroup) parameters governing CPU time limits, the split-accounting model between global p" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-linux-cfs-bandwidth-control-works">How Linux CFS Bandwidth
+Control Works</h1>
+<p>This article provides an architectural overview of how the Linux
+kernel implements Completely Fair Scheduler (CFS) bandwidth control. It
+examines the control group (cgroup) parameters governing CPU time
+limits, the split-accounting model between global pools and per-CPU
+runqueues, the mechanics of process throttling, and how high-resolution
+timers replenish CPU quotas to resume suspended tasks.</p>
+<h2 id="the-core-concept-period-and-quota">The Core Concept: Period and
+Quota</h2>
+<p>CFS bandwidth control allows system administrators to enforce hard
+limits on CPU consumption for groups of processes using the cgroup
+hierarchy. Unlike standard CFS weights, which provide proportional
+shares under CPU contention, bandwidth control sets absolute
+ceilings.</p>
+<p>It is defined using two primary parameters:</p>
+<ul>
+<li><strong>Period (<code>cpu.cfs_period_us</code>):</strong> The
+tracking window duration, typically defaulting to 100,000 microseconds
+(100 ms).</li>
+<li><strong>Quota (<code>cpu.cfs_quota_us</code>):</strong> The total
+cumulative execution time allowed for all tasks within the cgroup across
+all CPUs during that period.</li>
+</ul>
+<p>If a multi-threaded cgroup has a period of 100 ms and a quota of 200
+ms, the tasks combined can consume up to two full CPU cores of execution
+time within that 100 ms window.</p>
+<h2 id="the-accounting-architecture-global-vs-per-cpu">The Accounting
+Architecture: Global vs. Per-CPU</h2>
+<p>Enforcing quota globally across multiple CPU cores introduces severe
+lock contention if every CPU updates a single shared counter. To solve
+this, the kernel splits bandwidth management into two structures:</p>
+<ol type="1">
+<li><strong><code>cfs_bandwidth</code> (Global):</strong> A single
+structure per task group that maintains the global quota balance,
+tracking period timers, and throttling state.</li>
+<li><strong><code>cfs_rq</code> (Per-CPU):</strong> The runqueue on each
+individual core where tasks are scheduled and run.</li>
+</ol>
+<p>To minimize cross-CPU locking overhead, a core does not acquire the
+global <code>cfs_bandwidth</code> lock on every scheduler tick. Instead,
+each per-CPU runqueue dynamically requests a slice of execution
+time—known as a runtime pool (typically 5 ms by default)—from the global
+quota.</p>
+<p>As a task executes on a CPU, its elapsed execution time is deducted
+from its local runqueue balance. When the local balance is exhausted,
+the CPU attempts to acquire another slice from the global
+<code>cfs_bandwidth</code> pool.</p>
+<h2 id="throttling-enforcing-the-limit">Throttling: Enforcing the
+Limit</h2>
+<p>Throttling occurs when a CPU runqueue needs more runtime, but the
+global quota in <code>cfs_bandwidth</code> has run out:</p>
+<ol type="1">
+<li><strong>Exhaustion Detection:</strong> When a per-CPU runqueue
+checks the global pool and discovers that the quota is zero or negative,
+the kernel flags the runqueue as throttled.</li>
+<li><strong>Removal from the Runqueue:</strong> The kernel removes the
+throttled <code>cfs_rq</code> from the active scheduling tree (the
+red-black tree). The tasks inside this group remain in a runnable state
+(<code>TASK_RUNNING</code>), but the scheduler bypasses them because
+their runqueue is marked inactive.</li>
+<li><strong>Throttled List:</strong> The throttled runqueue is placed
+onto a linked list tracked by the global <code>cfs_bandwidth</code>
+structure to await quota replenishment.</li>
+</ol>
+<p>While throttled, the affected tasks consume no CPU cycles, ensuring
+the group does not exceed its defined upper bound.</p>
+<h2 id="replenishment-and-unthrottling">Replenishment and
+Unthrottling</h2>
+<p>To restore execution, the kernel relies on high-resolution timers
+(<code>hrtimer</code>):</p>
+<ol type="1">
+<li><strong>Timer Expiration:</strong> At the start of a period, the
+kernel arms an <code>hrtimer</code> configured to fire at the end of
+<code>cfs_period_us</code>.</li>
+<li><strong>Quota Reset:</strong> When the timer expires, the kernel
+recharges the global pool by adding the full configured quota back into
+<code>cfs_bandwidth</code>.</li>
+<li><strong>Distributing Runtime:</strong> The kernel walks the list of
+throttled per-CPU runqueues, assigns them new runtime slices, and clears
+their throttled status.</li>
+<li><strong>Re-enqueueing:</strong> The formerly throttled
+<code>cfs_rq</code> structures are re-added to their respective active
+CPU runqueues.</li>
+<li><strong>Wake-up:</strong> The scheduler triggers an inter-processor
+interrupt (IPI) if necessary to reschedule the unthrottled tasks
+immediately.</li>
+</ol>
+<p>The timer is then rescheduled for the next period, repeating the
+enforcement cycle continuously.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

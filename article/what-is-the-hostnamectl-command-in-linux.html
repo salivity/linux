@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>What Is the hostnamectl Command in Linux? - linux</title>
+    <meta name="description" content="The hostnamectl command is a dedicated Linux command-line utility designed to control and configure the system hostname and related metadata on operating systems running the systemd system and service manager. This article explores the primary purpose of">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/what-is-the-hostnamectl-command-in-linux">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="What Is the hostnamectl Command in Linux? - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/what-is-the-hostnamectl-command-in-linux" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="The hostnamectl command is a dedicated Linux command-line utility designed to control and configure the system hostname and related metadata on operating systems running the systemd system and service manager. This article explores the primary purpose of" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="what-is-the-hostnamectl-command-in-linux">What Is the
+hostnamectl Command in Linux?</h1>
+<p>The <code>hostnamectl</code> command is a dedicated Linux
+command-line utility designed to control and configure the system
+hostname and related metadata on operating systems running the systemd
+system and service manager. This article explores the primary purpose of
+<code>hostnamectl</code>, how it streamlines hostname management
+compared to legacy methods, the three distinct types of hostnames it
+configures, and standard commands used to query and modify system
+identification settings.</p>
+<h3 id="purpose-of-hostnamectl">Purpose of hostnamectl</h3>
+<p>In modern Linux distributions such as Ubuntu, Debian, CentOS, RHEL,
+Fedora, and Arch Linux, <code>hostnamectl</code> serves as the
+centralized tool for querying and updating the computer's network name.
+Traditionally, changing a hostname required a combination of running the
+volatile <code>hostname</code> command and manually editing
+configuration files like <code>/etc/hostname</code> and
+<code>/etc/hosts</code>. The <code>hostnamectl</code> utility simplifies
+this workflow by applying changes immediately at runtime while
+automatically updating the configuration files to ensure the settings
+persist across reboots.</p>
+<h3 id="the-three-hostname-classes">The Three Hostname Classes</h3>
+<p>The command distinguishes between three different classes of
+hostnames, allowing administrators granular control over system
+identification:</p>
+<ul>
+<li><strong>Static Hostname:</strong> The traditional hostname assigned
+during installation or by an administrator. It is stored permanently in
+the <code>/etc/hostname</code> file and used to initialize the kernel
+hostname at boot.</li>
+<li><strong>Transient Hostname:</strong> A temporary hostname assigned
+dynamically at runtime by network services such as DHCP or mDNS. If no
+transient hostname is received via network configuration, the system
+defaults to the static hostname.</li>
+<li><strong>Pretty Hostname:</strong> A free-form, UTF-8 formatted
+hostname that can include spaces, special characters, and capitalization
+(for example, "Sarah's Development Workstation"). It is meant to provide
+a user-friendly label for local users and graphical interfaces, rather
+than strictly conforming to standard Internet domain name
+constraints.</li>
+</ul>
+<h3 id="additional-system-metadata">Additional System Metadata</h3>
+<p>Beyond modifying the network name, <code>hostnamectl</code> manages
+hardware and deployment properties associated with the host.
+Administrators can use it to define:</p>
+<ul>
+<li><strong>Chassis Type:</strong> Identifies the physical form factor
+of the machine (e.g., <code>server</code>, <code>laptop</code>,
+<code>desktop</code>, <code>vm</code>, or <code>container</code>).</li>
+<li><strong>Deployment Environment:</strong> Categorizes the operational
+state of the machine (e.g., <code>development</code>,
+<code>staging</code>, or <code>production</code>).</li>
+<li><strong>System Icon:</strong> Associates an icon name with the host
+for graphical network browsers.</li>
+</ul>
+<h3 id="common-usage">Common Usage</h3>
+<p>Running <code>hostnamectl</code> without any arguments displays the
+current system identification details, including the static, transient,
+and pretty hostnames, the chassis type, the machine ID, the operating
+system version, and the active kernel architecture.</p>
+<p>To change the primary (static) hostname, the command requires
+administrative privileges:</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> hostnamectl set-hostname new-hostname</span></code></pre></div>
+<p>To set a specific hostname class, such as a pretty hostname, the
+command accepts dedicated flags:</p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> hostnamectl set-hostname <span class="st">&quot;Office Desktop&quot;</span> <span class="at">--pretty</span></span></code></pre></div>
+<p>Through these features, <code>hostnamectl</code> ensures consistent,
+robust, and automated hostname administration across systemd-managed
+Linux environments.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

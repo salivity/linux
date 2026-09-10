@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guide to tcpdump for Linux Network Packet Sniffing - linux</title>
+    <meta name="description" content="The tcpdump command is a powerful, lightweight command-line utility used in Linux for capturing, analyzing, and filtering network traffic in real time. This article explains the primary purpose of tcpdump, its core capabilities as a packet analyzer, and">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/guide-to-tcpdump-for-linux-network-packet-sniffing">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Guide to tcpdump for Linux Network Packet Sniffing - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/guide-to-tcpdump-for-linux-network-packet-sniffing" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="The tcpdump command is a powerful, lightweight command-line utility used in Linux for capturing, analyzing, and filtering network traffic in real time. This article explains the primary purpose of tcpdump, its core capabilities as a packet analyzer, and" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="guide-to-tcpdump-for-linux-network-packet-sniffing">Guide to
+tcpdump for Linux Network Packet Sniffing</h1>
+<p>The <code>tcpdump</code> command is a powerful, lightweight
+command-line utility used in Linux for capturing, analyzing, and
+filtering network traffic in real time. This article explains the
+primary purpose of <code>tcpdump</code>, its core capabilities as a
+packet analyzer, and how system administrators and security
+professionals leverage it to monitor network health, diagnose
+connectivity issues, and detect potential security threats directly from
+the terminal.</p>
+<h3 id="the-primary-purpose-of-tcpdump">The Primary Purpose of
+tcpdump</h3>
+<p>At its core, <code>tcpdump</code> operates as a network packet
+analyzer, commonly referred to as a packet sniffer. It intercepts and
+displays TCP/IP and other packets being transmitted or received over a
+specific network interface. By utilizing the <code>libpcap</code>
+library, <code>tcpdump</code> captures raw network data at the data link
+layer, giving administrators a transparent view of the communication
+flowing into and out of a Linux host.</p>
+<h3 id="key-capabilities-and-features">Key Capabilities and
+Features</h3>
+<ul>
+<li><strong>Targeted Filtering:</strong> Rather than inundating the user
+with all network traffic, <code>tcpdump</code> employs Berkeley Packet
+Filter (BPF) syntax. This allows users to isolate traffic based on IP
+addresses, ports, protocols (TCP, UDP, ICMP), or specific packet
+flags.</li>
+<li><strong>Header and Payload Inspection:</strong> It provides detailed
+visibility into packet headers, showing source and destination
+addresses, sequence numbers, and protocol metadata. It can also print
+packet contents in ASCII or hexadecimal formats.</li>
+<li><strong>File Export and Import:</strong> Captures can be written
+directly to standard <code>.pcap</code> files using the <code>-w</code>
+flag. These files can be archived for audit trails or imported into
+graphical analysis tools like Wireshark for deeper forensic
+analysis.</li>
+</ul>
+<h3 id="common-use-cases">Common Use Cases</h3>
+<ul>
+<li><strong>Network Troubleshooting:</strong> Network engineers use
+<code>tcpdump</code> to identify dropped packets, routing failures, DNS
+resolution issues, and asymmetric routing. By observing handshakes (such
+as the TCP three-way handshake), users can quickly identify whether
+connection issues stem from the local machine, the remote server, or
+intermediate firewalls.</li>
+<li><strong>Security Auditing and Incident Response:</strong> Security
+analysts use <code>tcpdump</code> to detect unauthorized outbound
+connections, active port scanning, suspicious payload transmissions, and
+potential distributed denial-of-service (DDoS) traffic patterns.</li>
+<li><strong>Application Debugging:</strong> Developers monitor APIs and
+microservices to verify that applications are sending data to the
+correct destinations, utilizing proper headers, and receiving expected
+responses from remote endpoints.</li>
+</ul>
+<h3 id="basic-operation">Basic Operation</h3>
+<p>Because capturing raw network traffic requires low-level system
+access, <code>tcpdump</code> requires root or <code>sudo</code>
+privileges to execute. A standard command to capture traffic on a
+specific interface targeting web traffic looks like this:</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> tcpdump <span class="at">-i</span> eth0 port 80 <span class="at">-n</span></span></code></pre></div>
+<p>In this example, <code>-i eth0</code> specifies the network
+interface, <code>port 80</code> filters the capture strictly to HTTP
+traffic, and <code>-n</code> prevents DNS lookups to keep output fast
+and readable. Through this focused functionality, <code>tcpdump</code>
+remains an essential, dependable tool for Linux network diagnostics.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

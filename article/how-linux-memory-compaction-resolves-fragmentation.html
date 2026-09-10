@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How Linux Memory Compaction Resolves Fragmentation - linux</title>
+    <meta name="description" content="Physical memory fragmentation occurs when free memory is broken into small, non-contiguous chunks over time, preventing the Linux kernel from fulfilling requests for large, contiguous memory blocks like Transparent Huge Pages (THP) or device driver DMA b">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-linux-memory-compaction-resolves-fragmentation">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How Linux Memory Compaction Resolves Fragmentation - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-linux-memory-compaction-resolves-fragmentation" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="Physical memory fragmentation occurs when free memory is broken into small, non-contiguous chunks over time, preventing the Linux kernel from fulfilling requests for large, contiguous memory blocks like Transparent Huge Pages (THP) or device driver DMA b" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-linux-memory-compaction-resolves-fragmentation">How Linux
+Memory Compaction Resolves Fragmentation</h1>
+<p>Physical memory fragmentation occurs when free memory is broken into
+small, non-contiguous chunks over time, preventing the Linux kernel from
+fulfilling requests for large, contiguous memory blocks like Transparent
+Huge Pages (THP) or device driver DMA buffers. The Linux operating
+system resolves this issue through an engine called memory compaction.
+This article details how memory compaction identifies fragmented memory
+zones, shifts movable pages using a dual-scanner algorithm, and restores
+contiguous blocks of physical memory without needing to drop caches or
+swap heavily to disk.</p>
+<h3 id="the-fragmentation-problem">The Fragmentation Problem</h3>
+<p>The Linux kernel manages physical memory allocations using the Buddy
+Allocator, which divides memory into page frames grouped by orders of
+power-of-two sizes (order-0 is 4 KB, order-1 is 8 KB, up to order-10 for
+4 MB). As applications allocate and release memory unpredictably,
+physical memory becomes checkerboarded with scattered allocations. While
+the total volume of free memory might be high, the Buddy system may lack
+enough adjacent pages to satisfy a high-order allocation. This state is
+known as external memory fragmentation.</p>
+<h3 id="page-mobility-and-grouping">Page Mobility and Grouping</h3>
+<p>Before compaction can function, the kernel needs to know which pages
+can be relocated safely. Linux solves this by grouping page blocks
+according to their mobility:</p>
+<ul>
+<li><strong>MIGRATE_MOVABLE:</strong> Pages allocated to userspace
+applications (anonymous memory, page cache) can be copied to a new
+physical address because their page table mappings can simply be
+updated.</li>
+<li><strong>MIGRATE_RECLAIMABLE:</strong> Pages like directory entries
+(dentries) and inodes that cannot be shifted directly, but can be
+dropped or reclaimed under memory pressure.</li>
+<li><strong>MIGRATE_UNMOVABLE:</strong> Pages allocated by core kernel
+structures, hardware drivers, or locked memory pages that cannot be
+changed without breaking system integrity.</li>
+</ul>
+<p>Memory compaction exclusively targets <code>MIGRATE_MOVABLE</code>
+pages, leaving unmovable structures undisturbed.</p>
+<h3 id="the-dual-scanner-compaction-algorithm">The Dual-Scanner
+Compaction Algorithm</h3>
+<p>Memory compaction operates on individual memory zones (such as
+<code>ZONE_NORMAL</code> or <code>ZONE_DMA32</code>) using an efficient
+two-scanner mechanism. The algorithm moves pages from the bottom of the
+memory zone into free spaces located at the top of the zone.</p>
+<ol type="1">
+<li><strong>The Migration Scanner:</strong> Begins at the start (lowest
+physical page frame number, or PFN) of the zone and scans upward,
+searching for allocated, movable pages.</li>
+<li><strong>The Free Scanner:</strong> Begins at the end (highest PFN)
+of the zone and scans downward, searching for isolated, unallocated page
+frames.</li>
+<li><strong>Page Migration:</strong> Once both scanners identify
+suitable candidates, the kernel copies the data from the migration
+scanner's pages into the free slots discovered by the free scanner. The
+page table entries referencing the old locations are atomically updated
+to point to the new physical addresses.</li>
+<li><strong>Completion:</strong> The scanners continue working toward
+each other until they meet somewhere in the middle of the zone, or until
+the desired high-order contiguous block is successfully assembled.</li>
+</ol>
+<p>By sweeping allocated data toward the lower physical addresses and
+pooling free space toward the higher addresses, the Buddy Allocator
+naturally reconstructs high-order chunks of contiguous memory.</p>
+<h3 id="when-compaction-runs">When Compaction Runs</h3>
+<p>Compaction is invoked through three distinct paths depending on
+system demand:</p>
+<ul>
+<li><strong>Direct Compaction:</strong> Triggered synchronously when a
+process requests a high-order page allocation that cannot be fulfilled
+immediately. The process pauses briefly while the kernel compacts just
+enough memory to satisfy the request.</li>
+<li><strong>Background Compaction (<code>kcompactd</code>):</strong> A
+kernel thread that monitors fragmentation indexes in each memory zone.
+When a zone exceeds a defined fragmentation threshold,
+<code>kcompactd</code> runs asynchronously to assemble contiguous blocks
+before processes actually experience allocation delays.</li>
+<li><strong>Manual Compaction:</strong> System administrators can force
+system-wide compaction at runtime by writing <code>1</code> to
+<code>/proc/sys/vm/compact_memory</code>.</li>
+</ul>
+<h3 id="performance-and-trade-offs">Performance and Trade-Offs</h3>
+<p>Memory compaction is significantly faster and less disruptive than
+traditional page reclaiming or swapping to disk, as it merely shifts
+memory contents within RAM. However, memory compaction does consume CPU
+cycles and memory bus bandwidth during page copy operations. To prevent
+performance degradation, the Linux kernel employs cost-benefit
+heuristics and fragmentation scoring to ensure compaction only runs when
+the likelihood of successfully recovering high-order contiguous blocks
+outweighs the operational cost of copying the pages.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

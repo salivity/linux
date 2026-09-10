@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How Pacman Package Manager Updates Arch Linux - linux</title>
+    <meta name="description" content="The Pacman package manager maintains and updates Arch Linux by synchronizing local repository databases with remote mirrors, resolving dependencies, and performing transactional file updates. When updating the system, Pacman compares the installed versio">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-pacman-package-manager-updates-arch-linux">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How Pacman Package Manager Updates Arch Linux - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-pacman-package-manager-updates-arch-linux" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="The Pacman package manager maintains and updates Arch Linux by synchronizing local repository databases with remote mirrors, resolving dependencies, and performing transactional file updates. When updating the system, Pacman compares the installed versio" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-pacman-package-manager-updates-arch-linux">How Pacman
+Package Manager Updates Arch Linux</h1>
+<p>The Pacman package manager maintains and updates Arch Linux by
+synchronizing local repository databases with remote mirrors, resolving
+dependencies, and performing transactional file updates. When updating
+the system, Pacman compares the installed versions of software against
+the latest available versions upstream, downloads compiled binary
+archives, verifies their integrity via cryptographic signatures, and
+safely unpacks them while preserving user configurations.</p>
+<h2 id="the-full-system-upgrade-command">The Full System Upgrade
+Command</h2>
+<p>In Arch Linux, updates are executed with the command:</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> pacman <span class="at">-Syu</span></span></code></pre></div>
+<p>This command breaks down into three distinct operations:</p>
+<ul>
+<li><code>-S</code> (Sync): Directs Pacman to operate on the remote
+software repositories.</li>
+<li><code>-y</code> (Refresh): Forces Pacman to download fresh copies of
+the repository databases from the mirrors listed in
+<code>/etc/pacman.d/mirrorlist</code>.</li>
+<li><code>-u</code> (Sysupgrade): Instructs Pacman to upgrade all
+installed packages that have newer versions available in the newly
+downloaded databases.</li>
+</ul>
+<h2 id="step-by-step-update-process">Step-by-Step Update Process</h2>
+<h3 id="1-database-synchronization">1. Database Synchronization</h3>
+<p>Pacman connects to the defined mirror servers and downloads the
+primary repository databases (such as <code>core.db</code>,
+<code>extra.db</code>, and <code>multilib.db</code>). These lightweight
+database files contain metadata for every available package, including
+version numbers, file lists, dependencies, and cryptographic
+checksums.</p>
+<h3 id="2-version-comparison-and-candidate-selection">2. Version
+Comparison and Candidate Selection</h3>
+<p>Once the databases are updated locally, Pacman inspects the local
+database located at <code>/var/lib/pacman/local/</code>. It compares
+every installed package's version against the metadata in the newly
+synced remote databases. Any installed package with a lower version
+number than its remote counterpart is added to the update transaction
+list.</p>
+<h3 id="3-dependency-resolution-and-conflict-detection">3. Dependency
+Resolution and Conflict Detection</h3>
+<p>Before touching any files, Pacman analyzes the proposed transaction
+to ensure system integrity:</p>
+<ul>
+<li><strong>Dependency Checking:</strong> It verifies that all packages
+required by the upgraded software are present or included in the update
+queue.</li>
+<li><strong>Conflict Resolution:</strong> It detects file conflicts
+where two packages attempt to install the same file.</li>
+<li><strong>Package Replacement:</strong> It checks for packages that
+have been renamed, replaced, or merged upstream, prompting the user for
+approval to replace them.</li>
+</ul>
+<p>If a critical dependency cannot be satisfied or a conflict cannot be
+automatically reconciled, Pacman halts the transaction to prevent system
+breakage.</p>
+<h3 id="4-downloading-and-integrity-verification">4. Downloading and
+Integrity Verification</h3>
+<p>Pacman downloads the necessary package archives (typically compressed
+as <code>.pkg.tar.zst</code> files) into the local cache directory at
+<code>/var/cache/pacman/pkg/</code>. During and immediately following
+the download, Pacman performs two checks:</p>
+<ul>
+<li><strong>Integrity Validation:</strong> Pacman matches the file's
+SHA-256 checksum against the checksum provided in the database to
+prevent corruption.</li>
+<li><strong>Authenticity Validation:</strong> Using GnuPG (GPG), Pacman
+verifies the digital signature of each package against the trusted Arch
+Linux packaging keys to ensure the files have not been tampered
+with.</li>
+</ul>
+<h3 id="5-pre-transaction-hooks">5. Pre-Transaction Hooks</h3>
+<p>Pacman executes system hooks located in
+<code>/usr/share/libalpm/hooks/</code> and
+<code>/etc/pacman.d/hooks/</code>. These pre-transaction scripts prepare
+the system for updates, such as taking filesystem snapshots or
+temporarily stopping affected background services.</p>
+<h3 id="6-file-extraction-and-configuration-handling">6. File Extraction
+and Configuration Handling</h3>
+<p>Pacman applies the updates by unpacking the <code>.pkg.tar.zst</code>
+archives directly to the root filesystem (<code>/</code>).</p>
+<ul>
+<li><strong>Overwriting Binaries:</strong> Existing system binaries,
+libraries, and assets are cleanly overwritten with the new
+versions.</li>
+<li><strong>Preserving Configuration (<code>.pacnew</code>):</strong> To
+prevent breaking custom user setups, Pacman will not overwrite modified
+configuration files located in <code>/etc/</code>. If a new default
+configuration is introduced, Pacman installs it alongside the original
+file with a <code>.pacnew</code> extension, allowing the system
+administrator to review and merge changes manually.</li>
+</ul>
+<h3 id="7-post-transaction-hooks-and-finalization">7. Post-Transaction
+Hooks and Finalization</h3>
+<p>After the files are placed and the local database at
+<code>/var/lib/pacman/local/</code> is updated with the new version
+records, Pacman executes post-transaction hooks. These automatic tasks
+recompile system components affected by the update, including:</p>
+<ul>
+<li>Rebuilding the initial ramdisk (<code>mkinitcpio</code>) if the
+Linux kernel was updated.</li>
+<li>Updating systemd service definitions and system caches (desktop
+databases, font caches, MIME types).</li>
+<li>Running <code>ldconfig</code> to update shared library
+bindings.</li>
+</ul>
+<p>Once all hooks finish executing, the update transaction completes,
+leaving the operating system fully updated to the latest rolling release
+state.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

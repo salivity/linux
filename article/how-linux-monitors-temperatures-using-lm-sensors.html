@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How Linux Monitors Temperatures Using lm-sensors - linux</title>
+    <meta name="description" content="Linux monitors hardware temperatures by bridging kernel-level drivers with user-space applications through the lm-sensors (Linux monitoring sensors) framework. This article explains the end-to-end mechanism of how lm-sensors detects physical monitoring c">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-linux-monitors-temperatures-using-lm-sensors">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How Linux Monitors Temperatures Using lm-sensors - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-linux-monitors-temperatures-using-lm-sensors" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="Linux monitors hardware temperatures by bridging kernel-level drivers with user-space applications through the lm-sensors (Linux monitoring sensors) framework. This article explains the end-to-end mechanism of how lm-sensors detects physical monitoring c" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-linux-monitors-temperatures-using-lm-sensors">How Linux
+Monitors Temperatures Using lm-sensors</h1>
+<p>Linux monitors hardware temperatures by bridging kernel-level drivers
+with user-space applications through the <code>lm-sensors</code> (Linux
+monitoring sensors) framework. This article explains the end-to-end
+mechanism of how <code>lm-sensors</code> detects physical monitoring
+chips, retrieves thermal readings through the Linux <code>sysfs</code>
+pseudo-filesystem, and translates raw hardware metrics into
+human-readable temperature data.</p>
+<h2 id="hardware-monitoring-chips-and-the-linux-kernel">Hardware
+Monitoring Chips and the Linux Kernel</h2>
+<p>Modern motherboards, CPUs, and GPUs contain dedicated hardware
+monitoring chips, often referred to as Super I/O chips or integrated
+on-die thermal sensors (such as Intel's <code>coretemp</code> or AMD's
+<code>k10temp</code>). These physical chips continuously track metrics
+including component temperatures, fan speeds, and voltages.</p>
+<p>The Linux kernel interacts with these chips using specialized bus
+drivers, typically communicating over the I2C (Inter-Integrated Circuit)
+bus, SMBus (System Management Bus), or ISA bus. When the appropriate
+kernel module for a specific sensor chip is loaded, the kernel
+establishes direct communication with the hardware registers responsible
+for reporting thermal states.</p>
+<h2 id="the-role-of-the-sysfs-filesystem">The Role of the sysfs
+Filesystem</h2>
+<p>Rather than requiring applications to make low-level hardware calls,
+the Linux kernel exposes sensor metrics through <code>sysfs</code>, a
+virtual filesystem mounted at <code>/sys</code>.</p>
+<p>Thermal data is standardized under the hardware monitoring subsystem
+at <code>/sys/class/hwmon/</code>. Inside this directory, the kernel
+creates virtual directories (such as <code>hwmon0</code>,
+<code>hwmon1</code>) for each detected sensor device. Within these
+directories, plain-text files represent real-time measurements:</p>
+<ul>
+<li><code>name</code>: The name of the monitoring chip.</li>
+<li><code>temp1_input</code>: The current temperature reading, typically
+represented in millidegrees Celsius (e.g., <code>45000</code> indicates
+45°C).</li>
+<li><code>temp1_max</code>: The defined maximum operating
+threshold.</li>
+<li><code>temp1_crit</code>: The critical temperature threshold that
+triggers throttling or system shutdown.</li>
+</ul>
+<p>Because these are standard virtual files, the operating system or any
+process with proper permissions can read raw temperature data directly
+using standard file read operations.</p>
+<h2 id="how-lm-sensors-operates">How lm-sensors Operates</h2>
+<p>The <code>lm-sensors</code> package provides the user-space tooling
+required to automate hardware detection and process the raw data exposed
+by the kernel. It consists of three primary components:</p>
+<h3 id="1-hardware-detection-sensors-detect">1. Hardware Detection
+(<code>sensors-detect</code>)</h3>
+<p>The <code>sensors-detect</code> utility is an interactive
+configuration tool. It probes the system's internal buses to identify
+installed motherboard sensors, CPU architectures, and power management
+ICs. Once the hardware is identified, <code>sensors-detect</code>
+generates a list of the exact Linux kernel modules (such as
+<code>it87</code>, <code>nct6775</code>, or <code>coretemp</code>)
+required to read those specific sensors, and it prompts the system to
+load them automatically at boot.</p>
+<h3 id="2-the-sensor-library-libsensors">2. The Sensor Library
+(<code>libsensors</code>)</h3>
+<p>Reading directly from <code>/sys/class/hwmon/</code> yields raw,
+unscaled values. The <code>libsensors</code> C library serves as an
+abstraction layer between the kernel's <code>sysfs</code> files and user
+applications. It maps raw device paths to recognizable component labels
+and applies mathematical scaling factors defined in
+<code>/etc/sensors3.conf</code> or <code>/etc/sensors.d/</code>. This
+ensures that raw millivolt or millidegree readings are accurately
+converted to standard units.</p>
+<h3 id="3-the-command-line-interface-sensors">3. The Command-Line
+Interface (<code>sensors</code>)</h3>
+<p>The <code>sensors</code> command is the user-facing interface of
+<code>lm-sensors</code>. When executed, it calls <code>libsensors</code>
+to read the current values from <code>/sys/class/hwmon/</code>, applies
+user-defined labels (such as mapping <code>temp1</code> to "CPU Core"),
+compares the current temperature to the <code>max</code> and
+<code>crit</code> limits, and formats the output into a clear terminal
+display.</p>
+<p>Through this pipeline—from hardware registers to kernel drivers,
+through the <code>sysfs</code> interface, and finally processed by
+<code>libsensors</code>—Linux delivers stable, lightweight, and
+real-time hardware temperature monitoring.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linux Split Command: How to Divide Large Files - linux</title>
+    <meta name="description" content="This article explains the function and usage of the Linux split command, a core utility used to break large files into smaller, manageable pieces. You will learn the basic syntax of the command, how to divide files based on specific byte sizes or line co">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/linux-split-command-how-to-divide-large-files">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Linux Split Command: How to Divide Large Files - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/linux-split-command-how-to-divide-large-files" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="This article explains the function and usage of the Linux split command, a core utility used to break large files into smaller, manageable pieces. You will learn the basic syntax of the command, how to divide files based on specific byte sizes or line co" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="linux-split-command-how-to-divide-large-files">Linux Split
+Command: How to Divide Large Files</h1>
+<p>This article explains the function and usage of the Linux
+<code>split</code> command, a core utility used to break large files
+into smaller, manageable pieces. You will learn the basic syntax of the
+command, how to divide files based on specific byte sizes or line
+counts, how to customize output filenames, and how to recombine the
+split chunks back into the original file using standard terminal
+tools.</p>
+<h2 id="the-function-of-the-split-command">The Function of the Split
+Command</h2>
+<p>The primary function of the <code>split</code> command in Linux is to
+take an input file and divide it into smaller segment files. This is
+particularly useful when transferring large archives across networks
+with strict file size limitations, storing data on storage media with
+constrained capacity, or processing massive datasets (like log files)
+that are too resource-intensive to open in memory all at once.</p>
+<p>By default, without any specific arguments other than the filename,
+<code>split</code> divides a file into chunks of 1,000 lines each. The
+output files are named using a default prefix of <code>x</code> followed
+by alphabetical suffixes (e.g., <code>xaa</code>, <code>xab</code>,
+<code>xac</code>).</p>
+<h2 id="basic-syntax">Basic Syntax</h2>
+<p>The standard syntax for the command is:</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">split</span> <span class="pp">[</span><span class="ss">options</span><span class="pp">]</span> <span class="pp">[</span><span class="ss">input_file</span><span class="pp">]</span> <span class="pp">[</span><span class="ss">prefix</span><span class="pp">]</span></span></code></pre></div>
+<ul>
+<li><strong><code>input_file</code></strong>: The path to the file you
+want to break apart. If omitted, standard input (stdin) is used.</li>
+<li><strong><code>prefix</code></strong>: An optional string appended to
+the beginning of each generated chunk's filename.</li>
+</ul>
+<h2 id="splitting-by-file-size">Splitting by File Size</h2>
+<p>To split a file by a specific data size rather than line count, use
+the <code>-b</code> option followed by the desired size and unit (such
+as <code>K</code>, <code>M</code>, or <code>G</code> for kilobytes,
+megabytes, or gigabytes).</p>
+<p>To divide a large video file into 500-megabyte chunks:</p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">split</span> <span class="at">-b</span> 500M video.mp4 part_</span></code></pre></div>
+<p>This creates files named <code>part_aa</code>, <code>part_ab</code>,
+<code>part_ac</code>, and so forth, each measuring 500 MB (except the
+final chunk, which contains the remainder).</p>
+<h2 id="splitting-by-line-count">Splitting by Line Count</h2>
+<p>For text-based data like CSVs, SQL dumps, or logs, use the
+<code>-l</code> option to split based on the number of lines per output
+file.</p>
+<p>To divide a server log into chunks of 5,000 lines each:</p>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">split</span> <span class="at">-l</span> 5000 access.log log_chunk_</span></code></pre></div>
+<h2 id="using-numeric-suffixes">Using Numeric Suffixes</h2>
+<p>By default, <code>split</code> appends alphabetical characters to
+identify pieces. If you prefer numerical numbering (e.g.,
+<code>part_00</code>, <code>part_01</code>), include the <code>-d</code>
+flag.</p>
+<div class="sourceCode" id="cb4"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">split</span> <span class="at">-b</span> 100M <span class="at">-d</span> data.iso data_part_</span></code></pre></div>
+<p>You can also specify the suffix length using
+<code>--additional-suffix</code> to add a file extension or
+<code>-a</code> to define the number of digits in the index:</p>
+<div class="sourceCode" id="cb5"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">split</span> <span class="at">-b</span> 50M <span class="at">-d</span> <span class="at">-a</span> 3 <span class="at">--additional-suffix</span><span class="op">=</span>.bin backup.tar chunk_</span></code></pre></div>
+<p>This command generates files named <code>chunk_000.bin</code>,
+<code>chunk_001.bin</code>, and so on.</p>
+<h2 id="reassembling-split-files">Reassembling Split Files</h2>
+<p>To restore the generated chunks back into the original file, use the
+<code>cat</code> (concatenate) command with output redirection:</p>
+<div class="sourceCode" id="cb6"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span> part_<span class="pp">*</span> <span class="op">&gt;</span> original_file.mp4</span></code></pre></div>
+<p>The shell expands <code>part_*</code> in alphabetical or numerical
+order, ensuring the data is merged sequentially back into its original
+state.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

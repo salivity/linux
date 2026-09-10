@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Using Podman Pods to Group Containers in Linux - linux</title>
+    <meta name="description" content="Podman brings the Kubernetes concept of "pods" directly to the Linux desktop and server environment without requiring a heavy container orchestration engine or a background daemon. By grouping containers into a single pod, the Linux operating system enab">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/using-podman-pods-to-group-containers-in-linux">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Using Podman Pods to Group Containers in Linux - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/using-podman-pods-to-group-containers-in-linux" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="Podman brings the Kubernetes concept of "pods" directly to the Linux desktop and server environment without requiring a heavy container orchestration engine or a background daemon. By grouping containers into a single pod, the Linux operating system enab" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="using-podman-pods-to-group-containers-in-linux">Using Podman
+Pods to Group Containers in Linux</h1>
+<p>Podman brings the Kubernetes concept of "pods" directly to the Linux
+desktop and server environment without requiring a heavy container
+orchestration engine or a background daemon. By grouping containers into
+a single pod, the Linux operating system enables these distinct
+processes to share network stacks, IPC namespaces, and storage volumes
+locally. This article examines the internal Linux mechanisms that power
+Podman pods, how they establish shared environments, and how users can
+create and manage them on a local system.</p>
+<h3 id="the-underlying-linux-architecture-of-pods">The Underlying Linux
+Architecture of Pods</h3>
+<p>Podman relies directly on the native virtualization and isolation
+primitives provided by the Linux kernel—specifically namespaces and
+control groups (cgroups). Rather than relying on a centralized daemon
+process like Docker, Podman directly executes runtime engines like
+<code>runc</code> or <code>crun</code> to configure the Linux kernel for
+each process.</p>
+<p>When Podman creates a pod, it establishes a shared context using the
+following core mechanisms:</p>
+<ul>
+<li><strong>The Infra Container:</strong> Every Podman pod begins with a
+lightweight "infra" (infrastructure) container, typically based on a
+minimal pause image. The sole responsibility of this container is to
+hold open the shared Linux namespaces (Network, IPC, and UTS) so they
+persist even if workload containers within the pod stop or restart.</li>
+<li><strong>Network Namespaces:</strong> Containers assigned to the same
+pod share a single Linux network namespace. Because they share an IP
+address and network interfaces, individual containers inside the pod
+communicate with each other over <code>localhost</code>, eliminating the
+need for complex port mappings between co-located services.</li>
+<li><strong>IPC and UTS Namespaces:</strong> By sharing Inter-Process
+Communication (IPC) namespaces, processes in different containers can
+utilize shared memory segments, semaphores, and message queues. The
+shared UTS namespace ensures all containers in the pod share the same
+hostname.</li>
+<li><strong>Resource Allocation with Cgroups:</strong> Linux cgroups
+allow resource governance across the pod. CPU, memory, and I/O limits
+can be enforced on the pod level, preventing the grouped containers from
+starving the host operating system of resources.</li>
+</ul>
+<h3 id="local-communication-and-port-binding">Local Communication and
+Port Binding</h3>
+<p>Because network namespaces are shared at the pod level, external port
+forwarding is managed on the pod rather than on individual containers.
+When you expose a port using Podman, the Linux firewall and routing
+tables direct incoming traffic to the pod's infra container, which makes
+the port accessible to all member containers.</p>
+<p>For instance, a web frontend container can send requests to an
+application backend container via <code>localhost:8080</code>. External
+clients connect to the service through the single external IP address or
+host port mapped to the pod itself.</p>
+<h3 id="managing-podman-pods-locally">Managing Podman Pods Locally</h3>
+<p>Interacting with pods in Linux follows a straightforward lifecycle
+using the Podman command-line interface.</p>
+<h4 id="1-creating-a-pod">1. Creating a Pod</h4>
+<p>To initialize a pod with specific port mappings, use the
+<code>podman pod create</code> command:</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">podman</span> pod create <span class="at">--name</span> web-pod <span class="at">-p</span> 8080:80</span></code></pre></div>
+<p>This allocates the infra container, reserves host port
+<code>8080</code>, and prepares the shared namespaces.</p>
+<h4 id="2-adding-containers-to-the-pod">2. Adding Containers to the
+Pod</h4>
+<p>Workload containers can be attached to the pod using the
+<code>--pod</code> flag during runtime:</p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Add a web server</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="ex">podman</span> run <span class="at">-d</span> <span class="at">--pod</span> web-pod <span class="at">--name</span> web-app nginx</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Add a sidecar or companion service</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="ex">podman</span> run <span class="at">-d</span> <span class="at">--pod</span> web-pod <span class="at">--name</span> log-collector alpine sh <span class="at">-c</span> <span class="st">&quot;tail -f /dev/null&quot;</span></span></code></pre></div>
+<p>Both <code>web-app</code> and <code>log-collector</code> run as
+independent processes within the Linux process table, but they share
+networking, volume mounts, and pod-level identifiers.</p>
+<h4 id="3-inspecting-and-monitoring">3. Inspecting and Monitoring</h4>
+<p>Linux users can inspect the unified pod state:</p>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="ex">podman</span> pod ps</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="ex">podman</span> pod inspect web-pod</span></code></pre></div>
+<p>Stopping, starting, or deleting the pod automatically applies the
+action to all member containers sequentially, simplifying local
+multi-service management.</p>
+<h3 id="integration-with-linux-systemd">Integration with Linux
+Systemd</h3>
+<p>A major advantage of Podman's daemonless architecture in Linux is
+native integration with <code>systemd</code>. Podman can generate
+systemd unit files directly from a pod using
+<code>podman generate systemd --files --name web-pod</code>.</p>
+<p>This enables Linux administrators to treat an entire group of
+co-located containers as a standard operating system service, providing
+automatic start-up on boot, failure recovery, and dependency management
+through native Linux system tooling.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How Linux Time Namespaces Manage Container Clocks - linux</title>
+    <meta name="description" content="Linux time namespaces allow containers to maintain independent system clocks without altering the host's physical clock or interfering with other containers. Introduced in Linux kernel 5.6, this feature virtualizes system time by applying per-namespace o">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-linux-time-namespaces-manage-container-clocks">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How Linux Time Namespaces Manage Container Clocks - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-linux-time-namespaces-manage-container-clocks" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="Linux time namespaces allow containers to maintain independent system clocks without altering the host's physical clock or interfering with other containers. Introduced in Linux kernel 5.6, this feature virtualizes system time by applying per-namespace o" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-linux-time-namespaces-manage-container-clocks">How Linux
+Time Namespaces Manage Container Clocks</h1>
+<p>Linux time namespaces allow containers to maintain independent system
+clocks without altering the host's physical clock or interfering with
+other containers. Introduced in Linux kernel 5.6, this feature
+virtualizes system time by applying per-namespace offsets to the host's
+monotonic and boot-time clocks. By decoupling container timekeeping from
+the global kernel state, Linux enables seamless container checkpoint and
+restoration, time-travel testing, and legacy application support within
+isolated environments.</p>
+<h3 id="the-problem-with-shared-clocks">The Problem with Shared
+Clocks</h3>
+<p>Traditionally, container isolation encompassed processes (PID), mount
+points (mnt), networks (net), and users (user), but time remained
+global. Any operation altering time required the
+<code>CAP_SYS_TIME</code> capability, which changed the clock across the
+entire host system. This limitation caused significant issues for
+container migration: when a container was paused, moved, and restored on
+another host, its internal monotonic and boot clocks jumped abruptly,
+breaking timeout calculations, distributed databases, and scheduler
+routines.</p>
+<h3 id="the-offset-based-architecture">The Offset-Based
+Architecture</h3>
+<p>Rather than virtualizing the underlying hardware timers or running
+separate timekeeping subroutines for each container, the Linux kernel
+manages time namespaces through an offset mechanism. The host kernel
+continues to maintain a single, highly accurate global timekeeper driven
+by hardware interrupts and the CPU's Time Stamp Counter (TSC).</p>
+<p>When a process resides in a non-root time namespace, the kernel
+computes the effective time by adding an offset to the host's current
+time:</p>
+<p><span class="math display">\[\text{Effective Time} = \text{Host Time}
++ \text{Namespace Offset}\]</span></p>
+<p>This design guarantees that time flows at the exact same frequency as
+the host system, avoiding time drift and the CPU overhead associated
+with full clock emulation.</p>
+<h3 id="supported-clock-types">Supported Clock Types</h3>
+<p>Time namespaces specifically isolate two primary clock IDs:</p>
+<ul>
+<li><strong><code>CLOCK_MONOTONIC</code></strong>: Represents
+non-settable, strictly increasing time since an arbitrary starting point
+(typically system boot). It is vital for measuring execution duration,
+timeouts, and process scheduling.</li>
+<li><strong><code>CLOCK_BOOTTIME</code></strong>: Identical to
+<code>CLOCK_MONOTONIC</code>, but it continues to tick while the host
+system is suspended.</li>
+</ul>
+<p>By default, <strong><code>CLOCK_REALTIME</code></strong> (wall-clock
+time) is not directly isolated with a dedicated offset in the time
+namespace architecture. Real-time offsets can be derived or adjusted by
+user-space runtimes in coordination with the isolated monotonic counters
+to prevent inconsistencies between wall-clock time and interval
+measurements.</p>
+<h3 id="configuration-via-proc">Configuration via
+<code>/proc</code></h3>
+<p>A time namespace is initialized using standard Linux namespace
+primitives, such as the <code>unshare()</code> system call with the
+<code>CLONE_NEWTIME</code> flag, or via the <code>clone3()</code> system
+call.</p>
+<p>Before any child processes are spawned or the namespace transition is
+finalized, the host or container runtime must define the offsets by
+writing to the pseudo-file <code>/proc/[pid]/timens_offsets</code>. The
+interface accepts offsets for both supported clocks:</p>
+<pre class="text"><code>monotonic &lt;seconds&gt; &lt;nanoseconds&gt;
+boottime  &lt;seconds&gt; &lt;nanoseconds&gt;</code></pre>
+<p>Offsets can be either positive or negative. Once a process inside the
+new time namespace executes an application (or calls
+<code>fork()</code>), the <code>/proc/[pid]/timens_offsets</code> file
+becomes read-only to ensure that the offsets remain immutable for the
+lifecycle of that namespace.</p>
+<h3 id="vdso-acceleration">vDSO Acceleration</h3>
+<p>Most modern applications retrieve the current time via the
+<code>clock_gettime()</code> function. In Linux, this call avoids the
+overhead of a context switch to the kernel by executing in user space
+via the Virtual Dynamic Shared Object (vDSO).</p>
+<p>To ensure that independent container clocks do not compromise
+performance, the kernel maps a dedicated vDSO data page for each time
+namespace. When a thread queries the clock:</p>
+<ol type="1">
+<li>The vDSO code reads the raw counter value from the hardware (such as
+the TSC).</li>
+<li>It fetches the namespace-specific offset from its local vDSO data
+page.</li>
+<li>It performs the addition entirely in user space.</li>
+</ol>
+<p>This implementation allows containers to run isolated, customized
+clocks with virtually zero performance penalty compared to bare-metal
+execution.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

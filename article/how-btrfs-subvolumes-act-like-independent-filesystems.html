@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How Btrfs Subvolumes Act Like Independent Filesystems - linux</title>
+    <meta name="description" content="Btrfs subvolumes provide the operational characteristics of distinct disk partitions while dynamically sharing a single underlying storage pool. The Linux kernel accomplishes this by treating each subvolume as an isolated filesystem tree with its own roo">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-btrfs-subvolumes-act-like-independent-filesystems">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How Btrfs Subvolumes Act Like Independent Filesystems - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-btrfs-subvolumes-act-like-independent-filesystems" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="Btrfs subvolumes provide the operational characteristics of distinct disk partitions while dynamically sharing a single underlying storage pool. The Linux kernel accomplishes this by treating each subvolume as an isolated filesystem tree with its own roo" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-btrfs-subvolumes-act-like-independent-filesystems">How Btrfs
+Subvolumes Act Like Independent Filesystems</h1>
+<p>Btrfs subvolumes provide the operational characteristics of distinct
+disk partitions while dynamically sharing a single underlying storage
+pool. The Linux kernel accomplishes this by treating each subvolume as
+an isolated filesystem tree with its own root node and independent inode
+namespace. By deeply integrating these tree structures with the Linux
+Virtual Filesystem (VFS) layer, the operating system can mount,
+snapshot, and apply policies to individual subvolumes exactly as if they
+were standalone block-device filesystems.</p>
+<h3 id="the-tree-of-trees-architecture">The Tree-of-Trees
+Architecture</h3>
+<p>At the core of Btrfs is a hierarchical b-tree design often described
+as a "tree of trees." The entire physical storage allocation is governed
+by internal metadata structures such as the chunk tree, the extent tree,
+and the root tree. Within this hierarchy, each subvolume exists as its
+own dedicated filesystem tree (an "FS tree") identified by a unique
+64-bit object ID (Root ID).</p>
+<p>While traditional filesystems map a single directory hierarchy to a
+physical partition, the Btrfs root tree tracks multiple independent FS
+trees. Because each subvolume is represented by a separate tree root
+pointer, the kernel can traverse, read, or modify one subvolume's
+directory structure without interacting with or indexing the structures
+of any others.</p>
+<h3 id="inode-namespace-isolation">Inode Namespace Isolation</h3>
+<p>In standard Unix filesystems, every file and directory possesses an
+inode number that must remain unique within that filesystem boundary.
+Because each Btrfs subvolume is an isolated tree, it maintains its own
+dedicated inode numbering allocation.</p>
+<p>When the kernel allocates files inside a subvolume:</p>
+<ul>
+<li>Inode numbers begin at a fixed root value (typically inode 256) for
+every subvolume.</li>
+<li>Multiple subvolumes can contain files sharing identical inode
+numbers simultaneously without causing collisions.</li>
+<li>Hard links are strictly restricted to the boundary of a single
+subvolume because hard links rely on referencing a specific inode within
+the same metadata tree.</li>
+</ul>
+<p>This metadata partitioning allows the Linux operating system to
+expose subvolumes as fully distinct storage spaces to user-space
+applications and system utilities.</p>
+<h3 id="vfs-integration-and-mount-behavior">VFS Integration and Mount
+Behavior</h3>
+<p>The Linux Virtual Filesystem (VFS) abstracts storage formats so that
+the operating system can interact with different filesystems uniformly.
+Btrfs leverages VFS primitives to expose subvolumes directly as
+mountable targets.</p>
+<p>When an administrator runs
+<code>mount -o subvol=&lt;name&gt; /dev/sdX /mnt</code>, the kernel
+driver executes a series of translation steps:</p>
+<ol type="1">
+<li>It reads the master root tree to locate the target subvolume by name
+or ID.</li>
+<li>It retrieves the root directory inode for that specific subvolume
+tree.</li>
+<li>It constructs a new VFS superblock representation or allocates a
+virtual mount point referencing the subvolume's root directory entry
+(<code>dentry</code>).</li>
+</ol>
+<p>From the perspective of the VFS and the operating system's
+system-call interface, this mounted point behaves identical to any
+standard filesystem mount. It can be mounted with unique options, bound
+into container namespaces, or marked read-only via standard mount
+flags.</p>
+<h3 id="copy-on-write-cow-snapshots">Copy-on-Write (CoW) Snapshots</h3>
+<p>Because a subvolume is simply an entry in the Btrfs root tree
+pointing to a filesystem tree root, creating a snapshot is
+instantaneous. The kernel copies the root pointer of the source
+subvolume tree to create a new subvolume entry.</p>
+<p>Through copy-on-write semantics, both the original subvolume and the
+snapshot reference the exact same data and metadata blocks on disk. As
+changes occur in either subvolume, new blocks are allocated, and only
+the modified branches of the respective trees diverge. This allows
+snapshots to function as independent, writable filesystems that consume
+zero additional space at creation time.</p>
+<h3 id="resource-sharing-and-quota-groups-qgroups">Resource Sharing and
+Quota Groups (qgroups)</h3>
+<p>Unlike traditional partitions that enforce rigid space boundaries at
+the block layer, Btrfs subvolumes dynamically draw from the common pool
+of unallocated extents managed by the filesystem's chunk tree. There are
+no fixed sizing constraints unless explicitly assigned.</p>
+<p>To enforce storage boundaries similar to partition limits, the Linux
+kernel uses Btrfs quota groups (qgroups). The kernel tracks referenced
+extents across subvolumes and can enforce soft and hard limits on:</p>
+<ul>
+<li><strong>Referenced space:</strong> The total data reachable from
+within the subvolume.</li>
+<li><strong>Exclusive space:</strong> The data solely owned by that
+subvolume, which would be freed if the subvolume were deleted.</li>
+</ul>
+<p>Through this combination of dedicated tree metadata, independent
+inode allocation, VFS translation, and copy-on-write referencing, the
+Linux kernel gives Btrfs subvolumes the independence of physical
+partitions alongside the flexibility of shared logical storage.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

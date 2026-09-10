@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Understanding Linux blk-mq Storage I/O Framework - linux</title>
+    <meta name="description" content="The blk-mq (Block Multi-Queue) framework is a modern architecture within the Linux kernel designed to parallelize block I/O processing across multi-core processors and high-speed solid-state storage. By replacing the legacy single-queue I/O model with a">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/understanding-linux-blk-mq-storage-i-o-framework">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Understanding Linux blk-mq Storage I/O Framework - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/understanding-linux-blk-mq-storage-i-o-framework" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="The blk-mq (Block Multi-Queue) framework is a modern architecture within the Linux kernel designed to parallelize block I/O processing across multi-core processors and high-speed solid-state storage. By replacing the legacy single-queue I/O model with a" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="understanding-linux-blk-mq-storage-io-framework">Understanding
+Linux blk-mq Storage I/O Framework</h1>
+<p>The <code>blk-mq</code> (Block Multi-Queue) framework is a modern
+architecture within the Linux kernel designed to parallelize block I/O
+processing across multi-core processors and high-speed solid-state
+storage. By replacing the legacy single-queue I/O model with a
+two-tiered queuing design, <code>blk-mq</code> eliminates lock
+contention, significantly decreases I/O latency, and scales input/output
+operations per second (IOPS) to match the capabilities of modern devices
+like NVMe SSDs.</p>
+<h3 id="the-problem-with-legacy-block-io">The Problem with Legacy Block
+I/O</h3>
+<p>Historically, the Linux block layer relied on a single request queue
+protected by a single lock. This architecture was sufficient for
+rotational hard disk drives (HDDs), where hardware latencies were
+measured in milliseconds and I/O processing was bound by mechanical
+drive heads rather than CPU speed.</p>
+<p>As multi-core CPUs became standard and solid-state storage (such as
+PCIe and NVMe SSDs) emerged, storage latencies dropped to microseconds
+while throughput surged to millions of IOPS. Under these workloads, the
+legacy architecture became a critical bottleneck. Multiple CPU cores
+simultaneously competing for a single lock to submit I/O requests caused
+severe lock contention, resulting in high CPU overhead and underutilized
+storage hardware.</p>
+<h3 id="architecture-of-blk-mq">Architecture of blk-mq</h3>
+<p>Introduced in Linux kernel 3.13 and made the mandatory standard in
+Linux 5.0, <code>blk-mq</code> resolves this bottleneck by splitting the
+queuing mechanism into two distinct, scalable layers:</p>
+<ol type="1">
+<li><p><strong>Software Staging Queues (Per-CPU Queues):</strong> When
+an application submits an I/O request, the request is initially placed
+into a software staging queue. These queues are allocated per-CPU (or
+per-core), meaning a thread running on a specific core can push an I/O
+request into its local queue without needing to acquire locks across
+other CPU cores. This local queuing virtually eliminates cross-CPU
+synchronization overhead.</p></li>
+<li><p><strong>Hardware Dispatch Queues:</strong> Modern storage
+controllers, particularly NVMe and high-end SAS/SCSI controllers,
+inherently support multiple hardware submission queues. The
+<code>blk-mq</code> framework allocates hardware dispatch queues that
+map directly to the queues provided by the storage controller.</p></li>
+<li><p><strong>Queue Mapping:</strong> The framework maps the software
+queues onto the available hardware queues. If the hardware supports as
+many queues as there are CPU cores, there is a 1:1 mapping with no lock
+contention at all. If the hardware has fewer queues than CPU cores,
+multiple software queues share a hardware queue using lightweight,
+fine-grained locking, which is still dramatically faster than a single
+global lock.</p></li>
+</ol>
+<h3 id="key-functions-and-benefits">Key Functions and Benefits</h3>
+<ul>
+<li><strong>Scalable Tag Allocation:</strong> <code>blk-mq</code> uses a
+specialized lockless bitmap structure (<code>sbitmap</code>) to allocate
+command identifiers (tags) for tracking in-flight I/O requests, avoiding
+contention during request tracking.</li>
+<li><strong>NUMA Optimization:</strong> The architecture is Non-Uniform
+Memory Access (NUMA) aware, routing requests through queues and memory
+nodes that are physically closest to the core handling the task.</li>
+<li><strong>Full Hardware Utilization:</strong> Fast storage devices are
+able to process hundreds of thousands or millions of IOPS concurrently
+without being throttled by the operating system kernel.</li>
+<li><strong>Support for Legacy Hardware:</strong> While optimized for
+NVMe, <code>blk-mq</code> also services traditional SCSI and SATA
+devices via compatibility mapping layers, ensuring even slower devices
+benefit from lower CPU overhead during request processing.</li>
+</ul></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

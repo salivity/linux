@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How Tails OS Uses Tor for Anonymity and Privacy - linux</title>
+    <meta name="description" content="The Amnesic Incognito Live System (Tails) is a security-focused, portable Linux distribution designed to protect users against surveillance, tracking, and censorship. This article explores how Tails enforces privacy by funneling all internet traffic thro">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-tails-os-uses-tor-for-anonymity-and-privacy">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How Tails OS Uses Tor for Anonymity and Privacy - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-tails-os-uses-tor-for-anonymity-and-privacy" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="The Amnesic Incognito Live System (Tails) is a security-focused, portable Linux distribution designed to protect users against surveillance, tracking, and censorship. This article explores how Tails enforces privacy by funneling all internet traffic thro" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-tails-os-uses-tor-for-anonymity-and-privacy">How Tails OS
+Uses Tor for Anonymity and Privacy</h1>
+<p>The Amnesic Incognito Live System (Tails) is a security-focused,
+portable Linux distribution designed to protect users against
+surveillance, tracking, and censorship. This article explores how Tails
+enforces privacy by funneling all internet traffic through the Tor
+network, preventing digital footprints through its amnesic architecture,
+blocking data leaks with strict firewall rules, and providing
+pre-configured cryptographic tools.</p>
+<h3 id="mandatory-tor-routing">Mandatory Tor Routing</h3>
+<p>Tails routes every outgoing internet connection exclusively through
+the Tor (The Onion Router) network. When a user connects to the
+internet, Tor encrypts the data in multiple layers and bounces it
+through a distributed network of community-run relays (entry, middle,
+and exit nodes). Each relay only decrypts enough data to know where to
+send the packet next, ensuring that neither the destination website nor
+any intermediate node can simultaneously see the user's real IP address
+and their online activity.</p>
+<h3 id="leak-prevention-via-strict-firewalling">Leak Prevention via
+Strict Firewalling</h3>
+<p>To prevent non-anonymous connections, Tails employs strict internal
+firewall rules powered by Netfilter (<code>iptables</code>). The
+operating system automatically blocks any application or background
+process that attempts to connect to the internet directly without using
+Tor. This system-level isolation guarantees that accidental
+misconfigurations, application bugs, or rogue network requests cannot
+bypass the Tor proxy and leak the user’s real IP address or geographical
+location.</p>
+<h3 id="protection-against-dns-leaks">Protection Against DNS Leaks</h3>
+<p>Standard internet use involves sending Domain Name System (DNS)
+queries to resolve web addresses into IP addresses, which internet
+service providers (ISPs) frequently log. Tails completely mitigates DNS
+leaks by forcing all name resolution requests through the Tor network.
+Because queries are resolved within Tor circuits, external observers and
+local network administrators can only see that the user is connected to
+a Tor node, with no visibility into the specific domains being
+requested.</p>
+<h3 id="the-amnesic-environment">The Amnesic Environment</h3>
+<p>Tails operates entirely within the host computer’s Random Access
+Memory (RAM) rather than writing data to the hard drive. Once the
+machine is shut down or the USB drive is removed, the system flushes the
+RAM, erasing browsing history, downloaded files, and session keys.
+Because no data is written to persistent storage by default, forensic
+analysis of the host computer cannot reveal that Tails was ever run or
+what actions were performed.</p>
+<h3 id="pre-configured-security-and-identity-isolation">Pre-configured
+Security and Identity Isolation</h3>
+<p>User error is one of the primary vulnerabilities in online privacy.
+Tails eliminates the need for manual configuration by providing
+pre-installed software configured with the most secure defaults. It
+includes the Tor Browser, which employs identical browser fingerprint
+characteristics across all users to prevent tracker identification.
+Additionally, Tails isolates distinct applications into separate Tor
+circuits, ensuring that activities performed in one program cannot be
+correlated with activities in another.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

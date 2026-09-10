@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>What Is a Linux Daemon and How Does It Run? - linux</title>
+    <meta name="description" content="A daemon is an unattended background process in the Linux operating system that handles critical system tasks, services, and hardware management without direct user interaction. This article explains what daemons are, the historical and modern mechanisms">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/what-is-a-linux-daemon-and-how-does-it-run">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="What Is a Linux Daemon and How Does It Run? - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/what-is-a-linux-daemon-and-how-does-it-run" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="A daemon is an unattended background process in the Linux operating system that handles critical system tasks, services, and hardware management without direct user interaction. This article explains what daemons are, the historical and modern mechanisms" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="what-is-a-linux-daemon-and-how-does-it-run">What Is a Linux
+Daemon and How Does It Run?</h1>
+<p>A daemon is an unattended background process in the Linux operating
+system that handles critical system tasks, services, and hardware
+management without direct user interaction. This article explains what
+daemons are, the historical and modern mechanisms they use to detach
+from user terminals to run silently, and how the Linux kernel manages
+them efficiently via modern init systems like systemd.</p>
+<h2 id="what-is-a-daemon">What Is a Daemon?</h2>
+<p>In Linux and Unix-like operating systems, a daemon is a long-running
+process that operates quietly in the background. Unlike standard
+programs, daemons do not display an interface or require manual
+intervention; they wake up only when responding to specific events,
+network requests, or scheduled intervals. Common examples include
+<code>sshd</code> (handling incoming SSH connections), <code>cron</code>
+(executing scheduled commands), and <code>systemd-journald</code>
+(collecting system logs). By convention, their names usually end with
+the letter "d".</p>
+<h2 id="how-daemons-run-silently-in-the-background">How Daemons Run
+Silently in the Background</h2>
+<p>For a process to run "silently" in Linux, it must sever its
+connection to any controlling terminal (TTY) and redirect its input and
+output streams. Historically, this was achieved through a multi-step
+programming procedure known as "daemonizing," while modern systems rely
+primarily on service managers.</p>
+<h3 id="1-the-traditional-double-fork-method">1. The Traditional
+"Double-Fork" Method</h3>
+<p>Before modern process managers became standard, a daemonized program
+detached itself from the user's terminal using the following steps:</p>
+<ul>
+<li><strong>Forking the Process:</strong> The program calls the
+<code>fork()</code> system call to create a child process, while the
+parent process immediately terminates. This returns control to the shell
+prompt and leaves the child running in the background.</li>
+<li><strong>Creating a New Session:</strong> The child calls
+<code>setsid()</code> to create a new session and process group. This
+fundamentally breaks the process's link to the controlling terminal,
+preventing it from receiving keyboard signals like <code>Ctrl+C</code>
+(SIGINT) or hang-up signals (SIGHUP) if the terminal closes.</li>
+<li><strong>Forking a Second Time:</strong> Often, the process forks a
+second time to guarantee that it is not a session leader, ensuring it
+can never inadvertently acquire a new controlling terminal.</li>
+<li><strong>Changing Working Directory:</strong> The daemon changes its
+current working directory to the root directory (<code>/</code>) via
+<code>chdir("/")</code>. This prevents the daemon from locking a mounted
+filesystem, allowing administrators to unmount drives without "device
+busy" errors.</li>
+<li><strong>Resetting the File Mask:</strong> Calling
+<code>umask(0)</code> gives the daemon complete control over the file
+permissions of any files it creates.</li>
+<li><strong>Closing Standard Streams:</strong> The standard file
+descriptors—<code>stdin</code> (0), <code>stdout</code> (1), and
+<code>stderr</code> (2)—are closed and redirected to
+<code>/dev/null</code> or a designated log file. Because output is
+redirected to <code>/dev/null</code>, the daemon produces no visible
+output on any terminal screen.</li>
+</ul>
+<h3 id="2-the-modern-approach-systemd">2. The Modern Approach:
+systemd</h3>
+<p>On modern Linux distributions, the traditional double-fork method is
+largely obsolete. Instead, <code>systemd</code> (PID 1) acts as the
+central service manager that controls daemons using declarative
+configuration files called unit files (e.g.,
+<code>service_name.service</code>).</p>
+<p>Under systemd:</p>
+<ul>
+<li>Programs do not need to self-daemonize; they can run as standard
+foreground processes from systemd's perspective
+(<code>Type=simple</code> or <code>Type=exec</code>).</li>
+<li><code>systemd</code> automatically handles process execution,
+terminal detachment, environment isolation, and lifecycle tracking using
+Linux control groups (cgroups).</li>
+<li>Standard output and error streams are automatically intercepted by
+systemd and routed directly to the centralized system logger
+(<code>systemd-journald</code>), preserving visibility for
+administrators via tools like <code>journalctl</code> without cluttering
+the screen.</li>
+</ul>
+<h2 id="managing-daemons-in-linux">Managing Daemons in Linux</h2>
+<p>Administrators interact with daemons through the service manager
+using standard commands. To monitor or control a daemon managed by
+systemd, commands such as <code>systemctl start &lt;service&gt;</code>,
+<code>systemctl stop &lt;service&gt;</code>, and
+<code>systemctl status &lt;service&gt;</code> are used. Because daemons
+produce no standard console output, their health, errors, and access
+events are recorded quietly to system logs located within
+<code>/var/log</code> or accessed through the system journal.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

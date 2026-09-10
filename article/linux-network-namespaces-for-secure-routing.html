@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linux Network Namespaces for Secure Routing - linux</title>
+    <meta name="description" content="Linux network namespaces provide complete virtualization of the system's network stack, allowing independent network configurations to coexist on a single operating system kernel. This article explores how the Linux kernel achieves network namespace isol">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/linux-network-namespaces-for-secure-routing">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Linux Network Namespaces for Secure Routing - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/linux-network-namespaces-for-secure-routing" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="Linux network namespaces provide complete virtualization of the system's network stack, allowing independent network configurations to coexist on a single operating system kernel. This article explores how the Linux kernel achieves network namespace isol" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="linux-network-namespaces-for-secure-routing">Linux Network
+Namespaces for Secure Routing</h1>
+<p>Linux network namespaces provide complete virtualization of the
+system's network stack, allowing independent network configurations to
+coexist on a single operating system kernel. This article explores how
+the Linux kernel achieves network namespace isolation, the mechanisms
+used to segregate routing tables and interfaces, and how these
+boundaries are leveraged to implement secure, isolated routing
+topologies for containers and multi-tenant architectures.</p>
+<h3 id="the-kernel-architecture-of-network-namespaces">The Kernel
+Architecture of Network Namespaces</h3>
+<p>In the Linux kernel, network resources are managed within the
+<code>struct net</code> structure. By default, all processes inherit the
+initial namespace (<code>init_net</code>). When a new network namespace
+(<code>netns</code>) is instantiated using the <code>clone()</code> or
+<code>unshare()</code> system calls with the <code>CLONE_NEWNET</code>
+flag, the kernel allocates a dedicated <code>struct net</code>
+instance.</p>
+<p>Each independent network namespace contains its own discrete set of
+networking resources:</p>
+<ul>
+<li>Dedicated physical and virtual network interfaces (including an
+isolated <code>lo</code> loopback device).</li>
+<li>Private Forwarding Information Bases (FIBs), which contain IPv4 and
+IPv6 routing tables.</li>
+<li>Independent ARP/neighbor discovery caches.</li>
+<li>Dedicated socket tables (preventing cross-namespace port collision
+or eavesdropping).</li>
+<li>Isolated Netfilter chains for <code>iptables</code> and
+<code>nftables</code> state tracking.</li>
+</ul>
+<p>Because processes execute within the context of a specific namespace,
+any network-related system calls operate exclusively on the network
+stack instance tied to that namespace.</p>
+<h3 id="routing-table-segregation">Routing Table Segregation</h3>
+<p>Secure routing fundamentally relies on the isolation of the kernel's
+routing tables. In a standard single-namespace system, all processes
+query the same routing tables (Local, Main, and Default). In contrast,
+network namespaces instantiate completely independent FIBs.</p>
+<p>When a packet is generated within a namespace:</p>
+<ol type="1">
+<li>The kernel looks up destination routes solely within that
+namespace’s private routing table.</li>
+<li>If no route matches, the packet is dropped; it cannot fallback to
+the host's or another namespace's routing table.</li>
+<li>Administrative routing changes in one namespace have no visibility
+or impact on any other namespace.</li>
+</ol>
+<p>This design prevents route poisoning and cross-tenant route leaks.
+Even if an attacker gains root privileges inside a container or
+namespace, they cannot modify the host's routing tables or alter routes
+in adjacent namespaces.</p>
+<h3
+id="cross-boundary-communication-via-virtual-ethernet-veth-pairs">Cross-Boundary
+Communication via Virtual Ethernet (veth) Pairs</h3>
+<p>Because namespaces are completely isolated by default,
+cross-namespace or namespace-to-host traffic requires explicit
+kernel-level conduits. The primary mechanism for this is the Virtual
+Ethernet (<code>veth</code>) pair.</p>
+<p>A <code>veth</code> pair functions like a bidirectional virtual patch
+cable. When created, one end of the pair is moved into the target
+namespace, while the peer remains in the host namespace or connects to
+an intermediate network construct (such as a Linux bridge or Open
+vSwitch).</p>
+<pre><code>[ Namespace A ]                      [ Host / Default Namespace ]
++-------------+                      +--------------------------+
+|  veth_nsA   |&lt;==== (veth pair) ===&gt;|  veth_hostA              |
+| 10.0.1.2/24 |                      | (Attached to br0)        |
++-------------+                      +--------------------------+</code></pre>
+<p>When a packet enters <code>veth_nsA</code>, the kernel immediately
+transmits it across the interface boundary to appear as an ingress
+packet on <code>veth_hostA</code>. Routing between the two endpoints is
+strictly regulated by the network policies and routes configured on the
+receiving end.</p>
+<h3 id="enforcing-secure-routing-topologies">Enforcing Secure Routing
+Topologies</h3>
+<p>Network namespaces enable several secure routing patterns:</p>
+<ul>
+<li><strong>Strict Egress and Ingress Filtering:</strong> Each namespace
+runs its own Netfilter instance. Firewall rules
+(<code>nftables</code>/<code>iptables</code>) deployed inside the
+namespace handle local policy, while rules applied to the peer interface
+in the host namespace enforce external policy. This dual-firewall
+approach ensures defense-in-depth.</li>
+<li><strong>Controlled Gateways:</strong> By attaching the host side of
+a <code>veth</code> pair to a Linux bridge with strict
+<code>ebtables</code> or VLAN tagging, administrators can enforce
+micro-segmentation. Traffic between two namespaces on the same physical
+machine can be forced through an inline firewall or routing daemon
+(e.g., FRR) rather than switching directly.</li>
+<li><strong>Overlapping IP Support:</strong> Multiple namespaces can
+utilize identical IP subnets (such as <code>10.0.0.0/24</code>) without
+IP address conflicts, because routing and ARP tables are completely
+separated. Traffic can then be securely routed upstream using distinct
+Network Address Translation (NAT) rules per namespace.</li>
+<li><strong>Namespace Jailing:</strong> Untrusted processes can be
+placed in a namespace with only a loopback interface or with a routing
+table containing null routes, creating a network "jail" that eliminates
+any external attack surface.</li>
+</ul>
+<p>By encapsulating routing tables, firewall state machines, and network
+devices within distinct kernel structures, Linux network namespaces
+provide hardware-like routing isolation with the resource efficiency of
+native operating system processes.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

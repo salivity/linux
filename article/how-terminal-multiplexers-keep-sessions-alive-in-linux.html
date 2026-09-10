@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How Terminal Multiplexers Keep Sessions Alive in Linux - linux</title>
+    <meta name="description" content="A terminal multiplexer, such as tmux or GNU Screen, keeps sessions alive in Linux by decoupling user-facing terminal interfaces from the background processes executing the actual work. Through a client-server architecture, multiplexers manage independent">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-terminal-multiplexers-keep-sessions-alive-in-linux">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How Terminal Multiplexers Keep Sessions Alive in Linux - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-terminal-multiplexers-keep-sessions-alive-in-linux" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="A terminal multiplexer, such as tmux or GNU Screen, keeps sessions alive in Linux by decoupling user-facing terminal interfaces from the background processes executing the actual work. Through a client-server architecture, multiplexers manage independent" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-terminal-multiplexers-keep-sessions-alive-in-linux">How
+Terminal Multiplexers Keep Sessions Alive in Linux</h1>
+<p>A terminal multiplexer, such as tmux or GNU Screen, keeps sessions
+alive in Linux by decoupling user-facing terminal interfaces from the
+background processes executing the actual work. Through a client-server
+architecture, multiplexers manage independent pseudoterminal (PTY) pairs
+that persist in the system's memory even when an SSH connection drops or
+a local terminal emulator window closes. This design isolates running
+programs from standard termination signals, allowing users to safely
+disconnect and reattach to their active environments at any time.</p>
+<h3 id="the-default-behavior-why-standard-sessions-die">The Default
+Behavior: Why Standard Sessions Die</h3>
+<p>In a conventional Linux terminal session, programs run as child
+processes of the shell, which in turn is a child of the terminal
+emulator or the SSH daemon (<code>sshd</code>).</p>
+<p>When the connection closes or the window is terminated:</p>
+<ol type="1">
+<li>The controlling terminal disconnects.</li>
+<li>The operating system sends a Hangup signal (<code>SIGHUP</code>) to
+the controlling process (the shell).</li>
+<li>The shell forwards the <code>SIGHUP</code> signal to all background
+and foreground child processes attached to that session.</li>
+<li>By default, processes that do not explicitly catch or ignore
+<code>SIGHUP</code> terminate immediately.</li>
+</ol>
+<h3 id="the-client-server-architecture">The Client-Server
+Architecture</h3>
+<p>Terminal multiplexers solve this problem by splitting the terminal
+environment into two distinct components: a client and a server.</p>
+<ul>
+<li><strong>The Server Daemon:</strong> When a multiplexer starts, it
+spawns a background daemon process. This server process runs
+independently of the terminal that launched it, adopting
+<code>systemd</code> (PID 1) or an init system as its parent if
+necessary. The server holds the state of all windows, panes, environment
+variables, and active processes.</li>
+<li><strong>The Client Process:</strong> The client is the lightweight
+interface that interacts with the user's physical display and keyboard.
+It connects to the server via an inter-process communication (IPC)
+channel, typically a UNIX domain socket located in <code>/tmp</code> or
+<code>/run</code>.</li>
+</ul>
+<h3 id="decoupling-via-pseudoterminals-ptys">Decoupling via
+Pseudoterminals (PTYs)</h3>
+<p>Linux applications expect a terminal device to handle standard input
+(<code>stdin</code>), standard output (<code>stdout</code>), and
+standard error (<code>stderr</code>). Terminal multiplexers fulfill this
+requirement using pseudoterminals (PTYs).</p>
+<p>Each pane or window inside a multiplexer is allocated its own
+master/slave PTY pair:</p>
+<ul>
+<li>The multiplexer <strong>server</strong> opens the master side of the
+PTY.</li>
+<li>The <strong>child process</strong> (e.g., a Bash shell, a Python
+script, or a compiler) attaches to the slave side.</li>
+</ul>
+<p>Because the running program communicates exclusively with the
+multiplexer server through this virtual interface, it has no direct link
+to the user's SSH connection or graphical terminal window.</p>
+<h3 id="sighup-isolation-and-detachment">SIGHUP Isolation and
+Detachment</h3>
+<p>When an SSH connection breaks or the user manually detaches:</p>
+<ol type="1">
+<li>The SSH daemon or window manager terminates the multiplexer
+<strong>client</strong>.</li>
+<li>A <code>SIGHUP</code> signal is delivered solely to that client
+process.</li>
+<li>The multiplexer <strong>server</strong> detects that the client has
+disconnected via the UNIX domain socket, but the server itself remains
+active in the background.</li>
+<li>Because the child processes are attached to the server's PTYs—not
+the dead SSH session—no <code>SIGHUP</code> is ever propagated to them.
+They continue running unaffected.</li>
+</ol>
+<h3 id="reattachment">Reattachment</h3>
+<p>When a user reconnects and issues a reattach command (such as
+<code>tmux attach</code>), a new client process initializes. This client
+connects to the existing server via the UNIX domain socket. The server
+queries its internal state, redraws the terminal buffers onto the new
+client screen, and routes input and output between the user and the
+persistently running PTYs.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

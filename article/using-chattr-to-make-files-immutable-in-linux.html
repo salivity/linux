@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Using chattr to Make Files Immutable in Linux - linux</title>
+    <meta name="description" content="This article provides an overview of the chattr command in the Linux operating system, focusing on its ability to make files immutable. You will learn what the immutable attribute does, why system administrators use it to protect critical files from unau">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/using-chattr-to-make-files-immutable-in-linux">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Using chattr to Make Files Immutable in Linux - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/using-chattr-to-make-files-immutable-in-linux" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="This article provides an overview of the chattr command in the Linux operating system, focusing on its ability to make files immutable. You will learn what the immutable attribute does, why system administrators use it to protect critical files from unau" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="using-chattr-to-make-files-immutable-in-linux">Using chattr to
+Make Files Immutable in Linux</h1>
+<p>This article provides an overview of the <code>chattr</code> command
+in the Linux operating system, focusing on its ability to make files
+immutable. You will learn what the immutable attribute does, why system
+administrators use it to protect critical files from unauthorized
+modification or accidental deletion, and the exact commands required to
+apply, verify, and remove this attribute.</p>
+<h2 id="what-is-the-chattr-command">What is the <code>chattr</code>
+Command?</h2>
+<p>The <code>chattr</code> (change attribute) command is a Linux utility
+used to modify file attributes on filesystems such as ext2, ext3, ext4,
+and XFS. Unlike standard file permissions managed by <code>chmod</code>
+(read, write, execute), file attributes define low-level behavioral
+rules for files and directories at the filesystem level.</p>
+<h2 id="the-purpose-of-the-immutable-flag-i">The Purpose of the
+Immutable Flag (<code>+i</code>)</h2>
+<p>The primary purpose of applying the immutable flag using
+<code>chattr</code> is to completely lock a file against any changes.
+When a file is marked as immutable:</p>
+<ul>
+<li>It cannot be modified, overwritten, or appended to.</li>
+<li>It cannot be deleted or renamed.</li>
+<li>No hard links or symbolic links can be pointed to it.</li>
+<li>Even the <strong>root user</strong> cannot bypass these restrictions
+without first removing the immutable flag.</li>
+</ul>
+<p>This behavior makes the immutable attribute an essential security and
+administrative tool. Standard permissions (<code>chmod 777</code> or
+<code>chmod 000</code>) still allow the superuser (<code>root</code>) or
+a user with <code>sudo</code> privileges to delete or alter files. The
+immutable attribute acts as an explicit safeguard that halts any write
+or delete operations regardless of user privilege level.</p>
+<h2 id="key-use-cases">Key Use Cases</h2>
+<ul>
+<li><strong>Preventing Accidental Deletion:</strong> Critical system
+files or scripts can be protected from accidental removal during
+maintenance tasks or automated cleanup scripts.</li>
+<li><strong>Hardening System Security:</strong> Critical configuration
+files—such as <code>/etc/resolv.conf</code>, <code>/etc/passwd</code>,
+or <code>/etc/shadow</code>—can be locked to prevent unauthorized
+tampering by attackers or malware that have gained root privileges.</li>
+<li><strong>Preserving Integrity of Deployment Files:</strong> Essential
+binary files, keys, or read-only assets in production environments can
+be permanently preserved in their deployed state.</li>
+</ul>
+<h2 id="how-to-use-chattr">How to Use <code>chattr</code></h2>
+<h3 id="1-making-a-file-immutable">1. Making a File Immutable</h3>
+<p>To set the immutable attribute on a file, use the <code>+i</code>
+operator with root privileges:</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> chattr +i /path/to/important_file.txt</span></code></pre></div>
+<p>Once executed, any attempt to remove or modify this file—even by
+running <code>rm -f</code> as root—will fail with an "Operation not
+permitted" error.</p>
+<h3 id="2-checking-the-attribute">2. Checking the Attribute</h3>
+<p>Standard commands like <code>ls -l</code> do not show filesystem
+attributes. To verify that a file is immutable, use the
+<code>lsattr</code> command:</p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">lsattr</span> /path/to/important_file.txt</span></code></pre></div>
+<p>If the file is immutable, the letter <code>i</code> will appear in
+the output flags:</p>
+<pre class="text"><code>----i---------e---- /path/to/important_file.txt</code></pre>
+<h3 id="3-removing-the-immutable-attribute">3. Removing the Immutable
+Attribute</h3>
+<p>To modify or delete the file again, remove the immutable flag using
+the <code>-i</code> operator:</p>
+<div class="sourceCode" id="cb4"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> chattr <span class="at">-i</span> /path/to/important_file.txt</span></code></pre></div>
+<p>After removing the attribute, standard file permissions and user
+privileges dictate how the file can be accessed, modified, or
+deleted.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

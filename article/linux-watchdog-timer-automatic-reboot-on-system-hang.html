@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linux Watchdog Timer: Automatic Reboot on System Hang - linux</title>
+    <meta name="description" content="In the Linux operating system, high availability and fault recovery are managed through watchdog timers that automatically reboot the system during a complete freeze or kernel lockup. This mechanism relies on a continuous heartbeat system: an active time">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/linux-watchdog-timer-automatic-reboot-on-system-hang">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Linux Watchdog Timer: Automatic Reboot on System Hang - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/linux-watchdog-timer-automatic-reboot-on-system-hang" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="In the Linux operating system, high availability and fault recovery are managed through watchdog timers that automatically reboot the system during a complete freeze or kernel lockup. This mechanism relies on a continuous heartbeat system: an active time" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="linux-watchdog-timer-automatic-reboot-on-system-hang">Linux
+Watchdog Timer: Automatic Reboot on System Hang</h1>
+<p>In the Linux operating system, high availability and fault recovery
+are managed through watchdog timers that automatically reboot the system
+during a complete freeze or kernel lockup. This mechanism relies on a
+continuous heartbeat system: an active timer counts down toward zero,
+requiring the operating system or a dedicated user-space daemon to
+periodically "pet" or reset the counter. If the operating system hangs,
+becomes deadlocked, or crashes, the counter reaches zero and triggers a
+hardware or software reset, returning the machine to an operational
+state without manual intervention.</p>
+<h3 id="the-watchdog-mechanism">The Watchdog Mechanism</h3>
+<p>The core operation of a Linux watchdog relies on a simple countdown
+timer. Under normal operating conditions, a process regularly writes to
+the watchdog device to reset the expiration timer—an action commonly
+referred to as "pinging," "kicking," or "petting" the dog.</p>
+<p>When a critical failure occurs, such as a kernel panic, out-of-memory
+deadlock, or hard CPU lockup, the running processes are halted.
+Consequently, the reset signal is never delivered. Once the countdown
+expires (typically after a user-defined threshold, such as 30 or 60
+seconds), the watchdog hardware asserts the system's reset line,
+simulating a physical push of the power or reset button.</p>
+<h3 id="hardware-vs-software-watchdogs">Hardware vs. Software
+Watchdogs</h3>
+<p>Linux supports both hardware-based and software-emulated watchdog
+solutions:</p>
+<ul>
+<li><strong>Hardware Watchdogs:</strong> These utilize dedicated
+microcontrollers or integrated chipsets (such as Intel TCO, AMD SP5100,
+Raspberry Pi BCM2835 watchdog, or IPMI baseboard management
+controllers). Because the timer runs entirely independent of the CPU and
+main memory, a hardware watchdog will reliably reboot the machine even
+if the CPU completely locks up, overheats, or experiences a power
+anomaly.</li>
+<li><strong>Software Watchdog (<code>softdog</code>):</strong> Linux
+provides a kernel module named <code>softdog</code>. This emulates a
+watchdog device using kernel timers. While useful for systems lacking
+dedicated hardware, <code>softdog</code> has a significant limitation:
+if the kernel itself encounters a hard lockup that disables interrupts
+or freezes the timer subsystem, the software watchdog will also freeze
+and fail to reboot the machine.</li>
+</ul>
+<h3 id="the-linux-kernel-watchdog-subsystem">The Linux Kernel Watchdog
+Subsystem</h3>
+<p>The Linux kernel standardizes watchdog management through its core
+driver framework located in <code>drivers/watchdog/</code>. The system
+exposes these devices to user space through special character devices,
+primarily <code>/dev/watchdog</code> (legacy single-open interface) and
+<code>/dev/watchdog0</code> (supporting modern sysfs attributes).</p>
+<p>Key driver behaviors include:</p>
+<ul>
+<li><strong>File Operations:</strong> Opening <code>/dev/watchdog</code>
+starts the timer. Writing any data to this file resets the
+countdown.</li>
+<li><strong>Magic Close Feature:</strong> To prevent accidental reboots
+when a monitoring process stops intentionally (such as during a clean
+shutdown), the driver implements a "Magic Close" feature. The
+controlling process must write the character <code>'V'</code> to
+<code>/dev/watchdog</code> before closing the file descriptor. If the
+file is closed without this character, the kernel assumes the daemon
+crashed and lets the timer expire to force a reboot.</li>
+<li><strong>Pre-timeout Interrupts:</strong> Many hardware drivers
+support a pre-timeout interrupt. This generates a Non-Maskable Interrupt
+(NMI) shortly before the system resets, allowing the kernel to capture
+diagnostic data, print stack traces, or trigger a <code>kdump</code> for
+post-mortem analysis.</li>
+</ul>
+<h3 id="user-space-integration">User-Space Integration</h3>
+<p>The kernel provides the interface, but user-space software typically
+manages the heartbeat logic:</p>
+<ul>
+<li><strong>Systemd Watchdog:</strong> Modern Linux distributions
+utilizing systemd can natively manage the watchdog. By setting
+<code>RuntimeWatchdogSec=</code> in
+<code>/etc/systemd/system.conf</code>, systemd continuously pings
+<code>/dev/watchdog</code>. If the init system hangs, the hardware
+resets the host. Systemd also offers <code>RebootWatchdogSec=</code> to
+protect against hangs during system shutdown sequences.</li>
+<li><strong>The <code>watchdog</code> Daemon:</strong> Traditional
+environments use the standalone <code>watchdog</code> daemon. This tool
+does not merely ping the timer at fixed intervals; it evaluates system
+health metrics before each ping. It can monitor memory exhaustion,
+process table saturation, interface availability, and critical process
+states. If any specified health check fails, the daemon deliberately
+stops pinging the device, triggering a reboot.</li>
+</ul>
+<h3 id="nmi-watchdogs-for-lockup-detection">NMI Watchdogs for Lockup
+Detection</h3>
+<p>For multi-core systems, Linux includes an internal NMI (Non-Maskable
+Interrupt) watchdog managed by the kernel. It couples high-resolution
+performance counters with NMIs to detect when a single CPU core is stuck
+inside an interrupt handler or spinlock for more than a set duration
+(typically 10 to 20 seconds). When combined with the sysctl setting
+<code>kernel.panic_on_io_nmi = 1</code> or
+<code>kernel.panic = 10</code>, the kernel will detect the stuck core,
+induce a panic, and automatically reboot the machine after 10
+seconds.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

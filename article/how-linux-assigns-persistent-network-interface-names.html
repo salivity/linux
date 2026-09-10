@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How Linux Assigns Persistent Network Interface Names - linux</title>
+    <meta name="description" content="Modern Linux operating systems assign persistent network interface names primarily through systemd-udevd to guarantee that network hardware retains the same identifier across reboots and hardware changes. Historically, the kernel dynamically assigned nam">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-linux-assigns-persistent-network-interface-names">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How Linux Assigns Persistent Network Interface Names - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-linux-assigns-persistent-network-interface-names" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="Modern Linux operating systems assign persistent network interface names primarily through systemd-udevd to guarantee that network hardware retains the same identifier across reboots and hardware changes. Historically, the kernel dynamically assigned nam" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-linux-assigns-persistent-network-interface-names">How Linux
+Assigns Persistent Network Interface Names</h1>
+<p>Modern Linux operating systems assign persistent network interface
+names primarily through <code>systemd-udevd</code> to guarantee that
+network hardware retains the same identifier across reboots and hardware
+changes. Historically, the kernel dynamically assigned names like
+<code>eth0</code> and <code>eth1</code> based on the order devices were
+detected during boot, which frequently caused interfaces to swap names
+unpredictably. Today, <code>systemd</code> and <code>udev</code> query
+hardware topology, firmware information, and bus paths to generate
+deterministic, stable names such as <code>eno1</code> or
+<code>enp3s0</code>.</p>
+<h2 id="the-problem-with-traditional-naming">The Problem with
+Traditional Naming</h2>
+<p>In earlier Linux architectures, the kernel probed hardware
+concurrently during boot. If two network cards were installed, whichever
+card responded first was named <code>eth0</code>, and the second became
+<code>eth1</code>. This race condition often reversed the names after a
+reboot, breaking firewall rules, routing tables, and static IP network
+configurations. Persistent network interface naming solves this by
+binding the interface name to physical or electrical attributes of the
+hardware.</p>
+<h2 id="the-naming-scheme-hierarchy">The Naming Scheme Hierarchy</h2>
+<p>The <code>systemd</code> predictable network interface device naming
+mechanism implements a five-step fallback policy to establish stable
+names. It checks properties in the following order:</p>
+<ol type="1">
+<li><strong>Firmware/BIOS Provided Index Numbers</strong>: If the system
+firmware or BIOS provides an index number for an onboard device, that
+number is used (e.g., <code>eno1</code>).</li>
+<li><strong>Firmware/BIOS Provided Hotplug Slot Numbers</strong>: If the
+PCI card slot architecture provides a physical slot number, it is
+utilized (e.g., <code>ens1</code>).</li>
+<li><strong>Physical/Geographic Location</strong>: If bus topology is
+available, the physical hardware connector location on the bus is
+derived (e.g., <code>enp2s0</code>).</li>
+<li><strong>MAC Address</strong>: If explicitly requested or if other
+methods fail, the hardware interface's MAC address is used to form the
+name (e.g., <code>enx78e7d1ea46da</code>).</li>
+<li><strong>Traditional Kernel Naming</strong>: If all predictable
+mechanisms are unavailable or disabled, the system falls back to the
+traditional naming convention (e.g., <code>eth0</code>).</li>
+</ol>
+<h2 id="decoding-interface-prefix-and-types">Decoding Interface Prefix
+and Types</h2>
+<p>The generated name combines a two-character interface type prefix
+with a location identifier:</p>
+<ul>
+<li><strong><code>en</code></strong>: Ethernet</li>
+<li><strong><code>wl</code></strong>: Wireless Local Area Network
+(WLAN)</li>
+<li><strong><code>ww</code></strong>: Wireless Wide Area Network
+(WWAN)</li>
+<li><strong><code>ib</code></strong>: InfiniBand</li>
+</ul>
+<p>Following the prefix, the naming scheme applies specific format
+characters:</p>
+<ul>
+<li><strong><code>o&lt;index&gt;</code></strong>: Onboard device
+(Example: <code>eno1</code> for onboard Ethernet port 1).</li>
+<li><strong><code>s&lt;slot&gt;</code></strong>: Hotplug slot (Example:
+<code>ens3</code> for slot 3).</li>
+<li><strong><code>p&lt;bus&gt;s&lt;slot&gt;</code></strong>: Bus
+location (Example: <code>enp0s31f6</code> represents PCI bus 0, slot 31,
+function 6).</li>
+<li><strong><code>x&lt;MAC&gt;</code></strong>: MAC address (Example:
+<code>enx002596123456</code>).</li>
+</ul>
+<h2
+id="configuration-and-implementation-via-systemd-udevd">Configuration
+and Implementation via systemd-udevd</h2>
+<p>During system initialization, the kernel detects the network card and
+generates a <code>sysfs</code> tree containing the device's hardware
+attributes. Next, <code>systemd-udevd</code> evaluates these attributes
+using predefined rules located in
+<code>/usr/lib/systemd/network/99-default.link</code>.</p>
+<p>This default configuration instructs <code>udev</code> to attempt
+naming via firmware index, slot, and physical path, in that
+sequence:</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode ini"><code class="sourceCode ini"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">[Match]</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="dt">OriginalName</span><span class="ot">=</span><span class="st">*</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="kw">[Link]</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="dt">NamePolicy</span><span class="ot">=</span><span class="st">keep kernel database onboard slot path</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="dt">AlternativeNamesPolicy</span><span class="ot">=</span><span class="st">database onboard slot path mac</span></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="dt">MACAddressPolicy</span><span class="ot">=</span><span class="st">persistent</span></span></code></pre></div>
+<p>Administrators can override this behavior by creating higher-priority
+files in <code>/etc/systemd/network/</code>. For instance, to assign a
+custom name based on a MAC address, a file named
+<code>/etc/systemd/network/10-eth-local.link</code> can be created:</p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode ini"><code class="sourceCode ini"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="kw">[Match]</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="dt">MACAddress</span><span class="ot">=</span><span class="st">00:11:22:33:44:55</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="kw">[Link]</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="dt">Name</span><span class="ot">=</span><span class="st">lan0</span></span></code></pre></div>
+<h2 id="disabling-predictable-naming">Disabling Predictable Naming</h2>
+<p>If traditional names like <code>eth0</code> are required for legacy
+scripts or specific testing environments, persistent naming can be
+disabled at boot time. Passing the kernel parameters
+<code>net.ifnames=0</code> and <code>biosdevname=0</code> via the
+bootloader (such as GRUB) instructs the system to ignore firmware and
+topology rules, allowing the kernel to assign names sequentially as it
+probes each device.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

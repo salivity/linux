@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How Linux Capabilities Split Root Privileges - linux</title>
+    <meta name="description" content="Linux capabilities divide the traditionally monolithic power of the root user into distinct, manageable units of privilege. Historically, a process either ran with full administrative rights as User ID 0 (root) or as an unprivileged user, creating substa">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-linux-capabilities-split-root-privileges">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How Linux Capabilities Split Root Privileges - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-linux-capabilities-split-root-privileges" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="Linux capabilities divide the traditionally monolithic power of the root user into distinct, manageable units of privilege. Historically, a process either ran with full administrative rights as User ID 0 (root) or as an unprivileged user, creating substa" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-linux-capabilities-split-root-privileges">How Linux
+Capabilities Split Root Privileges</h1>
+<p>Linux capabilities divide the traditionally monolithic power of the
+root user into distinct, manageable units of privilege. Historically, a
+process either ran with full administrative rights as User ID 0 (root)
+or as an unprivileged user, creating substantial security risks if a
+privileged application were compromised. By breaking down superuser
+authority into discrete flags, modern Linux kernels allow system
+administrators and developers to apply the principle of least privilege,
+assigning processes only the specific permissions necessary to perform
+their tasks without granting full control over the operating system.</p>
+<h2 id="the-limitation-of-traditional-root">The Limitation of
+Traditional Root</h2>
+<p>In standard Unix-like permission models, access control for
+administrative tasks operates on an all-or-nothing basis. If an
+application needs to bind to a network port below 1024 (a privileged
+operation), it historically required execution as root or the use of the
+<code>setuid</code> bit. If a vulnerability existed within that binary,
+an attacker could exploit it to gain full, unrestricted access to the
+entire system.</p>
+<h2 id="how-linux-capabilities-function">How Linux Capabilities
+Function</h2>
+<p>Linux capabilities dismantle this binary structure. Starting in
+kernel version 2.2, privileged operations were grouped into dozens of
+distinct functional areas identified by constants prefixed with
+<code>CAP_</code>.</p>
+<p>Instead of checking whether a process has an effective UID of 0, the
+kernel checks whether the process possesses the specific capability
+required for the attempted operation:</p>
+<ul>
+<li><strong><code>CAP_NET_BIND_SERVICE</code></strong>: Allows a process
+to bind a socket to privileged domain ports (ports &lt; 1024).</li>
+<li><strong><code>CAP_SYS_TIME</code></strong>: Permits setting the
+system clock without granting broader administrative control.</li>
+<li><strong><code>CAP_KILL</code></strong>: Bypasses permission checks
+for sending signals to other processes.</li>
+<li><strong><code>CAP_DAC_OVERRIDE</code></strong>: Bypasses file read,
+write, and execute permission checks.</li>
+<li><strong><code>CAP_SYS_ADMIN</code></strong>: A broad capability
+encompassing many legacy administrative tasks, such as mounting file
+systems, configuring IPC, and loading specific kernel modules.</li>
+</ul>
+<p>When a system call requires privileged access, the kernel calls an
+internal helper function (such as <code>capable()</code>) to verify that
+the corresponding capability is active in the calling thread's
+capability set.</p>
+<h2 id="thread-capability-sets">Thread Capability Sets</h2>
+<p>Every process thread in Linux tracks its capabilities through
+distinct bitmasks, known as capability sets:</p>
+<ol type="1">
+<li><strong>Permitted</strong>: Defines the maximum set of capabilities
+the thread is allowed to use. A thread can drop capabilities from this
+set, but it cannot add new ones unless it already has the authority to
+do so.</li>
+<li><strong>Effective</strong>: The subset of permitted capabilities
+currently in use by the thread. When the kernel performs a privilege
+check, it evaluates this set.</li>
+<li><strong>Inheritable</strong>: Capabilities that can be preserved
+across an <code>execve</code> call, provided the executed file is
+configured to accept them.</li>
+<li><strong>Bounding Set</strong>: A system-wide or per-process mask
+that limits the capabilities an executable can acquire, preventing
+processes from gaining permissions beyond this threshold.</li>
+<li><strong>Ambient</strong>: Added in later kernels to simplify running
+non-root binaries that preserve capabilities across execution without
+relying on file attributes.</li>
+</ol>
+<h2 id="file-capabilities-and-replacing-setuid">File Capabilities and
+Replacing Setuid</h2>
+<p>Linux also supports file capabilities via extended file attributes
+(<code>security.capability</code>). Using utilities such as
+<code>setcap</code> and <code>getcap</code>, administrators can attach
+specific capabilities directly to executable binaries on disk.</p>
+<p>For example, a web server can be granted
+<code>CAP_NET_BIND_SERVICE</code> directly:</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> setcap <span class="st">&#39;cap_net_bind_service=+ep&#39;</span> /usr/sbin/custom-web-server</span></code></pre></div>
+<p>In this scenario, the binary gains only the ability to bind to port
+80 or 443 while running entirely under an unprivileged user account.
+Even if the service is compromised, the attacker does not automatically
+obtain full root privileges, drastically reducing the blast radius of
+potential security vulnerabilities.</p>
+<h2 id="impact-on-containerization-and-system-security">Impact on
+Containerization and System Security</h2>
+<p>Modern container runtimes, including Docker and containerd, rely
+heavily on capabilities to sandbox environments. When a container runs,
+the runtime restricts its bounding set and drops potentially dangerous
+capabilities—such as <code>CAP_SYS_RAWIO</code> (raw I/O port access) or
+<code>CAP_SYS_MODULE</code> (loading kernel modules)—even if the user
+inside the container appears to be root.</p>
+<p>Through this granular division of authority, Linux capabilities
+eliminate the necessity of running applications with absolute power,
+reinforcing the operating system against privilege escalation and
+lateral movement.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

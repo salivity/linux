@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Purpose of Memcached Object Caching on Linux - linux</title>
+    <meta name="description" content="This article provides an overview of the Memcached daemon, explaining its architecture, primary function as an in-memory key-value store, and how it accelerates dynamic web applications on Linux systems. By storing database query results and application">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/purpose-of-memcached-object-caching-on-linux">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Purpose of Memcached Object Caching on Linux - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/purpose-of-memcached-object-caching-on-linux" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="This article provides an overview of the Memcached daemon, explaining its architecture, primary function as an in-memory key-value store, and how it accelerates dynamic web applications on Linux systems. By storing database query results and application" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="purpose-of-memcached-object-caching-on-linux">Purpose of
+Memcached Object Caching on Linux</h1>
+<p>This article provides an overview of the Memcached daemon, explaining
+its architecture, primary function as an in-memory key-value store, and
+how it accelerates dynamic web applications on Linux systems. By storing
+database query results and application objects directly in system
+memory, Memcached drastically minimizes disk I/O and database
+bottlenecks, allowing web platforms to handle massive concurrency with
+minimal latency.</p>
+<h3 id="the-core-role-of-memcached">The Core Role of Memcached</h3>
+<p>Memcached is an open-source, high-performance, distributed memory
+object caching system. In modern web architectures running on Linux, it
+functions as a temporary, in-memory data store positioned between
+dynamic web applications (such as those built with PHP, Python, Ruby, or
+Node.js) and the persistent database layer (such as MySQL, PostgreSQL,
+or MongoDB).</p>
+<p>Dynamic web pages frequently make identical database requests to
+render repetitive elements, such as user profiles, navigation trees, or
+session states. Memcached resolves the latency caused by these
+repetitive queries by holding frequently read objects in dynamic RAM,
+delivering data in sub-millisecond timeframes.</p>
+<h3 id="how-the-linux-daemon-operates">How the Linux Daemon
+Operates</h3>
+<p>On a Linux server, Memcached runs as a background service managed by
+the system service manager (such as <code>systemd</code>). The daemon is
+designed with a lightweight, non-blocking network architecture utilizing
+the <code>libevent</code> library, enabling it to manage thousands of
+concurrent connections over TCP or UDP with minimal CPU overhead.</p>
+<p>The daemon operates strictly as an in-memory hash table:</p>
+<ol type="1">
+<li><strong>Application Query:</strong> The web application requests a
+piece of data.</li>
+<li><strong>Cache Check:</strong> The application checks Memcached using
+a unique cryptographic or string key.</li>
+<li><strong>Cache Hit:</strong> If the object exists, Memcached returns
+it immediately, bypassing the database entirely.</li>
+<li><strong>Cache Miss:</strong> If the object does not exist, the
+application queries the database, writes the result to Memcached for
+future requests, and sends the response to the user.</li>
+</ol>
+<h3 id="key-architectural-characteristics">Key Architectural
+Characteristics</h3>
+<ul>
+<li><strong>Volatile Memory Model:</strong> Memcached stores data
+exclusively in RAM. It does not write to the Linux filesystem or provide
+native data persistence. If the daemon restarts or the operating system
+reboots, the cache is cleared.</li>
+<li><strong>LRU Eviction Policy:</strong> To prevent memory exhaustion,
+the daemon implements a Least Recently Used (LRU) eviction algorithm.
+When the allocated memory limit defined in
+<code>/etc/memcached.conf</code> is reached, older or inactive keys are
+automatically purged to make room for new objects.</li>
+<li><strong>Slab Allocation:</strong> To combat memory fragmentation
+within Linux, Memcached allocates memory in pre-defined chunk sizes
+called slabs. This avoids standard C library memory allocation overhead
+and ensures consistent memory consumption patterns.</li>
+<li><strong>Horizontal Scalability:</strong> The Memcached daemon does
+not communicate with other Memcached instances. Scalability is achieved
+entirely client-side; client libraries use consistent hashing algorithms
+across an array of independent Memcached nodes, allowing pools to scale
+horizontally across multiple Linux servers.</li>
+</ul>
+<h3 id="primary-use-cases-in-web-environments">Primary Use Cases in Web
+Environments</h3>
+<ul>
+<li><strong>Database Query Caching:</strong> Storing the serialized
+results of intensive SQL joins and aggregations.</li>
+<li><strong>Session Storage:</strong> Holding user session data in
+distributed web farms so users stay logged in across multiple
+application nodes.</li>
+<li><strong>API Rate Limiting and Counters:</strong> Rapidly
+incrementing and checking integer values with atomic commands.</li>
+<li><strong>Full or Partial Page Caching:</strong> Storing pre-rendered
+HTML snippets and page fragments to eliminate redundant template
+rendering.</li>
+</ul></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

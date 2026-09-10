@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Benchmark Network Throughput with iperf on Linux - linux</title>
+    <meta name="description" content="This guide provides an overview of how the Linux operating system utilizes the iperf (and modern iperf3) utility to accurately benchmark network throughput. You will learn the core architecture behind the tool, the standard commands required to measure t">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/benchmark-network-throughput-with-iperf-on-linux">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Benchmark Network Throughput with iperf on Linux - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/benchmark-network-throughput-with-iperf-on-linux" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="This guide provides an overview of how the Linux operating system utilizes the iperf (and modern iperf3) utility to accurately benchmark network throughput. You will learn the core architecture behind the tool, the standard commands required to measure t" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="benchmark-network-throughput-with-iperf-on-linux">Benchmark
+Network Throughput with iperf on Linux</h1>
+<p>This guide provides an overview of how the Linux operating system
+utilizes the <code>iperf</code> (and modern <code>iperf3</code>) utility
+to accurately benchmark network throughput. You will learn the core
+architecture behind the tool, the standard commands required to measure
+transmission speeds between two endpoints, and how to test under both
+TCP and UDP protocols to identify bandwidth limitations and network
+bottlenecks.</p>
+<h2 id="how-iperf-works-on-linux">How iperf Works on Linux</h2>
+<p><code>iperf</code> functions on a client-server model. To benchmark
+network performance, one Linux machine acts as the server listening for
+incoming traffic, while a second Linux machine acts as the client
+generating and sending network packets.</p>
+<p>During the test, the client generates synthetic traffic—either TCP or
+UDP—and transmits it across the local network or the internet to the
+server. The tool then calculates the total amount of data transferred,
+the elapsed time, and the resulting throughput (typically displayed in
+Megabits or Gigabits per second).</p>
+<h2 id="installing-iperf3">Installing iperf3</h2>
+<p>Most modern Linux distributions include <code>iperf3</code> in their
+default software repositories.</p>
+<p>On Ubuntu or Debian systems:</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> apt update</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> apt install iperf3</span></code></pre></div>
+<p>On RHEL, Rocky Linux, or Fedora:</p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> dnf install iperf3</span></code></pre></div>
+<p>On Arch Linux:</p>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> pacman <span class="at">-S</span> iperf3</span></code></pre></div>
+<h2 id="step-1-start-the-iperf3-server">Step 1: Start the iperf3
+Server</h2>
+<p>Before sending traffic, initialize the target machine in server mode.
+By default, <code>iperf3</code> listens on TCP/UDP port 5201.</p>
+<p>Run the following command on the server machine:</p>
+<div class="sourceCode" id="cb4"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="ex">iperf3</span> <span class="at">-s</span></span></code></pre></div>
+<p>Ensure that your Linux firewall allows traffic through port 5201:</p>
+<div class="sourceCode" id="cb5"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co"># For UFW (Ubuntu/Debian)</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> ufw allow 5201/tcp</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> ufw allow 5201/udp</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a><span class="co"># For firewalld (RHEL/CentOS/Fedora)</span></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> firewall-cmd <span class="at">--add-port</span><span class="op">=</span>5201/tcp <span class="at">--permanent</span></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> firewall-cmd <span class="at">--add-port</span><span class="op">=</span>5201/udp <span class="at">--permanent</span></span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> firewall-cmd <span class="at">--reload</span></span></code></pre></div>
+<h2 id="step-2-run-a-standard-tcp-benchmark">Step 2: Run a Standard TCP
+Benchmark</h2>
+<p>On the client machine, run <code>iperf3</code> directed at the
+server's IP address to initiate a default 10-second TCP benchmark:</p>
+<div class="sourceCode" id="cb6"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="ex">iperf3</span> <span class="at">-c</span> <span class="op">&lt;</span>SERVER_IP<span class="op">&gt;</span></span></code></pre></div>
+<h3 id="understanding-the-output">Understanding the Output</h3>
+<p>The output provides interval metrics followed by a summary:</p>
+<ul>
+<li><strong>Interval:</strong> The timeframe for the specific report
+slice (e.g., <code>0.00-1.00 sec</code>).</li>
+<li><strong>Transfer:</strong> The volume of data transmitted during
+that interval (e.g., <code>112 MBytes</code>).</li>
+<li><strong>Bandwidth:</strong> The calculated transfer rate (e.g.,
+<code>941 Mbits/sec</code>).</li>
+<li><strong>Retr:</strong> The number of TCP segments retransmitted due
+to network congestion or packet loss.</li>
+</ul>
+<h2 id="step-3-advanced-benchmarking-scenarios">Step 3: Advanced
+Benchmarking Scenarios</h2>
+<h3 id="testing-udp-throughput-and-jitter">Testing UDP Throughput and
+Jitter</h3>
+<p>TCP uses flow control and window sizing, which may mask underlying
+network capacity. UDP bypasses connection overhead, making it ideal for
+measuring raw packet loss and jitter.</p>
+<p>Because UDP does not self-regulate speed, specify a target bandwidth
+using the <code>-b</code> flag:</p>
+<div class="sourceCode" id="cb7"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="ex">iperf3</span> <span class="at">-c</span> <span class="op">&lt;</span>SERVER_IP<span class="op">&gt;</span> -u <span class="at">-b</span> 1G</span></code></pre></div>
+<p>This tests for 1 Gigabit per second of UDP throughput and reports
+latency jitter and lost packet percentages.</p>
+<h3 id="multi-stream-parallel-testing">Multi-Stream (Parallel)
+Testing</h3>
+<p>Saturating high-bandwidth connections (such as 10GbE or 40GbE) often
+requires multiple simultaneous connections. Use the <code>-P</code> flag
+to open parallel streams:</p>
+<div class="sourceCode" id="cb8"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="ex">iperf3</span> <span class="at">-c</span> <span class="op">&lt;</span>SERVER_IP<span class="op">&gt;</span> -P 4</span></code></pre></div>
+<p>This command establishes four parallel TCP connections to ensure full
+hardware and interface utilization.</p>
+<h3 id="reverse-direction-testing">Reverse Direction Testing</h3>
+<p>By default, the client sends data and the server receives it. To test
+download speeds from the server to the client without reconfiguring the
+server, add the <code>-R</code> flag:</p>
+<div class="sourceCode" id="cb9"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="ex">iperf3</span> <span class="at">-c</span> <span class="op">&lt;</span>SERVER_IP<span class="op">&gt;</span> -R</span></code></pre></div>
+<h3 id="custom-test-duration">Custom Test Duration</h3>
+<p>To run a longer burn-in test to detect thermal throttling or link
+degradation over time, use the <code>-t</code> flag with the desired
+duration in seconds:</p>
+<div class="sourceCode" id="cb10"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="ex">iperf3</span> <span class="at">-c</span> <span class="op">&lt;</span>SERVER_IP<span class="op">&gt;</span> -t 60</span></code></pre></div>
+<h2 id="factors-influencing-linux-benchmark-accuracy">Factors
+Influencing Linux Benchmark Accuracy</h2>
+<ul>
+<li><strong>CPU Utilization:</strong> Running high-throughput benchmarks
+(10Gbps+) requires significant CPU resources. Monitor CPU usage with
+<code>top</code> or <code>htop</code> during tests; a saturated CPU core
+can artificially cap measured throughput.</li>
+<li><strong>MTU (Maximum Transmission Unit):</strong> Mismatches in MTU
+size along the path can cause packet fragmentation, reducing measured
+speeds.</li>
+<li><strong>TCP Congestion Control:</strong> Linux uses algorithms like
+CUBIC or BBR. You can test specific algorithms using the
+<code>--cport</code> and Linux kernel <code>sysctl</code> configurations
+to see how different congestion engines perform on your link.</li>
+</ul></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How the Linux OOM Killer Works - linux</title>
+    <meta name="description" content="The Linux Out of Memory (OOM) killer is an in-kernel safety mechanism designed to protect system stability when available RAM and swap space are completely exhausted. When the operating system faces an unrecoverable memory shortage, this mechanism steps">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-the-linux-oom-killer-works">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How the Linux OOM Killer Works - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-the-linux-oom-killer-works" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="The Linux Out of Memory (OOM) killer is an in-kernel safety mechanism designed to protect system stability when available RAM and swap space are completely exhausted. When the operating system faces an unrecoverable memory shortage, this mechanism steps" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-the-linux-oom-killer-works">How the Linux OOM Killer
+Works</h1>
+<p>The Linux Out of Memory (OOM) killer is an in-kernel safety mechanism
+designed to protect system stability when available RAM and swap space
+are completely exhausted. When the operating system faces an
+unrecoverable memory shortage, this mechanism steps in to evaluate
+active processes, select the most appropriate candidate based on a
+heuristic score, and terminate it with extreme prejudice. By terminating
+non-critical, memory-heavy workloads, the OOM killer frees up memory
+pages to prevent complete kernel panics and system lockups.</p>
+<h3 id="memory-overcommit-and-the-need-for-the-oom-killer">Memory
+Overcommit and the Need for the OOM Killer</h3>
+<p>Linux employs a memory allocation strategy known as overcommitting.
+When an application requests memory through system calls like
+<code>malloc()</code>, the kernel grants virtual address space without
+immediately backing it with physical RAM. Physical memory pages are only
+mapped when the process actually writes data to that allocated
+space.</p>
+<p>This behavior maximizes resource utilization because applications
+rarely use all the memory they request. However, if multiple
+applications attempt to use their allocated memory simultaneously, total
+demand can exceed physical RAM and swap combined. When the kernel cannot
+fulfill these memory commitments through standard page reclamation or
+swapping, the OOM killer is triggered as a last-resort intervention.</p>
+<h3 id="how-the-selection-algorithm-operates">How the Selection
+Algorithm Operates</h3>
+<p>When the kernel function <code>out_of_memory()</code> is invoked, it
+scans the system's process table to determine which task to terminate.
+The decision relies on an algorithm that calculates an
+<code>oom_badness</code> score for each eligible process.</p>
+<p>The selection process evaluates several key factors:</p>
+<ul>
+<li><strong>Memory Footprint:</strong> The primary metric is the
+proportion of physical memory (Resident Set Size or RSS) and swap space
+the process consumes. Larger consumers receive higher base scores.</li>
+<li><strong>Privileged Execution:</strong> Processes running under the
+<code>root</code> user historically received a slight discount on their
+score, as terminating administrative tasks can destabilize the
+environment.</li>
+<li><strong>Immunity of Critical Systems:</strong> Certain processes are
+strictly exempt from being killed. This includes PID 1 (system init,
+such as systemd) and core kernel threads. If PID 1 were terminated, the
+entire operating system would crash immediately.</li>
+<li><strong>Process Lineage:</strong> The kernel generally avoids
+terminating an entire process hierarchy if killing a single child
+process can reclaim sufficient memory.</li>
+</ul>
+<h3 id="manual-tuning-with-oom_score_adj">Manual Tuning with
+<code>oom_score_adj</code></h3>
+<p>Administrators can influence the OOM killer's calculations through
+the <code>/proc</code> filesystem on a per-process basis using the
+<code>/proc/[pid]/oom_score_adj</code> file.</p>
+<p>This value accepts integers ranging from <code>-1000</code> to
+<code>1000</code>:</p>
+<ul>
+<li>Setting a value of <code>-1000</code> grants the process total
+immunity from the OOM killer.</li>
+<li>Setting a value of <code>1000</code> makes the process the primary
+target whenever an OOM condition occurs.</li>
+<li>Intermediate values proportionally increase or decrease the
+calculated badness score.</li>
+</ul>
+<p>A read-only file, <code>/proc/[pid]/oom_score</code>, displays the
+final calculated value combining raw memory usage and the adjustment
+score.</p>
+<h3 id="termination-and-recovery">Termination and Recovery</h3>
+<p>Once the kernel selects the process with the highest score, it
+immediately issues a <code>SIGKILL</code> (signal 9) to that task.
+Because <code>SIGKILL</code> cannot be caught, blocked, or ignored by
+the application, the process ceases execution immediately, and the
+kernel reclaims its mapped memory pages.</p>
+<p>The event is recorded in the system log (accessible via
+<code>dmesg</code> or <code>/var/log/syslog</code>), containing details
+such as the killed process name, PID, memory usage statistics at the
+time of the event, and the total memory state of the host. If
+terminating the selected process does not release enough memory fast
+enough, the OOM killer will execute repeatedly until system stability is
+restored.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

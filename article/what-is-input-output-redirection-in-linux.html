@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>What Is Input Output Redirection in Linux? - linux</title>
+    <meta name="description" content="Input and output (I/O) redirection in the Linux command line is a mechanism that allows users to change the default sources of input and destinations for output when running commands. By default, Linux commands receive input from your keyboard and displa">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/what-is-input-output-redirection-in-linux">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="What Is Input Output Redirection in Linux? - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/what-is-input-output-redirection-in-linux" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="Input and output (I/O) redirection in the Linux command line is a mechanism that allows users to change the default sources of input and destinations for output when running commands. By default, Linux commands receive input from your keyboard and displa" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="what-is-input-output-redirection-in-linux">What Is Input Output
+Redirection in Linux?</h1>
+<p>Input and output (I/O) redirection in the Linux command line is a
+mechanism that allows users to change the default sources of input and
+destinations for output when running commands. By default, Linux
+commands receive input from your keyboard and display output or errors
+directly on your terminal screen. By using redirection operators, you
+can instruct the shell to read input from a file instead of the
+keyboard, save command output to a file, or separate error messages from
+standard output.</p>
+<h3 id="the-three-standard-streams">The Three Standard Streams</h3>
+<p>Every command executed in the Linux shell automatically opens three
+data streams, each identified by a numeric file descriptor (FD):</p>
+<ol type="1">
+<li><strong>Standard Input (<code>stdin</code>, FD 0):</strong> The
+default stream that provides data to a command, usually originating from
+the keyboard.</li>
+<li><strong>Standard Output (<code>stdout</code>, FD 1):</strong> The
+default stream that carries the normal output of a command, typically
+displayed in the terminal window.</li>
+<li><strong>Standard Error (<code>stderr</code>, FD 2):</strong> The
+default stream dedicated to error messages, separated from regular
+output so diagnostics are not mixed with expected data.</li>
+</ol>
+<h3 id="output-redirection-stdout">Output Redirection
+(<code>stdout</code>)</h3>
+<p>Output redirection sends the standard output of a command to a file
+instead of the screen.</p>
+<ul>
+<li><strong>Overwrite (<code>&gt;</code>):</strong> Directs output to a
+file. If the target file already exists, its contents are overwritten.
+If it does not exist, a new file is created.
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ls</span> <span class="at">-l</span> <span class="op">&gt;</span> directory_list.txt</span></code></pre></div></li>
+<li><strong>Append (<code>&gt;&gt;</code>):</strong> Directs output to
+the end of a specified file without deleting existing contents.
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">date</span> <span class="op">&gt;&gt;</span> log.txt</span></code></pre></div></li>
+</ul>
+<h3 id="error-redirection-stderr">Error Redirection
+(<code>stderr</code>)</h3>
+<p>Because <code>stderr</code> uses file descriptor 2, you must
+explicitly reference the descriptor number when redirecting errors.</p>
+<ul>
+<li><strong>Redirect errors only (<code>2&gt;</code>):</strong> Captures
+error messages to a file.
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ls</span> /nonexistent-path <span class="dv">2</span><span class="op">&gt;</span> error.log</span></code></pre></div></li>
+<li><strong>Redirect both <code>stdout</code> and <code>stderr</code>
+(<code>&amp;&gt;</code> or <code>2&gt;&amp;1</code>):</strong> Combines
+standard output and error messages into a single destination.
+<div class="sourceCode" id="cb4"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="bu">command</span> <span class="op">&gt;</span> output.txt <span class="dv">2</span><span class="op">&gt;&amp;</span><span class="dv">1</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Alternatively:</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="bu">command</span> <span class="op">&amp;&gt;</span> output.txt</span></code></pre></div></li>
+<li><strong>Discard output (<code>/dev/null</code>):</strong> Silences
+errors or output entirely by routing the stream to the null device.
+<div class="sourceCode" id="cb5"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="bu">command</span> <span class="dv">2</span><span class="op">&gt;</span> /dev/null</span></code></pre></div></li>
+</ul>
+<h3 id="input-redirection-stdin">Input Redirection
+(<code>stdin</code>)</h3>
+<p>Input redirection allows a command to read data from a file rather
+than waiting for keyboard input.</p>
+<ul>
+<li><strong>Redirect standard input (<code>&lt;</code>):</strong> Passes
+the contents of a file to a program's <code>stdin</code>.
+<div class="sourceCode" id="cb6"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">wc</span> <span class="at">-l</span> <span class="op">&lt;</span> data.csv</span></code></pre></div></li>
+<li><strong>Here Document (<code>&lt;&lt;</code>):</strong> Allows
+multi-line input directly from the command line until a specified
+delimiter is encountered.
+<div class="sourceCode" id="cb7"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span> <span class="op">&lt;&lt; EOF</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="st">Line 1</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="st">Line 2</span></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a><span class="op">EOF</span></span></code></pre></div></li>
+</ul>
+<h3 id="redirection-vs-pipelines">Redirection vs. Pipelines</h3>
+<p>While redirection operators (<code>&lt;</code>, <code>&gt;</code>,
+<code>&gt;&gt;</code>) route streams between commands and files or
+devices, the pipe operator (<code>|</code>) connects the standard output
+of one command directly into the standard input of another command.
+Understanding and combining both techniques allows for powerful and
+flexible automation scripts in the Linux shell.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

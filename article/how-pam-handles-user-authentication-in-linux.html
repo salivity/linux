@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How PAM Handles User Authentication in Linux - linux</title>
+    <meta name="description" content="Pluggable Authentication Modules (PAM) provide a flexible, modular architecture for managing user authentication across various services and applications in the Linux operating system. By decoupling system authentication mechanisms from individual softwa">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-pam-handles-user-authentication-in-linux">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How PAM Handles User Authentication in Linux - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-pam-handles-user-authentication-in-linux" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="Pluggable Authentication Modules (PAM) provide a flexible, modular architecture for managing user authentication across various services and applications in the Linux operating system. By decoupling system authentication mechanisms from individual softwa" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-pam-handles-user-authentication-in-linux">How PAM Handles
+User Authentication in Linux</h1>
+<p>Pluggable Authentication Modules (PAM) provide a flexible, modular
+architecture for managing user authentication across various services
+and applications in the Linux operating system. By decoupling system
+authentication mechanisms from individual software applications, PAM
+allows system administrators to customize security policies, integrate
+multi-factor authentication, and update credentials without modifying or
+recompiling the underlying programs. This article breaks down how PAM
+functions, its core module types, control flags, and the step-by-step
+workflow of authenticating a Linux user.</p>
+<h3 id="the-purpose-of-pam">The Purpose of PAM</h3>
+<p>Before PAM, every program that required authentication—such as
+<code>login</code>, <code>su</code>, or <code>ftp</code>—contained its
+own hardcoded authentication logic. If an administrator wanted to switch
+from traditional <code>/etc/passwd</code> files to an enterprise
+directory service like LDAP or Kerberos, every application had to be
+rewritten or recompiled. PAM solves this by providing a unified API.
+Applications delegate the authentication process to PAM, which
+dynamically loads external shared libraries to evaluate and verify
+credentials.</p>
+<h3 id="pam-configuration-structure">PAM Configuration Structure</h3>
+<p>PAM configuration settings are typically stored in the
+<code>/etc/pam.d/</code> directory, where each application or service
+has its own dedicated configuration file (such as
+<code>/etc/pam.d/sshd</code> or <code>/etc/pam.d/sudo</code>). If a
+specific configuration file is missing, the system falls back to the
+default rules defined in <code>/etc/pam.d/other</code>.</p>
+<p>Each line in a PAM configuration file consists of three to four
+primary fields:</p>
+<pre class="text"><code>module_interface  control_flag  module_name  [module_arguments]</code></pre>
+<h3 id="the-four-pam-module-interfaces">The Four PAM Module
+Interfaces</h3>
+<p>PAM organizes authentication tasks into four distinct management
+groups, also known as interfaces:</p>
+<ol type="1">
+<li><strong><code>auth</code> (Authentication):</strong> Verifies the
+user's identity, typically by requesting and validating a password,
+smart card, or biometric scan. It can also establish credentials, such
+as group memberships or Kerberos tickets.</li>
+<li><strong><code>account</code> (Account Management):</strong> Checks
+whether an authenticated user is permitted to access the system. It
+enforces policies such as account expiration, password aging, and access
+time restrictions.</li>
+<li><strong><code>password</code> (Password Management):</strong>
+Handles updating and managing authentication tokens. It enforces
+complexity requirements (e.g., minimum length, character sets) when a
+user changes their password.</li>
+<li><strong><code>session</code> (Session Management):</strong>
+Configures and tears down the user environment before and after access
+is granted. Tasks include mounting home directories, logging login
+records, and setting resource limits via
+<code>pam_limits.so</code>.</li>
+</ol>
+<h3 id="pam-control-flags">PAM Control Flags</h3>
+<p>Multiple modules can be stacked under the same interface. PAM
+processes these modules in order, using control flags to determine how
+the success or failure of each module affects the overall outcome:</p>
+<ul>
+<li><strong><code>required</code>:</strong> The module must succeed for
+the overall interface to succeed. However, if it fails, PAM continues
+executing the remaining modules in the stack to prevent timing-based
+security disclosures.</li>
+<li><strong><code>requisite</code>:</strong> The module must succeed.
+Unlike <code>required</code>, an immediate failure terminates execution
+of the stack, and PAM immediately returns an error.</li>
+<li><strong><code>sufficient</code>:</strong> If this module succeeds
+and no prior <code>required</code> modules have failed, PAM immediately
+grants access for this interface without evaluating the rest of the
+stack. If it fails, the failure is ignored, and the stack
+continues.</li>
+<li><strong><code>optional</code>:</strong> The result of this module is
+generally ignored unless it is the only module defined for that
+interface.</li>
+</ul>
+<p>Modern PAM configurations also support complex syntax using brackets
+(e.g., <code>[success=ok new_authtok_reqd=done default=ignore]</code>)
+to define explicit return-code jumps.</p>
+<h3 id="the-authentication-workflow">The Authentication Workflow</h3>
+<p>When a user attempts to log in to a Linux system, PAM executes the
+request through a structured sequence:</p>
+<ol type="1">
+<li><strong>Initialization:</strong> The application (e.g., OpenSSH)
+calls the PAM library function <code>pam_start()</code>, passing the
+service name and the username.</li>
+<li><strong>Configuration Lookup:</strong> PAM reads the corresponding
+configuration file in <code>/etc/pam.d/</code> for that service.</li>
+<li><strong>Module Execution:</strong> PAM traverses the stacked modules
+defined for the requested interface (usually starting with
+<code>auth</code>).</li>
+<li><strong>User Prompting:</strong> If a module requires input, PAM
+invokes the application's conversation function to prompt the user
+(e.g., displaying a "Password:" prompt).</li>
+<li><strong>Credential Verification:</strong> The module validates the
+input against its backend, such as local shadow files
+(<code>pam_unix.so</code>), an LDAP directory
+(<code>pam_ldap.so</code>), or an OTP token
+(<code>pam_google_authenticator.so</code>).</li>
+<li><strong>Stack Evaluation:</strong> PAM processes all subsequent
+modules based on their control flags until a definitive pass or fail
+decision is reached.</li>
+<li><strong>Session Setup and Teardown:</strong> Once <code>auth</code>
+and <code>account</code> modules succeed, the application calls
+<code>pam_open_session()</code> to initialize the environment. When the
+user logs out, <code>pam_close_session()</code> and
+<code>pam_end()</code> cleanly terminate the session and free
+resources.</li>
+</ol></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

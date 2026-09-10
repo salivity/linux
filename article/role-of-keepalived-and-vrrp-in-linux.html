@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Role of Keepalived and VRRP in Linux - linux</title>
+    <meta name="description" content="The Keepalived daemon is a lightweight, open-source routing software designed to provide high availability and load balancing for Linux-based infrastructures. At its core, Keepalived implements the Virtual Router Redundancy Protocol (VRRP) to eliminate s">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/role-of-keepalived-and-vrrp-in-linux">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Role of Keepalived and VRRP in Linux - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/role-of-keepalived-and-vrrp-in-linux" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="The Keepalived daemon is a lightweight, open-source routing software designed to provide high availability and load balancing for Linux-based infrastructures. At its core, Keepalived implements the Virtual Router Redundancy Protocol (VRRP) to eliminate s" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="role-of-keepalived-and-vrrp-in-linux">Role of Keepalived and
+VRRP in Linux</h1>
+<p>The Keepalived daemon is a lightweight, open-source routing software
+designed to provide high availability and load balancing for Linux-based
+infrastructures. At its core, Keepalived implements the Virtual Router
+Redundancy Protocol (VRRP) to eliminate single points of failure by
+grouping multiple physical Linux servers into a single, resilient
+logical router. This article examines the function of Keepalived, how it
+utilizes VRRP to manage Virtual IP addresses (VIPs), and how its
+health-checking mechanisms ensure continuous service uptime.</p>
+<h3 id="what-is-keepalived">What Is Keepalived?</h3>
+<p>Keepalived is a modular userspace daemon written in C for the Linux
+operating system. While it provides frameworks for IP Virtual Server
+(IPVS) load balancing, its primary role in system architecture is
+providing robust failover capabilities using VRRP. VRRP is an open
+standard protocol (defined in RFC 5798) that allows two or more network
+devices to share a common IP address, designated as the Virtual IP
+(VIP).</p>
+<h3 id="the-implementation-of-vrrp">The Implementation of VRRP</h3>
+<p>Keepalived implements the VRRP stack natively to manage the lifecycle
+of the Virtual IP across a cluster:</p>
+<ul>
+<li><strong>State Machine:</strong> Each node in a Keepalived VRRP
+instance operates in one of three states: <code>INITIALIZE</code>,
+<code>MASTER</code>, or <code>BACKUP</code>. The node with the highest
+configured priority typically transitions to the <code>MASTER</code>
+state, assuming control of the VIP and binding it to its local network
+interface.</li>
+<li><strong>Heartbeats and Advertisements:</strong> The
+<code>MASTER</code> node continuously transmits periodic VRRP
+advertisement packets (usually at one-second intervals via multicast or
+unicast) to inform <code>BACKUP</code> nodes of its operational
+status.</li>
+<li><strong>Automatic Election and Failover:</strong> If the
+<code>BACKUP</code> nodes fail to receive advertisement packets within a
+specified dead interval (typically three times the advertisement timer),
+the election process triggers. The <code>BACKUP</code> node with the
+next highest priority promotes itself to <code>MASTER</code>, claims the
+VIP, and transmits Gratuitous ARP (GARP) packets to update the ARP
+tables of surrounding network switches and routers.</li>
+</ul>
+<h3 id="health-checking-and-dynamic-failover">Health Checking and
+Dynamic Failover</h3>
+<p>A static VRRP deployment only detects if the operating system or
+network link of the active node fails entirely. Keepalived extends
+standard VRRP functionality by integrating dynamic health-checking
+scripts (<code>track_script</code>).</p>
+<p>These scripts allow Keepalived to monitor the status of local
+application services, such as Nginx, HAProxy, or database daemons. If a
+monitored service becomes unresponsive, the script returns an error
+code, prompting Keepalived to dynamically lower the node's VRRP priority
+or transition it directly to a <code>FAULT</code> state. This triggers
+an immediate, graceful failover to a healthy backup node before a
+complete system crash occurs.</p>
+<h3 id="key-architectural-benefits">Key Architectural Benefits</h3>
+<p>Deploying Keepalived for VRRP on Linux provides distinct operational
+advantages:</p>
+<ul>
+<li><strong>Seamless Redundancy:</strong> End-user clients target a
+single VIP and remain unaffected when individual physical nodes are
+taken down for maintenance or suffer hardware crashes.</li>
+<li><strong>Low Resource Footprint:</strong> Keepalived runs natively in
+user space with minimal memory and CPU overhead, making it suitable for
+both virtual machines and bare-metal environments.</li>
+<li><strong>Vendor-Agnostic HA:</strong> It enables enterprises to build
+fully redundant layer-3/layer-4 gateway and routing solutions on
+standard Linux distributions without relying on proprietary enterprise
+hardware appliances.</li>
+</ul></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

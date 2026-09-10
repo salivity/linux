@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How Linux Implements Seccomp to Restrict System Calls - linux</title>
+    <meta name="description" content="This article provides an overview of how the Linux kernel implements Secure Computing Mode (seccomp) to restrict the system calls a process can execute. It covers the evolution from strict seccomp to flexible Berkeley Packet Filter (BPF) filtering, the i">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-linux-implements-seccomp-to-restrict-system-calls">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How Linux Implements Seccomp to Restrict System Calls - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-linux-implements-seccomp-to-restrict-system-calls" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="This article provides an overview of how the Linux kernel implements Secure Computing Mode (seccomp) to restrict the system calls a process can execute. It covers the evolution from strict seccomp to flexible Berkeley Packet Filter (BPF) filtering, the i" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-linux-implements-seccomp-to-restrict-system-calls">How Linux
+Implements Seccomp to Restrict System Calls</h1>
+<p>This article provides an overview of how the Linux kernel implements
+Secure Computing Mode (seccomp) to restrict the system calls a process
+can execute. It covers the evolution from strict seccomp to flexible
+Berkeley Packet Filter (BPF) filtering, the internal kernel mechanics
+that intercept system calls, the execution of filter programs, and how
+process inheritance and privilege controls ensure that sandboxing
+policies cannot be bypassed.</p>
+<h3 id="the-two-modes-of-seccomp">The Two Modes of Seccomp</h3>
+<p>Linux provides two distinct operational modes for seccomp, configured
+primarily through the <code>seccomp()</code> system call or legacy
+<code>prctl()</code> operations:</p>
+<ol type="1">
+<li><strong>Strict Mode (<code>SECCOMP_SET_MODE_STRICT</code>):</strong>
+The original, hardcoded implementation introduced in Linux 2.6.12. In
+this mode, a process is restricted strictly to four system calls:
+<code>read()</code>, <code>write()</code>, <code>_exit()</code>, and
+<code>sigreturn()</code>. Attempting any other system call causes the
+kernel to immediately terminate the process with a <code>SIGKILL</code>
+signal.</li>
+<li><strong>Filter Mode (<code>SECCOMP_SET_MODE_FILTER</code>):</strong>
+Introduced in Linux 3.5, this mode allows developers to define
+fine-grained, programmable allowlists and blocklists using classic
+Berkeley Packet Filter (cBPF) bytecode.</li>
+</ol>
+<h3 id="system-call-inspection-with-cbpf">System Call Inspection with
+cBPF</h3>
+<p>Under filter mode, the kernel treats incoming system calls similarly
+to network packets. Before a system call executes, the kernel constructs
+a read-only metadata structure named <code>struct seccomp_data</code>
+and feeds it to the user-supplied BPF program:</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode c"><code class="sourceCode c"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> seccomp_data <span class="op">{</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    <span class="dt">int</span> nr<span class="op">;</span>                    <span class="co">/* System call number */</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    __u32 arch<span class="op">;</span>                <span class="co">/* Architecture ABI (e.g., AUDIT_ARCH_X86_64) */</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>    __u64 instruction_pointer<span class="op">;</span> <span class="co">/* CPU instruction pointer */</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>    __u64 args<span class="op">[</span><span class="dv">6</span><span class="op">];</span>             <span class="co">/* System call arguments */</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="op">};</span></span></code></pre></div>
+<p>The filter evaluates this data and returns a 32-bit status code that
+dictates the kernel's response:</p>
+<ul>
+<li><strong><code>SECCOMP_RET_ALLOW</code>:</strong> The system call is
+executed normally.</li>
+<li><strong><code>SECCOMP_RET_KILL_PROCESS</code> /
+<code>SECCOMP_RET_KILL_THREAD</code>:</strong> Terminates the process or
+calling thread immediately.</li>
+<li><strong><code>SECCOMP_RET_ERRNO</code>:</strong> Skips the system
+call and returns a specific <code>errno</code> value directly to user
+space without executing the kernel routine.</li>
+<li><strong><code>SECCOMP_RET_TRAP</code>:</strong> Leaves the system
+call unexecuted and raises a <code>SIGSYS</code> signal, allowing the
+process to handle the violation.</li>
+<li><strong><code>SECCOMP_RET_TRACE</code>:</strong> Notifies a
+<code>ptrace</code>-attached debugger, allowing external inspection or
+modification.</li>
+<li><strong><code>SECCOMP_RET_LOG</code>:</strong> Executes the call but
+logs the event to the system audit framework.</li>
+</ul>
+<h3 id="kernel-interception-and-execution-flow">Kernel Interception and
+Execution Flow</h3>
+<p>The enforcement of seccomp is integrated directly into the kernel's
+low-level system call entry path:</p>
+<ol type="1">
+<li><strong>Thread Flag Verification:</strong> When a process installs a
+seccomp filter, the kernel sets the <code>_TIF_SECCOMP</code> thread
+information flag in the task's <code>thread_info</code> structure.</li>
+<li><strong>Entry Point Interception:</strong> Whenever the thread
+issues a software interrupt or executes a dedicated instruction (such as
+<code>syscall</code> on x86-64), the architecture-specific assembly
+entry handler checks for active thread flags.</li>
+<li><strong>Filter Evaluation:</strong> If <code>_TIF_SECCOMP</code> is
+set, control diverts to <code>__secure_computing()</code>. This invokes
+<code>seccomp_run_filters()</code>, which steps through all installed
+BPF programs attached to the process's <code>struct seccomp</code>
+container.</li>
+<li><strong>Action Resolution:</strong> If multiple filters exist, the
+kernel runs all of them in reverse chronological order and selects the
+return value with the highest precedence (the most restrictive
+action).</li>
+<li><strong>Dispatch or Abort:</strong> If the resolved action is
+<code>SECCOMP_RET_ALLOW</code>, the kernel passes execution to the
+target system call handler. Otherwise, the kernel aborts execution, sets
+register return values, or raises signals as instructed.</li>
+</ol>
+<h3 id="security-guarantees-and-filter-inheritance">Security Guarantees
+and Filter Inheritance</h3>
+<p>To prevent unprivileged processes from subverting restrictions, Linux
+enforces two critical behavioral models:</p>
+<ul>
+<li><strong>Privilege Restriction (<code>no_new_privs</code>):</strong>
+Before an unprivileged process can load a seccomp filter, it must enable
+the <code>no_new_privs</code> bit via
+<code>prctl(PR_SET_NO_NEW_PRIVS, 1, ...)</code>. This bit guarantees
+that operations like <code>execve()</code> cannot elevate privileges
+through set-user-ID (SUID) or set-group-ID (SGID) binaries, preventing a
+restricted process from imposing an altered environment onto a
+privileged executable.</li>
+<li><strong>Filter Stacking and Inheritance:</strong> Seccomp filters
+cannot be removed or modified once installed. When a process forks,
+clones, or executes a new binary, child processes inherit all existing
+filters. New filters can only be appended to the chain, ensuring that
+security boundaries can only become progressively more restrictive over
+a program's lifecycle.</li>
+</ul></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

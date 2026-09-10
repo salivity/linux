@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How the Linux Clear Command Affects Terminal Buffer - linux</title>
+    <meta name="description" content="The Linux clear command is standard utility used to declutter the command-line interface, but its effect on the underlying terminal buffer depends heavily on modern implementation standards and terminal emulator support. While it visually resets the acti">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-the-linux-clear-command-affects-terminal-buffer">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How the Linux Clear Command Affects Terminal Buffer - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-the-linux-clear-command-affects-terminal-buffer" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="The Linux clear command is standard utility used to declutter the command-line interface, but its effect on the underlying terminal buffer depends heavily on modern implementation standards and terminal emulator support. While it visually resets the acti" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-the-linux-clear-command-affects-terminal-buffer">How the
+Linux Clear Command Affects Terminal Buffer</h1>
+<p>The Linux <code>clear</code> command is standard utility used to
+declutter the command-line interface, but its effect on the underlying
+terminal buffer depends heavily on modern implementation standards and
+terminal emulator support. While it visually resets the active screen,
+its interaction with the scrollback buffer—the history of previous
+inputs and outputs—ranges from temporarily hiding data off-screen to
+permanently purging memory, determined by the specific control sequences
+sent to the terminal.</p>
+<h3 id="the-two-components-of-terminal-display-memory">The Two
+Components of Terminal Display Memory</h3>
+<p>To understand how <code>clear</code> functions, you must distinguish
+between two areas of terminal display memory:</p>
+<ol type="1">
+<li><strong>The Active Viewport:</strong> The currently visible grid of
+rows and columns displayed inside the terminal window.</li>
+<li><strong>The Scrollback Buffer:</strong> The reserved memory that
+stores lines that have scrolled off the top of the active viewport,
+allowing you to scroll up and review command history.</li>
+</ol>
+<h3 id="traditional-behavior-clearing-the-viewport-only">Traditional
+Behavior: Clearing the Viewport Only</h3>
+<p>Historically, the <code>clear</code> command read the terminal's
+capabilities from the <code>terminfo</code> database and emitted the
+standard ANSI escape sequence <code>ESC [ H ESC [ 2 J</code> (or
+<code>\033[H\033[2J</code>).</p>
+<ul>
+<li><code>\033[H</code> moves the cursor to the top-left corner (home
+position).</li>
+<li><code>\033[2J</code> clears the entire active viewport.</li>
+</ul>
+<p>Under this traditional behavior, the terminal buffer is not deleted.
+The existing output is merely pushed out of view into the scrollback
+buffer. If you scroll up using a mouse wheel or keyboard shortcuts (like
+<code>Shift + PageUp</code>), all previous terminal interactions remain
+visible and intact.</p>
+<h3 id="modern-behavior-wiping-the-scrollback-buffer">Modern Behavior:
+Wiping the Scrollback Buffer</h3>
+<p>Modern versions of the <code>clear</code> utility (distributed as
+part of the <code>ncurses</code> package) include the <code>E3</code>
+capability. When executed, it sends an extended escape sequence:
+<code>ESC [ 3 J</code> (or <code>\033[3J</code>).</p>
+<ul>
+<li><code>\033[3J</code> explicitly commands the terminal emulator to
+delete all lines stored in the scrollback buffer.</li>
+</ul>
+<p>In modern Linux distributions running standard terminal emulators
+(such as GNOME Terminal, Alacritty, or Kitty), running
+<code>clear</code> erases both the active viewport and the scrollback
+buffer entirely. Once executed, you cannot scroll up to view prior
+commands or output; the data is cleared from the terminal application's
+memory.</p>
+<h3 id="preserving-scrollback-with-clear--x">Preserving Scrollback with
+<code>clear -x</code></h3>
+<p>If you want to clear the visible screen without destroying the
+scrollback buffer on modern systems, use the <code>-x</code> flag:</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">clear</span> <span class="at">-x</span></span></code></pre></div>
+<p>The <code>-x</code> modifier instructs the command not to invoke the
+<code>E3</code> capability, limiting the reset operation strictly to the
+visible viewport (<code>\033[2J</code>) and leaving the scrollback
+history accessible.</p>
+<h3 id="emulator-and-multiplexer-variations">Emulator and Multiplexer
+Variations</h3>
+<p>The actual effect on the buffer ultimately relies on how the running
+terminal program interprets these escape sequences:</p>
+<ul>
+<li><strong>Terminal Emulators:</strong> Most graphical terminal
+emulators support <code>\033[3J</code> and immediately discard their
+scrollback memory.</li>
+<li><strong>Terminal Multiplexers (<code>tmux</code>,
+<code>screen</code>):</strong> Multiplexers maintain independent
+internal scrollback buffers. Running <code>clear</code> inside a
+<code>tmux</code> pane will clear the visible pane and the pane's
+immediate viewport, but <code>tmux</code>'s internal copy-mode buffer
+may require a dedicated multiplexer command (such as
+<code>clear-history</code>) to be fully wiped.</li>
+</ul></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

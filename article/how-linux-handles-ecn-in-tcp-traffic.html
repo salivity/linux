@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How Linux Handles ECN in TCP Traffic - linux</title>
+    <meta name="description" content="Explicit Congestion Notification (ECN) allows the Linux operating system to detect and respond to network congestion without relying on dropped packets. In TCP traffic, the Linux kernel implements ECN by negotiating capabilities during the three-way hand">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-linux-handles-ecn-in-tcp-traffic">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How Linux Handles ECN in TCP Traffic - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-linux-handles-ecn-in-tcp-traffic" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="Explicit Congestion Notification (ECN) allows the Linux operating system to detect and respond to network congestion without relying on dropped packets. In TCP traffic, the Linux kernel implements ECN by negotiating capabilities during the three-way hand" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-linux-handles-ecn-in-tcp-traffic">How Linux Handles ECN in
+TCP Traffic</h1>
+<p>Explicit Congestion Notification (ECN) allows the Linux operating
+system to detect and respond to network congestion without relying on
+dropped packets. In TCP traffic, the Linux kernel implements ECN by
+negotiating capabilities during the three-way handshake, interpreting
+Congestion Experienced (CE) marks placed by intermediate routers in the
+IP header, signaling back via TCP flags, and adjusting the congestion
+window accordingly. Through fine-grained kernel <code>sysctl</code>
+configurations, Linux provides a reliable mechanism to reduce latency,
+prevent packet retransmissions, and sustain high throughput under heavy
+network load.</p>
+<h3 id="ecn-negotiation-via-the-tcp-handshake">ECN Negotiation via the
+TCP Handshake</h3>
+<p>Before ECN can be utilized, both endpoints must agree to use it
+during the initial TCP three-way handshake:</p>
+<ol type="1">
+<li><strong>SYN Packet:</strong> The Linux client advertises ECN support
+by setting both the ECN-Echo (ECE) and Congestion Window Reduced (CWR)
+flags in the TCP header of the initial SYN packet.</li>
+<li><strong>SYN-ACK Packet:</strong> If the responding Linux server
+supports ECN, it replies with a SYN-ACK packet with only the ECE flag
+set.</li>
+<li><strong>ACK Packet:</strong> The client completes the handshake with
+a standard ACK packet, establishing an ECN-capable TCP session.</li>
+</ol>
+<p>If either endpoint does not support ECN or if an intermediate
+middlebox clears these flags, the Linux kernel automatically falls back
+to standard, non-ECN TCP operation.</p>
+<h3 id="ip-level-packet-marking">IP-Level Packet Marking</h3>
+<p>Once negotiated, the Linux networking stack sets the ECN field in the
+IP header of outgoing data packets. The IP header uses the two
+least-significant bits of the Differentiated Services (DiffServ)
+field:</p>
+<ul>
+<li><strong>00 (Non-ECT):</strong> Non-ECN-Capable Transport.</li>
+<li><strong>10 (ECT(0)) or 01 (ECT(1)):</strong> ECN-Capable Transport.
+Linux typically marks data packets as ECT(0).</li>
+<li><strong>11 (CE):</strong> Congestion Experienced.</li>
+</ul>
+<p>When an intermediate router encounters buffer buildup, instead of
+dropping an ECT-marked packet (tail drop or active queue management like
+RED/CoDel), it rewrites the IP bits to <code>11</code> (CE) and forwards
+the packet to its destination.</p>
+<h3 id="handling-congestion-signals-in-the-linux-stack">Handling
+Congestion Signals in the Linux Stack</h3>
+<p>When the receiving Linux host accepts a packet marked with CE in the
+IP header, it acknowledges the congestion event back to the sender
+through the TCP header:</p>
+<ol type="1">
+<li><strong>ECE Generation:</strong> The receiver sets the ECE flag on
+subsequent TCP ACK packets sent back to the sender. It continues setting
+ECE on ACKs until the sender acknowledges the notification.</li>
+<li><strong>Sender Reaction:</strong> When the transmitting Linux host
+receives an ACK with the ECE bit set, it invokes its active congestion
+control algorithm (such as CUBIC, BBR, or DCTCP). The kernel reduces the
+Congestion Window (<code>cwnd</code>) and the Slow Start Threshold
+(<code>ssthresh</code>) in a manner similar to handling a single packet
+loss event.</li>
+<li><strong>CWR Acknowledgment:</strong> The sender then sets the CWR
+flag on the next outgoing data packet. This informs the receiver that
+the sender has responded to the congestion event, allowing the receiver
+to stop setting the ECE flag on subsequent ACKs.</li>
+</ol>
+<p>Because the window reduction happens without an actual packet drop,
+the connection avoids costly packet retransmissions and prevents TCP
+fast recovery timeouts.</p>
+<h3 id="linux-kernel-configuration">Linux Kernel Configuration</h3>
+<p>Linux manages ECN behavior through <code>sysctl</code> settings
+located in <code>/proc/sys/net/ipv4/</code>:</p>
+<ul>
+<li><strong><code>net.ipv4.tcp_ecn</code></strong>:
+<ul>
+<li><code>0</code>: Completely disables ECN. The kernel will neither
+request nor accept ECN negotiation.</li>
+<li><code>1</code>: Fully enables ECN. The kernel requests ECN on
+outgoing connections and accepts incoming requests.</li>
+<li><code>2</code> (Default in many distributions): Enables ECN only
+when requested by incoming connections (server mode), but does not
+request ECN when initiating outbound connections.</li>
+</ul></li>
+<li><strong><code>net.ipv4.tcp_ecn_fallback</code></strong>:
+<ul>
+<li>When set to <code>1</code> (default), the Linux kernel automatically
+retries connection attempts without ECN flags if an initial ECN-enabled
+SYN packet drops or fails to receive an acknowledgment, mitigating
+issues caused by outdated middleboxes that drop ECN packets.</li>
+</ul></li>
+</ul></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How Linux Manages Virtual Desktops and Workspaces - linux</title>
+    <meta name="description" content="Virtual desktops, commonly referred to as workspaces in Linux, allow users to organize running applications across separate, switchable screen environments. Rather than relying on the Linux kernel itself, this functionality is implemented at the graphica">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-linux-manages-virtual-desktops-and-workspaces">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How Linux Manages Virtual Desktops and Workspaces - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-linux-manages-virtual-desktops-and-workspaces" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="Virtual desktops, commonly referred to as workspaces in Linux, allow users to organize running applications across separate, switchable screen environments. Rather than relying on the Linux kernel itself, this functionality is implemented at the graphica" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-linux-manages-virtual-desktops-and-workspaces">How Linux
+Manages Virtual Desktops and Workspaces</h1>
+<p>Virtual desktops, commonly referred to as workspaces in Linux, allow
+users to organize running applications across separate, switchable
+screen environments. Rather than relying on the Linux kernel itself,
+this functionality is implemented at the graphical user interface (GUI)
+layer by the window manager or Wayland compositor in coordination with
+the display server. By manipulating window states, memory rendering
+pipelines, and display visibility properties, the system creates the
+illusion of multiple monitors on a single physical screen without
+requiring duplicate operating system instances.</p>
+<h3 id="the-role-of-window-managers-and-compositors">The Role of Window
+Managers and Compositors</h3>
+<p>In Linux, the core operating system kernel has no concept of windows
+or workspaces; it only manages system hardware, processes, and memory.
+Workspaces are entirely managed by the GUI stack, specifically the
+window manager (WM) or compositor:</p>
+<ul>
+<li><strong>Desktop Environments:</strong> Suites like GNOME, KDE
+Plasma, and XFCE provide the overall interface framework.</li>
+<li><strong>Window Managers/Compositors:</strong> Engines such as Mutter
+(GNOME), KWin (KDE), or standalone tiling managers like i3 and Sway
+directly control window placement, rendering, and workspace logic.</li>
+</ul>
+<p>When an application launches, the window manager assigns it an
+internal identifier and associates it with a specific workspace ID.</p>
+<h3 id="workspace-handling-in-x11">Workspace Handling in X11</h3>
+<p>Under the legacy X11 display server architecture, workspace behavior
+relies on a standardized set of specifications called Extended Window
+Manager Hints (EWMH).</p>
+<ol type="1">
+<li><strong>Property Tagging:</strong> The window manager assigns a
+property named <code>_NET_WM_DESKTOP</code> to each application window,
+containing the integer ID of its assigned workspace.</li>
+<li><strong>Visibility Control:</strong> When you switch to a different
+workspace, the window manager does not terminate or pause hidden
+applications. Instead, it instructs the X server to either "unmap" the
+windows (remove them from the active display tree) or translate their
+coordinates off-screen (e.g., moving them thousands of pixels away from
+the visible viewport).</li>
+<li><strong>Restoration:</strong> Switching back maps the windows again
+or returns their coordinates to the visible screen area, instantly
+restoring their state.</li>
+</ol>
+<h3 id="workspace-handling-in-wayland">Workspace Handling in
+Wayland</h3>
+<p>Modern Linux distributions predominantly use Wayland, which merges
+the roles of the display server and the window manager into a single
+process called the compositor.</p>
+<ol type="1">
+<li><strong>Direct Scene Graph Management:</strong> Wayland does not use
+global window properties like X11. Instead, the compositor maintains an
+internal scene graph containing all application surfaces.</li>
+<li><strong>Selective Rendering:</strong> The compositor determines
+which surfaces belong to the currently active workspace. Surfaces
+belonging to inactive workspaces are simply excluded from the final
+rendering pass sent to the GPU and monitor.</li>
+<li><strong>Enhanced Security and Isolation:</strong> Because
+applications under Wayland cannot see or interact with surfaces
+belonging to other applications, background workspaces enjoy greater
+security and isolation than under X11.</li>
+</ol>
+<h3 id="process-execution-and-resource-allocation">Process Execution and
+Resource Allocation</h3>
+<p>Regardless of whether X11 or Wayland is in use, processes on inactive
+workspaces remain fully active in system memory (RAM) and continue
+executing CPU cycles:</p>
+<ul>
+<li><strong>Background Tasks:</strong> Audio playback, downloads,
+compiles, and network transfers continue uninterrupted when switched
+away from their workspace.</li>
+<li><strong>GPU Throttling:</strong> Many modern compositors suspend or
+reduce graphical draw calls (vsync events) for windows on inactive
+workspaces to conserve GPU resources and reduce power consumption.</li>
+</ul>
+<h3 id="dynamic-vs-static-workspaces">Dynamic vs. Static Workspaces</h3>
+<p>Linux desktop environments typically implement workspaces in one of
+two ways:</p>
+<ul>
+<li><strong>Static Workspaces:</strong> The user configures a fixed
+number of workspaces (e.g., four desktops). These workspaces persist
+regardless of whether they contain open windows. This is common in KDE
+Plasma, XFCE, and most tiling window managers.</li>
+<li><strong>Dynamic Workspaces:</strong> Workspaces are generated
+automatically on demand. GNOME, for instance, maintains one empty
+workspace at the end of the list. As soon as a window is moved into it,
+a new empty workspace is created, and empty intermediate workspaces are
+automatically destroyed to conserve layout overhead.</li>
+</ul></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

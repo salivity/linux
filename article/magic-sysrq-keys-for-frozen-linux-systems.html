@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Magic SysRq Keys for Frozen Linux Systems - linux</title>
+    <meta name="description" content="When a Linux operating system completely freezes and stops responding to mouse clicks, keyboard shortcuts, or terminal commands, the Magic SysRq key combination provides a safe, low-level mechanism to regain control or reboot without corrupting data. Bec">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/magic-sysrq-keys-for-frozen-linux-systems">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Magic SysRq Keys for Frozen Linux Systems - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/magic-sysrq-keys-for-frozen-linux-systems" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="When a Linux operating system completely freezes and stops responding to mouse clicks, keyboard shortcuts, or terminal commands, the Magic SysRq key combination provides a safe, low-level mechanism to regain control or reboot without corrupting data. Bec" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="magic-sysrq-keys-for-frozen-linux-systems">Magic SysRq Keys for
+Frozen Linux Systems</h1>
+<p>When a Linux operating system completely freezes and stops responding
+to mouse clicks, keyboard shortcuts, or terminal commands, the Magic
+SysRq key combination provides a safe, low-level mechanism to regain
+control or reboot without corrupting data. Because the key combination
+communicates directly with the Linux kernel rather than relying on
+user-space applications or the display server, it remains functional
+even during severe system lockups. Understanding how to use this feature
+allows users and administrators to cleanly flush cached data, unmount
+drives, and reboot safely instead of resorting to an abrupt, damaging
+hard power cutoff.</p>
+<h3 id="why-magic-sysrq-matters-during-a-freeze">Why Magic SysRq Matters
+During a Freeze</h3>
+<p>During an operating system lockup, standard interfaces like the
+desktop environment or virtual consoles (TTY) often fail because the
+user-space processes governing them have crashed or starved for CPU
+cycles. Pressing the physical power button or cutting power to the
+machine abruptly terminates input/output operations, which can lead to
+filesystem corruption, damaged database files, and permanent data
+loss.</p>
+<p>The Magic System Request (SysRq) mechanism bypasses the user space
+entirely. Implemented directly within the Linux kernel's input handling
+layer, it triggers predetermined kernel-level debugging and recovery
+routines. As long as the kernel itself has not suffered a total panic or
+hardware-level hang, it will immediately process these commands,
+ensuring critical data integrity procedures are performed prior to a
+reset.</p>
+<h3 id="prerequisites-and-enabling-sysrq">Prerequisites and Enabling
+SysRq</h3>
+<p>On modern Linux distributions, full Magic SysRq access is often
+restricted by default for security purposes. The feature is controlled
+via the <code>/proc/sys/kernel/sysrq</code> virtual file.</p>
+<p>To check the current status, run:</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span> /proc/sys/kernel/sysrq</span></code></pre></div>
+<p>A value of <code>1</code> enables all functions, while a value of
+<code>0</code> disables them. Other numerical values represent a bitmask
+permitting only specific subsets of commands. To enable all commands
+immediately, use:</p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="st">&quot;1&quot;</span> <span class="kw">|</span> <span class="fu">sudo</span> tee /proc/sys/kernel/sysrq</span></code></pre></div>
+<p>To persist this setting across reboots, add
+<code>kernel.sysrq = 1</code> to <code>/etc/sysctl.conf</code> or an
+appropriate file in <code>/etc/sysctl.d/</code>.</p>
+<h3 id="the-safe-recovery-sequence-reisub">The Safe Recovery Sequence:
+REISUB</h3>
+<p>To invoke a Magic SysRq command on standard desktop keyboards, hold
+down <strong>Alt</strong> and <strong>Print Screen (SysRq)</strong>,
+then sequentially press the desired command key. On laptops, holding the
+<strong>Fn</strong> key may also be required.</p>
+<p>The standard diagnostic sequence for safely recovering or rebooting a
+frozen system is commonly remembered by the mnemonic "Raising Elephants
+Is So Utterly Boring":</p>
+<ol type="1">
+<li><strong>R (Raw):</strong> Switches keyboard control from the display
+server (X11 or Wayland) back to raw mode (K_RAW). This allows keyboard
+input to bypass frozen graphical environments.</li>
+<li><strong>E (Terminate):</strong> Sends the <code>SIGTERM</code>
+signal to all running processes except <code>init</code> (PID 1),
+prompting them to save data and shut down cleanly.</li>
+<li><strong>I (Kill):</strong> Sends the <code>SIGKILL</code> signal to
+any processes that failed to terminate after the initial signal,
+clearing locked resources.</li>
+<li><strong>S (Sync):</strong> Writes all dirty data currently cached in
+RAM back to the physical disks. This is the most crucial step for
+preventing data loss and file corruption.</li>
+<li><strong>U (Unmount):</strong> Remounts all mounted filesystems into
+a read-only state. This guarantees that no further write operations can
+occur while the drive is active.</li>
+<li><strong>B (Reboot):</strong> Immediately reboots the system safely
+without executing user-space shutdown scripts.</li>
+</ol>
+<p>Allow a brief pause of a few seconds between each
+keypress—particularly after <strong>E</strong>, <strong>S</strong>, and
+<strong>U</strong>—to give the kernel sufficient time to execute the
+tasks, write out data, and remount storage media properly before the
+final reboot command is issued.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

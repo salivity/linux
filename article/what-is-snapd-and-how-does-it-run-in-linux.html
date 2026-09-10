@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>What Is Snapd and How Does It Run in Linux? - linux</title>
+    <meta name="description" content="The snapd daemon is the core background service responsible for installing, updating, and managing containerized Snap packages on Linux distributions. This article explains the technical architecture of snapd, how it integrates with init systems like sys">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/what-is-snapd-and-how-does-it-run-in-linux">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="What Is Snapd and How Does It Run in Linux? - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/what-is-snapd-and-how-does-it-run-in-linux" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="The snapd daemon is the core background service responsible for installing, updating, and managing containerized Snap packages on Linux distributions. This article explains the technical architecture of snapd, how it integrates with init systems like sys" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="what-is-snapd-and-how-does-it-run-in-linux">What Is Snapd and
+How Does It Run in Linux?</h1>
+<p>The <code>snapd</code> daemon is the core background service
+responsible for installing, updating, and managing containerized Snap
+packages on Linux distributions. This article explains the technical
+architecture of <code>snapd</code>, how it integrates with init systems
+like <code>systemd</code> to run seamlessly in the background, how it
+enforces application confinement, and how administrators can monitor and
+manage the service.</p>
+<h2 id="what-is-the-snapd-daemon">What Is the Snapd Daemon?</h2>
+<p><code>snapd</code> is an open-source, background service developed by
+Canonical. It functions as a complete package management system for Snap
+packages—self-contained software bundles that include an application and
+all its dependencies.</p>
+<p>Unlike traditional package managers such as APT or DNF that install
+files directly onto the root filesystem, <code>snapd</code> manages
+applications packaged as read-only SquashFS file systems. The primary
+responsibilities of <code>snapd</code> include:</p>
+<ul>
+<li>Downloading and mounting Snap images.</li>
+<li>Managing automatic background updates and rollbacks.</li>
+<li>Exposing a local REST API over a Unix domain socket for CLI tools
+(like the <code>snap</code> command) and graphical software stores to
+communicate with.</li>
+<li>Enforcing application confinement and permission interfaces (such as
+camera access, network usage, and file storage).</li>
+</ul>
+<h2 id="how-snapd-runs-in-the-background">How Snapd Runs in the
+Background</h2>
+<p>On modern Linux systems, <code>snapd</code> relies on
+<code>systemd</code>—the default system and service manager—to maintain
+its presence in the background. It does not simply run an active,
+resource-heavy process indefinitely; instead, it utilizes systemd
+sockets, services, and timers to minimize resource overhead.</p>
+<h3 id="socket-activation">Socket Activation</h3>
+<p><code>snapd</code> uses systemd socket activation via
+<code>snapd.socket</code>. Instead of keeping the entire daemon running
+in memory at full capacity at all times, systemd creates and listens to
+the local Unix domain socket at <code>/run/snapd.socket</code>.</p>
+<p>When a user executes a command such as
+<code>snap install [package]</code> or launches a snap-related GUI
+application, the request hits this socket. <code>systemd</code> detects
+the incoming request and immediately starts or alerts
+<code>snapd.service</code> to process the job.</p>
+<h3 id="systemd-units-and-timers">Systemd Units and Timers</h3>
+<p>Multiple systemd units manage the lifecycle of
+<code>snapd</code>:</p>
+<ul>
+<li><strong><code>snapd.service</code></strong>: The main daemon service
+that runs the <code>snapd</code> executable. It handles package
+installations, configurations, and API requests.</li>
+<li><strong><code>snapd.socket</code></strong>: The communication socket
+that triggers the daemon on demand.</li>
+<li><strong><code>snapd.seeded.service</code></strong>: Runs during
+system boot to ensure pre-installed (seeded) snaps are properly
+configured and available.</li>
+<li><strong>Timers for Automated Updates</strong>: <code>snapd</code>
+checks for updates up to four times a day. These checks run according to
+an internal schedule managed by the daemon, which can be configured by
+the user via system settings.</li>
+</ul>
+<h3 id="confinement-and-kernel-integration">Confinement and Kernel
+Integration</h3>
+<p>When <code>snapd</code> runs in the background and launches a snap
+application, it interacts directly with kernel security modules. It
+mounts the snap's SquashFS image as a read-only loop device under
+<code>/snap/</code> or <code>/var/lib/snapd/snaps/</code>.</p>
+<p>To isolate the application, <code>snapd</code> generates and applies
+dynamic security profiles using:</p>
+<ul>
+<li><strong>AppArmor</strong>: Restricts access to files, devices, and
+POSIX capabilities.</li>
+<li><strong>Seccomp (Secure Computing Mode)</strong>: Filters system
+calls that the application is allowed to make.</li>
+<li><strong>Control Groups (cgroups)</strong>: Governs hardware resource
+usage (such as memory and CPU allocation).</li>
+</ul>
+<h2 id="controlling-and-monitoring-snapd">Controlling and Monitoring
+Snapd</h2>
+<p>Because <code>snapd</code> runs as a standard systemd service, you
+can manage it using typical administrative commands:</p>
+<ul>
+<li><strong>Check status</strong>:
+<code>sudo systemctl status snapd</code></li>
+<li><strong>Restart the daemon</strong>:
+<code>sudo systemctl restart snapd</code></li>
+<li><strong>Stop the daemon</strong>:
+<code>sudo systemctl stop snapd.service snapd.socket</code></li>
+<li><strong>Disable the daemon</strong>:
+<code>sudo systemctl disable --now snapd.service snapd.socket</code></li>
+</ul>
+<p>Through socket activation and deep integration with systemd,
+<code>snapd</code> operates with minimal footprint when idle, waking up
+only when required to process management tasks or perform routine
+maintenance.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

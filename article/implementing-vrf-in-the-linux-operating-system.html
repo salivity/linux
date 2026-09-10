@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Implementing VRF in the Linux Operating System - linux</title>
+    <meta name="description" content="Virtual Routing and Forwarding (VRF) allows a single Linux host to maintain multiple, isolated Layer 3 routing tables simultaneously, enabling multi-tenancy and complex network segmentation. This article explores how modern Linux kernels natively impleme">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/implementing-vrf-in-the-linux-operating-system">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Implementing VRF in the Linux Operating System - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/implementing-vrf-in-the-linux-operating-system" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="Virtual Routing and Forwarding (VRF) allows a single Linux host to maintain multiple, isolated Layer 3 routing tables simultaneously, enabling multi-tenancy and complex network segmentation. This article explores how modern Linux kernels natively impleme" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="implementing-vrf-in-the-linux-operating-system">Implementing VRF
+in the Linux Operating System</h1>
+<p>Virtual Routing and Forwarding (VRF) allows a single Linux host to
+maintain multiple, isolated Layer 3 routing tables simultaneously,
+enabling multi-tenancy and complex network segmentation. This article
+explores how modern Linux kernels natively implement VRF using Layer 3
+master devices (<code>l3mdev</code>), the mechanics of packet path
+isolation, and the step-by-step process to configure and run
+applications inside isolated VRF domains using
+<code>iproute2</code>.</p>
+<h3 id="the-architectural-foundation-l3mdev">The Architectural
+Foundation: <code>l3mdev</code></h3>
+<p>Prior to kernel version 4.3, network isolation on Linux primarily
+relied on network namespaces (<code>netns</code>). While namespaces
+duplicate the entire network stack—including device lists, firewall
+rules, and sockets—VRF implements Layer 3 isolation within a single
+network namespace.</p>
+<p>The kernel achieves this through the Layer 3 Master Device
+(<code>l3mdev</code>) infrastructure. Under this model:</p>
+<ul>
+<li>A VRF instance is represented as a virtual network device.</li>
+<li>Each VRF device is explicitly associated with an independent routing
+table ID.</li>
+<li>Physical or virtual network interfaces (such as <code>eth0</code> or
+VLAN sub-interfaces) are enslaved to the VRF device as subordinate
+ports.</li>
+</ul>
+<p>When an interface is enslaved to a VRF, all Layer 3 packet processing
+on that interface is redirected from the kernel’s default routing tables
+(<code>local</code> and <code>main</code>) to the routing table
+associated with the VRF master device.</p>
+<h3 id="ingress-and-egress-packet-handling">Ingress and Egress Packet
+Handling</h3>
+<ol type="1">
+<li><strong>Ingress:</strong> When an IP packet arrives on an enslaved
+interface, the kernel's core IP input function passes the packet through
+the <code>l3mdev_l3_rcv</code> hook. This hook identifies the master VRF
+device and selects its designated routing table for the route lookup,
+ensuring that destination decisions remain strictly within that VRF
+domain.</li>
+<li><strong>Egress:</strong> Locally generated traffic is steered into a
+VRF via socket-level binding. By using the <code>SO_BINDTODEVICE</code>
+socket option, applications bind directly to the VRF master device. When
+the kernel performs the routing lookup for outbound packets, it selects
+the routing table bound to that VRF.</li>
+</ol>
+<h3 id="configuring-vrf-with-iproute2">Configuring VRF with
+<code>iproute2</code></h3>
+<p>Linux manages VRF instances natively through the <code>ip link</code>
+and <code>ip route</code> suites.</p>
+<h4 id="1-create-the-vrf-device">1. Create the VRF Device</h4>
+<p>Create a VRF device and map it to a designated routing table ID:</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">ip</span> link add dev vrf-blue type vrf table 100</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="ex">ip</span> link set dev vrf-blue up</span></code></pre></div>
+<h4 id="2-enslave-interfaces">2. Enslave Interfaces</h4>
+<p>Assign interfaces to the VRF device. This moves Layer 3 handling of
+these interfaces into table 100:</p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="ex">ip</span> link set dev eth1 master vrf-blue</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="ex">ip</span> link set dev eth1 up</span></code></pre></div>
+<h4 id="3-assign-ip-addresses-and-routes">3. Assign IP Addresses and
+Routes</h4>
+<p>IP addresses are assigned to the member interfaces as usual, but
+specific routes are added directly to the VRF’s routing table:</p>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="ex">ip</span> addr add 192.168.10.1/24 dev eth1</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="ex">ip</span> route add 10.0.0.0/8 via 192.168.10.254 dev eth1 table 100</span></code></pre></div>
+<h3 id="running-applications-in-a-vrf">Running Applications in a
+VRF</h3>
+<p>To run standard, unmodified network utilities and daemons inside an
+isolated VRF, Linux provides the <code>ip vrf exec</code> wrapper, which
+relies on <code>cgroups</code> and the <code>SO_BINDTODEVICE</code>
+socket option:</p>
+<div class="sourceCode" id="cb4"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="ex">ip</span> vrf exec vrf-blue ping 10.0.0.1</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="ex">ip</span> vrf exec vrf-blue ssh user@10.0.0.2</span></code></pre></div>
+<p>Network daemons (such as BGP/OSPF engines or SSH servers) can also be
+programmed natively to listen on specific VRF interfaces by utilizing
+the <code>SO_BINDTODEVICE</code> or <code>IP_PKTINFO</code> socket
+flags, allowing multi-instance routing services on a single operating
+system.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How wget Downloads Files in Linux - linux</title>
+    <meta name="description" content="The wget utility is a non-interactive, command-line tool used in Linux to retrieve files over networks using protocols such as HTTP, HTTPS, and FTP. This article explains the end-to-end mechanism of how wget operates, detailing the process from the momen">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-wget-downloads-files-in-linux">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How wget Downloads Files in Linux - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-wget-downloads-files-in-linux" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="The wget utility is a non-interactive, command-line tool used in Linux to retrieve files over networks using protocols such as HTTP, HTTPS, and FTP. This article explains the end-to-end mechanism of how wget operates, detailing the process from the momen" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-wget-downloads-files-in-linux">How wget Downloads Files in
+Linux</h1>
+<p>The <code>wget</code> utility is a non-interactive, command-line tool
+used in Linux to retrieve files over networks using protocols such as
+HTTP, HTTPS, and FTP. This article explains the end-to-end mechanism of
+how <code>wget</code> operates, detailing the process from the moment a
+user enters a command to the final writing of data onto the local
+storage drive.</p>
+<h3 id="1-url-parsing-and-protocol-selection">1. URL Parsing and
+Protocol Selection</h3>
+<p>When a user issues a command like
+<code>wget https://example.com/file.zip</code>, the utility first parses
+the provided URL string. It breaks the URL into distinct components: the
+protocol scheme (<code>http</code>, <code>https</code>, or
+<code>ftp</code>), the host domain name (<code>example.com</code>), the
+optional port number (defaulting to 80 for HTTP or 443 for HTTPS), and
+the remote file path (<code>/file.zip</code>). Based on the scheme,
+<code>wget</code> configures the appropriate network protocol handlers
+internally.</p>
+<h3 id="2-dns-resolution">2. DNS Resolution</h3>
+<p>Before connecting to the server, <code>wget</code> must resolve the
+human-readable domain name into an IP address. It calls system-level
+resolver libraries (typically via the <code>getaddrinfo</code> function
+in standard C libraries). This queries the configured Domain Name System
+(DNS) servers to retrieve either an IPv4 (A record) or IPv6 (AAAA
+record) address for the destination host.</p>
+<h3 id="3-establishing-the-network-connection">3. Establishing the
+Network Connection</h3>
+<p>Once the IP address is determined, <code>wget</code> creates a
+network socket and initiates a standard TCP three-way handshake (SYN,
+SYN-ACK, ACK) to establish a reliable connection with the target server
+on the designated port.</p>
+<p>If the protocol is HTTPS, <code>wget</code> initiates a Transport
+Layer Security (TLS/SSL) handshake immediately following the TCP
+connection. During this phase, it validates the remote server’s SSL
+certificate against the local system's trusted Certificate Authority
+(CA) bundle and negotiates encryption keys using libraries like OpenSSL
+or GnuTLS.</p>
+<h3 id="4-sending-the-http-request">4. Sending the HTTP Request</h3>
+<p>With a secure connection established, <code>wget</code> formats and
+transmits an HTTP <code>GET</code> request over the socket. The request
+includes essential headers such as:</p>
+<ul>
+<li><code>Host</code>: Specifies the target domain.</li>
+<li><code>User-Agent</code>: Identifies <code>wget</code> and its
+version.</li>
+<li><code>Accept</code>: Informs the server what media types are
+acceptable.</li>
+<li><code>Range</code>: Sent if the download is resuming an interrupted
+file (using the <code>-c</code> flag) to request only the remaining
+bytes.</li>
+</ul>
+<h3 id="5-evaluating-the-server-response">5. Evaluating the Server
+Response</h3>
+<p>The remote server processes the request and responds with an HTTP
+status code alongside response headers. <code>wget</code> evaluates this
+response:</p>
+<ul>
+<li><strong>200 OK:</strong> The request succeeded, and data
+transmission begins.</li>
+<li><strong>206 Partial Content:</strong> Returned when resuming a
+download via byte ranges.</li>
+<li><strong>3xx Redirection:</strong> If the resource has moved (e.g.,
+301 or 302), <code>wget</code> reads the <code>Location</code> header
+and automatically repeats the connection process for the new
+address.</li>
+<li><strong>4xx/5xx Client/Server Errors:</strong> <code>wget</code>
+terminates or executes retry logic based on its configuration flags
+(e.g., <code>--tries</code>).</li>
+</ul>
+<h3 id="6-streaming-data-and-writing-to-disk">6. Streaming Data and
+Writing to Disk</h3>
+<p>Once data delivery begins, <code>wget</code> allocates an internal
+memory buffer to read incoming network packets from the socket.</p>
+<p>As binary chunks are read into memory, <code>wget</code> makes
+<code>write()</code> system calls to stream the data directly to a file
+on the local filesystem. By default, the local file is named after the
+last component of the URL path unless specified otherwise with the
+<code>-O</code> option. During this phase, <code>wget</code> calculates
+transfer speeds, estimates time of arrival (ETA), and renders a
+real-time progress bar to the terminal standard error
+(<code>stderr</code>).</p>
+<h3 id="7-connection-termination">7. Connection Termination</h3>
+<p>After the final byte is transferred (signaled either by reaching the
+byte count indicated in the <code>Content-Length</code> header or by a
+closed connection in chunked transfers), <code>wget</code> closes the
+local file descriptor. It then sends a TCP <code>FIN</code> packet to
+gracefully terminate the network connection, logs a completion message,
+and exits with a return code of zero.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

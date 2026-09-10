@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How Linux Uses Flannel for Kubernetes Overlay Networks - linux</title>
+    <meta name="description" content="This article explores how the Linux operating system utilizes the Flannel network fabric to establish and manage Kubernetes overlay networks. It details the interaction between Flannel and native Linux networking subsystems, including network namespaces,">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-linux-uses-flannel-for-kubernetes-overlay-networks">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How Linux Uses Flannel for Kubernetes Overlay Networks - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-linux-uses-flannel-for-kubernetes-overlay-networks" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="This article explores how the Linux operating system utilizes the Flannel network fabric to establish and manage Kubernetes overlay networks. It details the interaction between Flannel and native Linux networking subsystems, including network namespaces," />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-linux-uses-flannel-for-kubernetes-overlay-networks">How
+Linux Uses Flannel for Kubernetes Overlay Networks</h1>
+<p>This article explores how the Linux operating system utilizes the
+Flannel network fabric to establish and manage Kubernetes overlay
+networks. It details the interaction between Flannel and native Linux
+networking subsystems, including network namespaces, virtual interfaces,
+routing tables, and the VXLAN kernel module, to enable seamless
+pod-to-pod communication across different cluster nodes.</p>
+<h3 id="the-role-of-flannel-in-kubernetes-networking">The Role of
+Flannel in Kubernetes Networking</h3>
+<p>Kubernetes requires that every pod receives a unique, routable IP
+address and can communicate with any other pod in the cluster without
+Network Address Translation (NAT). Flannel satisfies this requirement by
+operating as a lightweight Container Network Interface (CNI) provider.
+It assigns a dedicated IP subnet (typically a <code>/24</code>) to each
+node from a larger cluster-wide address pool (typically a
+<code>/16</code>). While Flannel coordinates configuration via the
+Kubernetes API, it relies entirely on native Linux kernel primitives to
+execute packet encapsulation, routing, and delivery.</p>
+<h3 id="pod-isolation-and-host-attachment-via-network-namespaces">Pod
+Isolation and Host Attachment via Network Namespaces</h3>
+<p>The Linux operating system uses network namespaces
+(<code>netns</code>) to provide network isolation for individual
+Kubernetes pods. Each pod runs inside its own namespace with an isolated
+network stack, containing its own routing table, firewall rules, and
+loopback device.</p>
+<p>To connect an isolated pod namespace to the host network:</p>
+<ol type="1">
+<li><strong>Virtual Ethernet Pairs (<code>veth</code>):</strong> The
+Linux kernel creates a pair of connected virtual Ethernet interfaces.
+One end of the pair stays inside the pod's network namespace (commonly
+named <code>eth0</code>), while the peer device remains in the host's
+root namespace.</li>
+<li><strong>Local Bridging:</strong> On the host, the root-end
+<code>veth</code> interface is attached to a software bridge (such as
+<code>cbr0</code> or managed directly by CNI bridge plugins). This
+allows packets leaving the pod namespace to enter the host's routing
+pipeline.</li>
+</ol>
+<h3 id="encapsulation-with-the-linux-kernel-vxlan-module">Encapsulation
+with the Linux Kernel VXLAN Module</h3>
+<p>Flannel's default and most common backend is VXLAN (Virtual
+Extensible LAN). Instead of implementing packet processing in user
+space, Flannel configures the native Linux VXLAN kernel driver to handle
+encapsulation at line speed.</p>
+<p>When the Flannel daemon (<code>flanneld</code>) initializes on a
+node:</p>
+<ol type="1">
+<li>It creates a virtual network interface in the host's root namespace,
+typically named <code>flannel.1</code>.</li>
+<li>This interface acts as a VXLAN Tunnel Endpoint (VTEP), which
+possesses its own MAC address and IP address corresponding to the node's
+allocated pod subnet.</li>
+<li>The Linux kernel listens on UDP port 8472 for incoming encapsulated
+overlay packets.</li>
+</ol>
+<h3 id="routing-tables-and-neighbor-discovery">Routing Tables and
+Neighbor Discovery</h3>
+<p>When a pod sends traffic to a destination pod located on a different
+node, the packet follows a deterministic path managed by Linux kernel
+tables:</p>
+<ol type="1">
+<li><strong>Routing via <code>flannel.1</code>:</strong> The packet
+exits the pod via the <code>veth</code> pair onto the host. The host's
+Linux routing table has an entry managed by Flannel directing all
+cluster CIDR traffic to the <code>flannel.1</code> device.</li>
+<li><strong>Forwarding Database (FDB) Lookup:</strong> To know which
+physical host to target, the Linux kernel checks its internal Forwarding
+Database (FDB). Flannel populates the FDB with mappings of remote VTEP
+MAC addresses to the actual physical (underlay) IP addresses of the
+remote nodes.</li>
+<li><strong>ARP Resolution:</strong> The host kernel checks its neighbor
+table (ARP cache), also pre-populated by Flannel, to resolve the remote
+pod's subnet gateway to the MAC address of the remote node's
+<code>flannel.1</code> device.</li>
+</ol>
+<h3 id="end-to-end-packet-traversal">End-to-End Packet Traversal</h3>
+<p>Once routing and neighbor information are evaluated, the complete
+transfer occurs as follows:</p>
+<ol type="1">
+<li><strong>Encapsulation:</strong> The Linux VXLAN driver takes the
+original Layer 2/3 frame (containing the source and destination pod IPs)
+and wraps it inside an outer UDP packet. The outer source IP is the
+local host's physical IP, and the outer destination IP is the remote
+host's physical IP.</li>
+<li><strong>Transmission:</strong> The packet traverses the physical
+network fabric (the underlay) as standard UDP traffic.</li>
+<li><strong>Decapsulation:</strong> Upon arrival at the destination
+node, the physical interface passes the UDP port 8472 packet to the
+Linux VXLAN module. The kernel strips away the outer UDP/IP headers to
+reveal the inner original packet.</li>
+<li><strong>Local Delivery:</strong> The kernel reads the inner
+destination IP address and uses local routing rules to direct the packet
+across the local bridge and <code>veth</code> pair into the destination
+pod's network namespace.</li>
+</ol>
+<h3 id="direct-routing-alternative-the-host-gw-backend">Direct Routing
+Alternative: The <code>host-gw</code> Backend</h3>
+<p>When all Kubernetes nodes share direct Layer 2 connectivity on the
+underlying network, Flannel can utilize its <code>host-gw</code> (host
+gateway) backend instead of VXLAN. In this mode, Flannel bypasses
+encapsulation entirely. It programmatically adds direct routes to the
+Linux host routing table, designating the remote node's physical IP as
+the next-hop gateway for that node's assigned pod subnet. This approach
+reduces CPU overhead and eliminates MTU penalties associated with VXLAN
+encapsulation by relying purely on native Linux IP forwarding.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

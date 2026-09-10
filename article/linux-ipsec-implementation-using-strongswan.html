@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linux IPsec Implementation Using StrongSwan - linux</title>
+    <meta name="description" content="This article explores how the Linux operating system implements IPsec via the StrongSwan software suite. It outlines the architectural separation between user-space key exchange and kernel-space packet processing, details the role of the Linux XFRM frame">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/linux-ipsec-implementation-using-strongswan">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Linux IPsec Implementation Using StrongSwan - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/linux-ipsec-implementation-using-strongswan" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="This article explores how the Linux operating system implements IPsec via the StrongSwan software suite. It outlines the architectural separation between user-space key exchange and kernel-space packet processing, details the role of the Linux XFRM frame" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="linux-ipsec-implementation-using-strongswan">Linux IPsec
+Implementation Using StrongSwan</h1>
+<p>This article explores how the Linux operating system implements IPsec
+via the StrongSwan software suite. It outlines the architectural
+separation between user-space key exchange and kernel-space packet
+processing, details the role of the Linux XFRM framework, explains how
+the Netlink interface facilitates communication between StrongSwan and
+the kernel, and breaks down the end-to-end packet processing lifecycle
+for secure network communications.</p>
+<h2
+id="architectural-separation-control-plane-vs-data-plane">Architectural
+Separation: Control Plane vs. Data Plane</h2>
+<p>Linux implements IPsec by dividing responsibilities between the
+operating system kernel and user-space applications:</p>
+<ul>
+<li><strong>Data Plane (Kernel Space):</strong> The Linux kernel
+natively handles packet interception, encryption, decryption,
+authentication, and encapsulation. It does not handle key negotiations
+or authentication handshakes directly.</li>
+<li><strong>Control Plane (User Space):</strong> StrongSwan operates
+primarily in user space. Its core daemon, <strong>charon</strong>,
+manages the Internet Key Exchange protocols (IKEv1 and IKEv2),
+authenticates endpoints using certificates or pre-shared keys (PSKs),
+and negotiates cryptographic parameters.</li>
+</ul>
+<p>Once StrongSwan completes the control-plane negotiations, it offloads
+the actual cryptographic keys and security policies to the Linux
+kernel.</p>
+<h2 id="the-linux-xfrm-framework">The Linux XFRM Framework</h2>
+<p>The Linux kernel manages IPsec through an internal architecture
+called <strong>XFRM</strong> (pronounced "transform"). XFRM maintains
+two core in-memory databases:</p>
+<ol type="1">
+<li><strong>Security Policy Database (SPD):</strong> Defines
+<em>what</em> traffic must be protected. Policies specify matching
+criteria (source/destination IP addresses, ports, and protocols) and the
+required action (e.g., encrypt, bypass, or discard).</li>
+<li><strong>Security Association Database (SAD):</strong> Defines
+<em>how</em> matching traffic is protected. Each Security Association
+(SA) stores the unidirectional cryptographic parameters, including
+encryption/integrity keys, algorithms, cipher modes, and the Security
+Parameter Index (SPI).</li>
+</ol>
+<h2 id="strongswan-and-kernel-communication-via-netlink">StrongSwan and
+Kernel Communication via Netlink</h2>
+<p>StrongSwan communicates with the kernel's XFRM framework using the
+<strong>Netlink</strong> socket interface (specifically the
+<code>NETLINK_XFRM</code> family).</p>
+<ol type="1">
+<li><strong>Policy and State Injection:</strong> Upon successful IKE
+negotiation, StrongSwan issues Netlink messages to instantiate SAs and
+SPs inside the kernel.</li>
+<li><strong>Kernel Events:</strong> If the kernel detects outbound
+traffic matching an SP that lacks an active SA, it emits an
+<code>XFRM_MSG_ACQUIRE</code> message via Netlink. StrongSwan listens
+for these acquire triggers to initiate on-demand IKE negotiations.</li>
+<li><strong>Lifetime Expirations:</strong> The kernel monitors byte and
+time limits for active SAs. When an SA nears expiration, it notifies
+StrongSwan via Netlink, allowing the daemon to rekey the connection
+without dropping packets.</li>
+</ol>
+<h2 id="packet-processing-workflow">Packet Processing Workflow</h2>
+<h3 id="outbound-traffic-transmission">Outbound Traffic
+(Transmission)</h3>
+<ol type="1">
+<li><strong>Policy Lookup:</strong> An application generates a packet.
+The kernel routing layer checks the XFRM SPD.</li>
+<li><strong>SA Resolution:</strong> If an SP requires IPsec, the kernel
+queries the SAD using the policy's parameters.</li>
+<li><strong>Encapsulation and Encryption:</strong> The kernel applies
+the specified transformation (such as Encapsulating Security Payload, or
+ESP) using cryptographic drivers via the Linux Crypto API.</li>
+<li><strong>Transmission:</strong> The encrypted packet, encapsulated
+with a new outer IP header containing the SPI, is routed out through the
+physical network interface.</li>
+</ol>
+<h3 id="inbound-traffic-reception">Inbound Traffic (Reception)</h3>
+<ol type="1">
+<li><strong>Packet Interception:</strong> An incoming ESP packet arrives
+at the network interface.</li>
+<li><strong>SA Lookup:</strong> The kernel extracts the SPI and
+destination IP from the packet header and queries the SAD.</li>
+<li><strong>Decryption and Verification:</strong> The kernel decrypts
+the payload and verifies integrity hashes.</li>
+<li><strong>Policy Verification:</strong> The kernel validates that the
+decrypted packet matches an authorized policy in the SPD before passing
+the plaintext payload to the local network stack.</li>
+</ol>
+<h2 id="implementation-modes-in-modern-linux">Implementation Modes in
+Modern Linux</h2>
+<p>StrongSwan and Linux support two primary architectural models for
+handling IPsec traffic:</p>
+<ul>
+<li><strong>Policy-Based IPsec:</strong> The classic implementation
+where traffic is routed implicitly based on SPD matching rules without
+dedicated virtual interfaces.</li>
+<li><strong>Route-Based IPsec (XFRM Interfaces):</strong> Modern Linux
+kernels (v4.19+) allow StrongSwan to bind IPsec policies to explicit
+virtual network interfaces (<code>xfrm</code> interfaces). This approach
+simplifies configuration by integrating IPsec directly with standard
+Linux routing tables, firewall rules (iptables/nftables), and traffic
+control subsystems.</li>
+</ul></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

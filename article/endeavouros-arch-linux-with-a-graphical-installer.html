@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EndeavourOS: Arch Linux with a Graphical Installer - linux</title>
+    <meta name="description" content="EndeavourOS serves as an accessible gateway to Arch Linux, combining the power and flexibility of a rolling-release distribution with an intuitive, user-friendly setup process. While pure Arch requires users to configure disk partitions, mount filesystem">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/endeavouros-arch-linux-with-a-graphical-installer">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="EndeavourOS: Arch Linux with a Graphical Installer - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/endeavouros-arch-linux-with-a-graphical-installer" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="EndeavourOS serves as an accessible gateway to Arch Linux, combining the power and flexibility of a rolling-release distribution with an intuitive, user-friendly setup process. While pure Arch requires users to configure disk partitions, mount filesystem" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="endeavouros-arch-linux-with-a-graphical-installer">EndeavourOS:
+Arch Linux with a Graphical Installer</h1>
+<p>EndeavourOS serves as an accessible gateway to Arch Linux, combining
+the power and flexibility of a rolling-release distribution with an
+intuitive, user-friendly setup process. While pure Arch requires users
+to configure disk partitions, mount filesystems, and install system
+components manually via a command-line interface, EndeavourOS automates
+this setup using a graphical installer. By doing so, it eliminates the
+intimidating barrier to entry while preserving Arch’s minimal,
+terminal-centric philosophy and direct access to upstream software.</p>
+<p>Arch Linux is renowned for its speed, simplicity, and bleeding-edge
+packages, but its manual installation process often deters beginners and
+busy professionals. Setting up pure Arch involves partitioning disks
+with command-line utilities, manually generating filesystem tables,
+bootstrapping base packages via <code>pacstrap</code>, configuring
+locale and network files in a <code>chroot</code> environment, and
+manually deploying a bootloader. This procedure demands significant
+time, technical knowledge, and meticulous attention to detail.</p>
+<p>EndeavourOS bridges this gap primarily through the integration of the
+Calamares installer framework. Calamares provides a straightforward,
+step-by-step graphical interface that handles the complex parts of
+system initialization. Through a familiar wizard, users can configure
+keyboard layouts, set time zones, automate disk partitioning, and create
+user accounts in minutes.</p>
+<p>To cater to diverse user preferences, EndeavourOS offers two distinct
+installation modes within Calamares:</p>
+<ul>
+<li><strong>Offline Installation:</strong> Installs a fully configured,
+lightweight XFCE desktop environment without requiring an active
+internet connection.</li>
+<li><strong>Online Installation:</strong> Allows users to choose from a
+wide selection of desktop environments and window managers—including KDE
+Plasma, GNOME, Cinnamon, MATE, Budgie, LXQt, and i3-wm—downloading the
+latest packages directly during installation.</li>
+</ul>
+<p>Unlike some other Arch-based distributions that maintain separate
+repositories and delay package updates, EndeavourOS stays remarkably
+close to pure Arch. It relies directly on the official Arch Linux
+package repositories, ensuring users receive software updates, security
+patches, and kernel releases at the same time as standard Arch users.
+EndeavourOS maintains only a very small repository of its own, dedicated
+exclusively to themed artwork, mirror management utilities, and
+essential system maintenance scripts.</p>
+<p>The distribution also bridges the post-installation learning curve
+through its custom "Welcome" application. Rather than replacing the
+command line with bloated software centers, the Welcome app serves as a
+guide for new users. It offers one-click shortcuts to update system
+mirrors, run updates via <code>pacman</code> or the <code>yay</code> AUR
+helper, and install proprietary hardware drivers.</p>
+<p>By removing the friction of manual installation while retaining
+direct access to Arch repositories and the Arch User Repository (AUR),
+EndeavourOS delivers the pure Arch experience in a reliable, modern, and
+approachable format.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

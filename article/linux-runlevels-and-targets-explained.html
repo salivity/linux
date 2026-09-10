@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linux Runlevels and Targets Explained - linux</title>
+    <meta name="description" content="This article explores the concept of runlevels and systemd targets in the Linux operating system, detailing their operational significance, transition from legacy SysVinit to modern systemd, and practical use cases. In Linux, these states define precisel">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/linux-runlevels-and-targets-explained">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Linux Runlevels and Targets Explained - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/linux-runlevels-and-targets-explained" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="This article explores the concept of runlevels and systemd targets in the Linux operating system, detailing their operational significance, transition from legacy SysVinit to modern systemd, and practical use cases. In Linux, these states define precisel" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="linux-runlevels-and-targets-explained">Linux Runlevels and
+Targets Explained</h1>
+<p>This article explores the concept of runlevels and systemd targets in
+the Linux operating system, detailing their operational significance,
+transition from legacy SysVinit to modern systemd, and practical use
+cases. In Linux, these states define precisely what services, daemons,
+and subsystems are active at any given moment. By understanding
+runlevels and targets, administrators gain the ability to troubleshoot
+boot failures, manage system resources efficiently, and safely conduct
+critical maintenance tasks.</p>
+<h2 id="what-are-runlevels-and-targets">What Are Runlevels and
+Targets?</h2>
+<p>In the Linux operating system, a runlevel represents a preset
+operating state that determines which system resources, processes, and
+network interfaces are available. Historically managed by the
+traditional System V init (SysVinit) system, these states were
+represented numerically from 0 to 6.</p>
+<p>Modern Linux distributions—such as Ubuntu, Red Hat Enterprise Linux,
+Debian, and Fedora—have largely replaced SysVinit with
+<strong>systemd</strong>. In systemd, the concept of runlevels is
+superseded by <strong>targets</strong>. Targets are configuration files
+ending with the <code>.target</code> extension that group multiple
+systemd units (services, sockets, mount points) together to achieve a
+specific operational state. While the syntax and underlying architecture
+differ, systemd targets serve the exact same fundamental purpose as
+legacy runlevels.</p>
+<h2 id="mapping-traditional-runlevels-to-systemd-targets">Mapping
+Traditional Runlevels to Systemd Targets</h2>
+<p>Understanding the mapping between legacy numerical runlevels and
+modern systemd targets is essential for managing diverse Linux
+environments:</p>
+<ul>
+<li><strong>Runlevel 0 (<code>poweroff.target</code>):</strong> Halts
+and completely shuts down the system.</li>
+<li><strong>Runlevel 1 / Single-User Mode
+(<code>rescue.target</code>):</strong> A minimal environment with a
+local root shell, no network connectivity, and no non-essential daemons.
+Primarily used for low-level system repair.</li>
+<li><strong>Runlevel 2 (<code>multi-user.target</code> without
+networking on some SysV systems):</strong> Multi-user text-mode
+environment, traditionally configured without network support on
+specific Unix-like systems.</li>
+<li><strong>Runlevel 3 (<code>multi-user.target</code>):</strong> The
+standard multi-user command-line interface (CLI) mode with full
+networking and multi-user access enabled. This is the default target for
+most headless Linux servers.</li>
+<li><strong>Runlevel 4:</strong> Reserved and user-definable; rarely
+utilized by default configurations.</li>
+<li><strong>Runlevel 5 (<code>graphical.target</code>):</strong>
+Multi-user mode with full networking and a graphical user interface
+(GUI) managed by a display manager (such as GDM or LightDM). This is the
+standard state for Linux desktop installations.</li>
+<li><strong>Runlevel 6 (<code>reboot.target</code>):</strong> Initiates
+a full system reboot, cleanly stopping all running services before
+restarting the machine.</li>
+</ul>
+<p>Beyond these direct mappings, systemd also includes dedicated
+emergency states such as <code>emergency.target</code>, which provides
+an even more stripped-down environment than <code>rescue.target</code>
+by mounting only the root filesystem in read-only mode without starting
+other basic system services.</p>
+<h2 id="the-significance-of-runlevels-and-targets">The Significance of
+Runlevels and Targets</h2>
+<h3 id="1-controlled-boot-and-shutdown-sequences">1. Controlled Boot and
+Shutdown Sequences</h3>
+<p>Runlevels and targets guarantee that processes launch and terminate
+in a deterministic order. During startup, core hardware and networking
+stacks must initialize before high-level database or web services start.
+During shutdown, databases and dependent services must stop cleanly
+before storage filesystems are unmounted, preventing data
+corruption.</p>
+<h3 id="2-streamlined-troubleshooting-and-disaster-recovery">2.
+Streamlined Troubleshooting and Disaster Recovery</h3>
+<p>When a system fails to boot properly—due to corrupted configuration
+files, broken drivers, or failed package upgrades—switching to
+<code>rescue.target</code> (Runlevel 1) or <code>emergency.target</code>
+bypasses high-level services like the display manager or network
+daemons. This drops the administrator directly into a root shell to
+inspect logs, repair broken filesystems, or roll back faulty
+configurations without external interference.</p>
+<h3 id="3-resource-optimization">3. Resource Optimization</h3>
+<p>Headless servers do not require graphical environments, which consume
+substantial CPU, memory, and disk resources. Setting the default target
+to <code>multi-user.target</code> rather than
+<code>graphical.target</code> ensures the system dedicates maximum
+hardware resources to core services and applications, while
+simultaneously reducing the attack surface by avoiding unnecessary
+software packages.</p>
+<h3 id="4-controlled-state-isolation">4. Controlled State Isolation</h3>
+<p>System administrators frequently need to isolate states during
+runtime without rebooting. For instance, an administrator can transition
+a running server from a graphical environment to a command-line
+environment to perform kernel upgrades or memory-intensive batch
+processing, cleanly freeing up hardware resources on the fly.</p>
+<h2 id="common-management-commands">Common Management Commands</h2>
+<p>To manage and inspect system states in modern systemd
+environments:</p>
+<ul>
+<li><strong>View current default target:</strong>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">systemctl</span> get-default</span></code></pre></div></li>
+<li><strong>Change default target permanently:</strong>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> systemctl set-default multi-user.target</span></code></pre></div></li>
+<li><strong>Switch targets immediately (without rebooting):</strong>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> systemctl isolate rescue.target</span></code></pre></div></li>
+<li><strong>Check current and previous runlevel (legacy
+compatibility):</strong>
+<div class="sourceCode" id="cb4"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">who</span> <span class="at">-r</span></span></code></pre></div></li>
+</ul></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

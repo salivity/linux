@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linux Trap Command: Handle Script Interruptions - linux</title>
+    <meta name="description" content="The Linux trap command enables shell scripts to intercept and handle system signals, allowing processes to shut down gracefully instead of terminating abruptly. By capturing signals such as user interrupts or termination requests, scripts can execute pre">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/linux-trap-command-handle-script-interruptions">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Linux Trap Command: Handle Script Interruptions - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/linux-trap-command-handle-script-interruptions" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="The Linux trap command enables shell scripts to intercept and handle system signals, allowing processes to shut down gracefully instead of terminating abruptly. By capturing signals such as user interrupts or termination requests, scripts can execute pre" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="linux-trap-command-handle-script-interruptions">Linux Trap
+Command: Handle Script Interruptions</h1>
+<p>The Linux <code>trap</code> command enables shell scripts to
+intercept and handle system signals, allowing processes to shut down
+gracefully instead of terminating abruptly. By capturing signals such as
+user interrupts or termination requests, scripts can execute predefined
+cleanup routines, ensuring that temporary files are deleted, system
+resources are freed, and child processes are stopped before the shell
+exits.</p>
+<h2 id="understanding-signals-and-the-trap-command">Understanding
+Signals and the Trap Command</h2>
+<p>In a Linux environment, the operating system and users communicate
+with running processes by sending asynchronous notifications called
+signals. When a signal is received, the default behavior for most
+scripts is immediate termination, which often leaves behind temporary
+files, locked resources, or orphaned background tasks.</p>
+<p>The <code>trap</code> command is a built-in feature of
+POSIX-compliant shells (such as Bash, Dash, and Zsh) that overrides
+these default termination behaviors. It allows developers to bind
+specific shell commands or custom functions to particular signals.</p>
+<h3 id="common-signals-handled-by-trap">Common Signals Handled by
+Trap</h3>
+<ul>
+<li><strong><code>SIGINT</code> (Signal 2):</strong> Triggered when a
+user interrupts a process manually, typically by pressing
+<code>Ctrl+C</code>.</li>
+<li><strong><code>SIGTERM</code> (Signal 15):</strong> The standard
+termination signal sent by process management tools (like
+<code>kill</code> or system shutdown scripts) asking a program to
+stop.</li>
+<li><strong><code>SIGHUP</code> (Signal 1):</strong> Sent when the
+controlling terminal is closed or disconnected.</li>
+<li><strong><code>EXIT</code> (Signal 0):</strong> A shell-specific
+pseudo-signal that executes whenever the script terminates, whether it
+finishes successfully, encounters an error, or receives a caught
+termination signal.</li>
+</ul>
+<h2 id="syntax-and-basic-usage">Syntax and Basic Usage</h2>
+<p>The basic syntax for the <code>trap</code> command associates an
+action with one or more signal names or numbers:</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="bu">trap</span> <span class="st">&#39;action&#39;</span> SIGNAL_LIST</span></code></pre></div>
+<h3 id="implementing-a-cleanup-routine">Implementing a Cleanup
+Routine</h3>
+<p>The most common use case for <code>trap</code> is cleaning up
+temporary directories and resetting configurations before a script
+terminates.</p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co">#!/bin/bash</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Create a temporary working directory</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="va">TEMP_DIR</span><span class="op">=</span><span class="va">$(</span><span class="fu">mktemp</span> <span class="at">-d</span> /tmp/myscript.XXXXXX<span class="va">)</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="st">&quot;Working directory created: </span><span class="va">$TEMP_DIR</span><span class="st">&quot;</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Define the cleanup function</span></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a><span class="fu">cleanup()</span> <span class="kw">{</span></span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>    <span class="bu">echo</span> <span class="st">&quot;Signal received or script exiting. Cleaning up...&quot;</span></span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>    <span class="fu">rm</span> <span class="at">-rf</span> <span class="st">&quot;</span><span class="va">$TEMP_DIR</span><span class="st">&quot;</span></span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>    <span class="bu">echo</span> <span class="st">&quot;Cleanup complete.&quot;</span></span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a><span class="kw">}</span></span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a><span class="co"># Catch SIGINT, SIGTERM, and the EXIT pseudo-signal</span></span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a><span class="bu">trap</span> cleanup SIGINT SIGTERM EXIT</span>
+<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a><span class="co"># Simulate long-running work</span></span>
+<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> i <span class="kw">in</span> <span class="dt">{</span><span class="dv">1</span><span class="dt">..</span><span class="dv">10</span><span class="dt">}</span><span class="kw">;</span> <span class="cf">do</span></span>
+<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a>    <span class="bu">echo</span> <span class="st">&quot;Processing step </span><span class="va">$i</span><span class="st">...&quot;</span></span>
+<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a>    <span class="fu">sleep</span> 2</span>
+<span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a><span class="cf">done</span></span></code></pre></div>
+<p>In this script, whether the user presses <code>Ctrl+C</code>
+(<code>SIGINT</code>), a system administrator runs
+<code>kill &lt;PID&gt;</code> (<code>SIGTERM</code>), or the loop
+finishes naturally (<code>EXIT</code>), the <code>cleanup</code>
+function runs automatically, removing the temporary directory.</p>
+<h2 id="ignoring-and-resetting-signals">Ignoring and Resetting
+Signals</h2>
+<p>The <code>trap</code> command also provides mechanisms to
+deliberately ignore signals or revert them back to system defaults.</p>
+<h3 id="ignoring-signals">Ignoring Signals</h3>
+<p>To make a critical section of code immune to user cancellation,
+assign an empty string as the action:</p>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Ignore interrupt signals during a critical task</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="bu">trap</span> <span class="st">&#39;&#39;</span> SIGINT SIGTERM</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="st">&quot;Executing critical task, cannot be interrupted...&quot;</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Critical database update or file write occurs here</span></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a><span class="fu">sleep</span> 5</span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Reset back to default behavior</span></span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a><span class="bu">trap</span> <span class="at">-</span> SIGINT SIGTERM</span></code></pre></div>
+<h3 id="resetting-to-default-behavior">Resetting to Default
+Behavior</h3>
+<p>Passing a hyphen (<code>-</code>) as the action resets the specified
+signals to their default operating system handlers:</p>
+<div class="sourceCode" id="cb4"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="bu">trap</span> <span class="at">-</span> SIGINT</span></code></pre></div>
+<h2 id="best-practices-for-using-trap">Best Practices for Using
+Trap</h2>
+<ol type="1">
+<li><strong>Keep Handlers Non-Blocking:</strong> The actions triggered
+by <code>trap</code> should execute quickly to avoid hanging during
+system shutdowns.</li>
+<li><strong>Explicit Exit Codes:</strong> When trapping
+<code>SIGINT</code> or <code>SIGTERM</code> manually without the
+<code>EXIT</code> pseudo-signal, explicitly exit with an appropriate
+status code (e.g., <code>exit 130</code> for <code>SIGINT</code>) so
+upstream calling processes know the script did not complete
+successfully.</li>
+<li><strong>Clean Up Background Jobs:</strong> If a script spawns child
+processes in the background using <code>&amp;</code>, the cleanup
+function can terminate them using <code>kill $(jobs -p)</code> to
+prevent orphan processes.</li>
+</ol></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

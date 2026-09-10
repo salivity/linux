@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>What Inspired the Development of Linux? - linux</title>
+    <meta name="description" content="The Linux operating system was born out of a desire for an affordable, fully functional Unix-like environment on personal computer hardware. In 1991, Finnish computer science student Linus Torvalds felt constrained by the licensing and technical limitati">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/what-inspired-the-development-of-linux">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="What Inspired the Development of Linux? - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/what-inspired-the-development-of-linux" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="The Linux operating system was born out of a desire for an affordable, fully functional Unix-like environment on personal computer hardware. In 1991, Finnish computer science student Linus Torvalds felt constrained by the licensing and technical limitati" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="what-inspired-the-development-of-linux">What Inspired the
+Development of Linux?</h1>
+<p>The Linux operating system was born out of a desire for an
+affordable, fully functional Unix-like environment on personal computer
+hardware. In 1991, Finnish computer science student Linus Torvalds felt
+constrained by the licensing and technical limitations of existing
+educational systems. By combining his interest in the capabilities of
+the Intel 80386 processor with the growing free software philosophy of
+the era, Torvalds began building a kernel that would ultimately evolve
+into the backbone of modern computing infrastructure.</p>
+<h3 id="the-limitations-of-minix-and-proprietary-unix">The Limitations
+of MINIX and Proprietary Unix</h3>
+<p>During the late 1980s and early 1990s, the Unix operating system was
+the industry standard for academic and commercial computing. However,
+commercial Unix was proprietary, heavily copyrighted, and far too
+expensive for individual students or hobbyists to run on their personal
+computers.</p>
+<p>To teach operating system design, Professor Andrew Tanenbaum created
+MINIX, a lightweight, microkernel-based clone of Unix. While MINIX was
+accessible, it was strictly intended as an educational tool. Tanenbaum
+restricted significant modifications to keep the codebase simple for
+teaching, and its licensing at the time prohibited commercial use or
+public redistribution of altered code. Torvalds used MINIX at the
+University of Helsinki, but quickly grew frustrated by its design
+limitations, lack of multi-threading features, and inability to fully
+harness newer PC hardware.</p>
+<h3 id="the-power-of-the-intel-80386-processor">The Power of the Intel
+80386 Processor</h3>
+<p>In early 1991, Torvalds purchased a PC powered by the Intel 80386
+processor. The 386 chip was a major technological leap, featuring 32-bit
+processing, memory management, and native support for preemptive
+multitasking and paging.</p>
+<p>Torvalds wanted an operating system that could take full advantage of
+these advanced hardware features. Because MINIX was designed primarily
+for older 16-bit systems to maximize educational accessibility, it did
+not utilize the 386's architecture efficiently. Torvalds began writing
+raw assembly code and low-level software to test the processor's
+task-switching and memory-paging abilities, laying the groundwork for a
+new kernel.</p>
+<h3 id="the-missing-kernel-in-the-gnu-project">The Missing Kernel in the
+GNU Project</h3>
+<p>Parallel to Torvalds' hardware experiments, Richard Stallman had
+founded the Free Software Foundation (FSF) and the GNU Project in 1983.
+The goal was to build an entirely free Unix-like operating system.</p>
+<p>By 1991, the GNU Project had successfully created nearly all
+essential operating system components, including the GNU Compiler
+Collection (GCC), the Bash shell, text editors, and standard core
+utilities. However, the project lacked a functional, stable kernel;
+development on their own kernel, GNU Hurd, was progressing slowly. This
+gap created an environment where a functional, free kernel could
+immediately be paired with an existing ecosystem of software.</p>
+<h3 id="from-terminal-emulator-to-operating-system">From Terminal
+Emulator to Operating System</h3>
+<p>What eventually became Linux started as a modest personal side
+project. Torvalds wrote a terminal emulation program to connect to the
+university’s Unix mainframe from home over a modem.</p>
+<p>To improve the program, he added disk drivers so he could download
+and upload files, followed by a file system implementation compatible
+with MINIX. As the program expanded, Torvalds realized he had
+accidentally written the core of an operating system. Adhering to POSIX
+standards, he designed the system to run existing Unix programs
+seamlessly.</p>
+<p>On August 25, 1991, Torvalds announced his project to the
+<code>comp.os.minix</code> newsgroup, famously describing it as "just a
+hobby, won't be big and professional like gnu." When he made the source
+code publicly available under the GNU General Public License (GPL),
+developers worldwide joined to contribute code, fix bugs, and supply
+drivers, transforming a personal student project into a collaborative
+global platform.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

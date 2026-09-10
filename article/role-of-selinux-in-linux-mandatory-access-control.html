@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Role of SELinux in Linux Mandatory Access Control - linux</title>
+    <meta name="description" content="Security-Enhanced Linux (SELinux) is a security architecture embedded within the Linux kernel that provides a robust mechanism for enforcing Mandatory Access Control (MAC). This article examines the function of SELinux in Linux environments, detailing ho">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/role-of-selinux-in-linux-mandatory-access-control">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Role of SELinux in Linux Mandatory Access Control - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/role-of-selinux-in-linux-mandatory-access-control" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="Security-Enhanced Linux (SELinux) is a security architecture embedded within the Linux kernel that provides a robust mechanism for enforcing Mandatory Access Control (MAC). This article examines the function of SELinux in Linux environments, detailing ho" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="role-of-selinux-in-linux-mandatory-access-control">Role of
+SELinux in Linux Mandatory Access Control</h1>
+<p>Security-Enhanced Linux (SELinux) is a security architecture embedded
+within the Linux kernel that provides a robust mechanism for enforcing
+Mandatory Access Control (MAC). This article examines the function of
+SELinux in Linux environments, detailing how it replaces standard
+user-managed permissions with centralized, policy-driven controls. It
+covers the limitations of standard access models, the core architecture
+of SELinux—including security contexts and type enforcement—and how
+these mechanisms prevent privilege escalation and contain system
+compromises.</p>
+<h2 id="the-limitation-of-discretionary-access-control-dac">The
+Limitation of Discretionary Access Control (DAC)</h2>
+<p>Traditional Linux security relies on Discretionary Access Control
+(DAC). Under DAC, access to files, directories, and devices is
+determined by ownership: individual users own resources and assign read,
+write, and execute permissions.</p>
+<p>The primary vulnerability of DAC is its reliance on user privilege.
+If a malicious actor compromises a process running under the
+<code>root</code> account or the user owning a specific file, that actor
+inherits full control over the associated resources. DAC cannot restrict
+a compromised process from performing actions that its user ID is
+authorized to perform, leading to widespread lateral movement and system
+compromise.</p>
+<h2 id="how-selinux-enforces-mandatory-access-control-mac">How SELinux
+Enforces Mandatory Access Control (MAC)</h2>
+<p>SELinux addresses DAC vulnerabilities by enforcing Mandatory Access
+Control (MAC) through the Linux Security Modules (LSM) framework. Under
+MAC, access rights are determined centrally by a strict security policy
+rather than by the discretion of individual users.</p>
+<p>Even if a process runs with <code>root</code> privileges under DAC,
+it must still satisfy the rules defined in the active SELinux policy. If
+the policy does not explicitly permit an operation, the Linux kernel
+denies access, logs the event, and protects the underlying system.</p>
+<h3 id="security-labels-and-contexts">Security Labels and Contexts</h3>
+<p>SELinux manages access through labels called <strong>security
+contexts</strong>, applied to both subjects (processes) and objects
+(files, sockets, ports, and directories). A security context follows a
+standard format:</p>
+<p><code>user:role:type:level</code></p>
+<ul>
+<li><strong>User (<code>user</code>):</strong> An SELinux user identity
+mapped to one or more Linux accounts.</li>
+<li><strong>Role (<code>role</code>):</strong> Defines which types of
+processes an SELinux user can access.</li>
+<li><strong>Type (<code>type</code>):</strong> The primary mechanism for
+enforcement, referred to as <strong>Type Enforcement (TE)</strong>. For
+files, it defines the resource's type; for processes, it defines the
+running domain.</li>
+<li><strong>Level (<code>level</code>):</strong> An optional attribute
+used in Multi-Level Security (MLS) and Multi-Category Security (MCS) to
+handle sensitivity ratings (such as classified tiers).</li>
+</ul>
+<h3 id="type-enforcement-te">Type Enforcement (TE)</h3>
+<p>Type Enforcement is the primary method SELinux uses to enforce MAC.
+In a Type Enforcement model, rules specify exactly which process domains
+can interact with which file types.</p>
+<p>For example, a web server process might run in the
+<code>httpd_t</code> domain, while its static files are labeled with the
+<code>httpd_sys_content_t</code> type. The SELinux policy contains an
+explicit rule allowing <code>httpd_t</code> to read
+<code>httpd_sys_content_t</code>. If an attacker exploits a
+vulnerability in the web server and attempts to read
+<code>/etc/shadow</code> (labeled <code>shadow_t</code>), the kernel
+immediately denies the request because no rule exists permitting
+<code>httpd_t</code> to read <code>shadow_t</code>, regardless of the
+web server's execution privileges.</p>
+<h2 id="the-decision-making-process-policy-engine-and-avc">The
+Decision-Making Process: Policy Engine and AVC</h2>
+<p>When an operation occurs on a Linux system with SELinux enabled, the
+process executes as follows:</p>
+<ol type="1">
+<li><strong>DAC Verification:</strong> The standard Linux DAC checks run
+first. If DAC denies access, the operation is blocked immediately.</li>
+<li><strong>Policy Evaluation:</strong> If DAC grants access, the
+request moves to the SELinux subsystem in the kernel.</li>
+<li><strong>Access Vector Cache (AVC):</strong> To avoid performance
+degradation from constantly evaluating rules, SELinux checks the Access
+Vector Cache for previously computed decisions.</li>
+<li><strong>Policy Engine Query:</strong> If the decision is not cached,
+the request is evaluated against the loaded security policy.</li>
+<li><strong>Enforcement and Logging:</strong> The action is either
+allowed or denied. Denied operations are logged to audit files (such as
+<code>/var/log/audit/audit.log</code>) for administrative review.</li>
+</ol>
+<h2 id="operating-modes-of-selinux">Operating Modes of SELinux</h2>
+<p>SELinux operates in one of three modes:</p>
+<ul>
+<li><strong>Enforcing:</strong> The default state where policies are
+strictly applied, unauthorized actions are blocked, and violations are
+logged.</li>
+<li><strong>Permissive:</strong> SELinux does not block actions, but it
+logs violations that would have been denied in Enforcing mode. This mode
+is primarily used for troubleshooting and policy development.</li>
+<li><strong>Disabled:</strong> The SELinux framework is completely
+turned off, reverting the system solely to DAC.</li>
+</ul>
+<h2 id="system-isolation-and-blast-radius-reduction">System Isolation
+and Blast-Radius Reduction</h2>
+<p>The ultimate role of SELinux in a Linux environment is containment.
+By enforcing Mandatory Access Control, SELinux adheres to the principle
+of least privilege at the system level. Vulnerabilities in individual
+applications, services, or daemon processes are constrained to their
+defined operational domains, preventing adversaries from escalating
+privileges, tampering with foreign data, or establishing persistence
+across the wider operating system.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

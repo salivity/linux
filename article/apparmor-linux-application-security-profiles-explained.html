@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AppArmor Linux Application Security Profiles Explained - linux</title>
+    <meta name="description" content="AppArmor (Application Armor) is a Linux Security Module (LSM) that enhances system security by restricting the capabilities of individual programs through granular, path-based access profiles. This article explores how AppArmor operates within the Linux">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/apparmor-linux-application-security-profiles-explained">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="AppArmor Linux Application Security Profiles Explained - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/apparmor-linux-application-security-profiles-explained" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="AppArmor (Application Armor) is a Linux Security Module (LSM) that enhances system security by restricting the capabilities of individual programs through granular, path-based access profiles. This article explores how AppArmor operates within the Linux" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="apparmor-linux-application-security-profiles-explained">AppArmor
+Linux Application Security Profiles Explained</h1>
+<p>AppArmor (Application Armor) is a Linux Security Module (LSM) that
+enhances system security by restricting the capabilities of individual
+programs through granular, path-based access profiles. This article
+explores how AppArmor operates within the Linux kernel, the architecture
+of its profile-based enforcement, its operational modes, and how it
+effectively isolates vulnerable services to prevent system-wide
+exploitation.</p>
+<h3 id="what-is-apparmor">What is AppArmor?</h3>
+<p>AppArmor implements Mandatory Access Control (MAC) to supplement
+traditional Discretionary Access Control (DAC), which relies on standard
+file permissions (user, group, other). While standard Linux permissions
+allow any process running as a specific user to access everything that
+user owns, AppArmor confines individual executables to a strictly
+defined set of resources, regardless of the user running the
+process.</p>
+<h3 id="path-based-confinement">Path-Based Confinement</h3>
+<p>Unlike SELinux, which relies on complex inode labeling, AppArmor uses
+path-based resolution. This means security rules are directly bound to
+the executable's filesystem path (such as <code>/usr/sbin/nginx</code>
+or <code>/usr/bin/evince</code>).</p>
+<p>When an application attempts an operation—such as opening a file,
+binding a network socket, or executing a subprocess—the Linux kernel
+checks the request against the active AppArmor profile mapped to that
+program's binary path. If the specific action is not explicitly
+permitted in the profile, the kernel denies it.</p>
+<h3 id="anatomy-of-an-apparmor-profile">Anatomy of an AppArmor
+Profile</h3>
+<p>AppArmor profiles are plain-text configuration files stored in
+<code>/etc/apparmor.d/</code>. These files dictate exactly what an
+application is permitted to do:</p>
+<ul>
+<li><strong>File Access Permissions:</strong> Specifies paths an
+application can access, along with access modes such as read
+(<code>r</code>), write (<code>w</code>), execute (<code>x</code>),
+append (<code>a</code>), memory map (<code>m</code>), and lock
+(<code>k</code>). Wildcards and regular expressions can be used to cover
+directories.</li>
+<li><strong>Network Rules:</strong> Dictates whether the application can
+create raw sockets, bind to TCP/UDP ports, or use specific network
+protocols.</li>
+<li><strong>Linux Capabilities:</strong> Restricts POSIX capabilities,
+preventing even root-owned processes from executing sensitive kernel
+calls like <code>CAP_SYS_ADMIN</code>, <code>CAP_NET_ADMIN</code>, or
+<code>CAP_RAW_IO</code> unless explicitly allowed.</li>
+</ul>
+<h3 id="operational-modes-enforce-and-complain">Operational Modes:
+Enforce and Complain</h3>
+<p>AppArmor profiles function in one of two distinct modes:</p>
+<ol type="1">
+<li><strong>Enforce Mode:</strong> The security policy is strictly
+applied. Any action not explicitly declared in the profile is blocked,
+and an audit event is logged to the system logger (<code>auditd</code>
+or <code>journald</code>). This is the standard production mode.</li>
+<li><strong>Complain Mode:</strong> Policies are not strictly applied.
+Applications can violate the profile rules without being blocked, but
+every violation generates a security warning in the logs. This mode is
+used primarily for testing, debugging, and building new profiles without
+disrupting normal application behavior.</li>
+</ol>
+<h3 id="profile-creation-and-maintenance">Profile Creation and
+Maintenance</h3>
+<p>AppArmor simplifies policy creation through utility tools such as
+<code>aa-genprof</code> and <code>aa-logprof</code>.</p>
+<p>When generating a profile, the administrator runs the application in
+complain mode while exercising its normal functions. The utility
+analyzes the audit logs, detects every resource the program attempts to
+access, and prompts the administrator to allow, deny, or glob the
+observed behaviors into a finalized profile.</p>
+<h3 id="mitigation-of-zero-day-vulnerabilities">Mitigation of Zero-Day
+Vulnerabilities</h3>
+<p>By confining applications to a principle of least privilege, AppArmor
+mitigates the impact of software flaws. If a web server or daemon is
+compromised via a remote code execution exploit, the attacker's shell
+remains bound to the constraints of the daemon's AppArmor profile. The
+attacker cannot read sensitive files like <code>/etc/shadow</code>,
+write to arbitrary locations, or spawn unauthorized binaries,
+neutralizing the threat before it escalates to full system
+compromise.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

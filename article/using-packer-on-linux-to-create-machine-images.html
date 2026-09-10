@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Using Packer on Linux to Create Machine Images - linux</title>
+    <meta name="description" content="HashiCorp Packer automates the generation of identical, reproducible machine images across multiple platforms from a single source configuration. On a Linux operating system, Packer runs as a standalone binary that orchestrates the entire image lifecycle">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/using-packer-on-linux-to-create-machine-images">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Using Packer on Linux to Create Machine Images - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/using-packer-on-linux-to-create-machine-images" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="HashiCorp Packer automates the generation of identical, reproducible machine images across multiple platforms from a single source configuration. On a Linux operating system, Packer runs as a standalone binary that orchestrates the entire image lifecycle" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="using-packer-on-linux-to-create-machine-images">Using Packer on
+Linux to Create Machine Images</h1>
+<p>HashiCorp Packer automates the generation of identical, reproducible
+machine images across multiple platforms from a single source
+configuration. On a Linux operating system, Packer runs as a standalone
+binary that orchestrates the entire image lifecycle by reading
+user-defined templates, launching isolated virtual environments or cloud
+instances, executing provisioning scripts, and packaging the resulting
+disk into a standardized machine image. This article details how Linux
+executes Packer, how its core components interact with the host system,
+and the specific mechanisms used to generate immutable infrastructure
+artifacts.</p>
+<h3 id="the-packer-architecture-on-linux">The Packer Architecture on
+Linux</h3>
+<p>Packer is compiled as a statically linked Go binary. When executed on
+Linux, it runs directly in user space without requiring an external
+runtime engine, relying solely on standard Linux system calls and
+networking primitives.</p>
+<p>Packer’s operations are driven by declarative configuration files
+written in HashiCorp Configuration Language (HCL) or JSON. The engine
+reads these configurations and coordinates three primary internal
+stages:</p>
+<ol type="1">
+<li><strong>Builders</strong>: Components responsible for creating the
+machine, managing its storage, and producing the base image. Depending
+on the target, Linux can drive local builders (such as QEMU/KVM,
+VirtualBox, or Docker) or remote cloud builders (such as AWS AMI, Google
+Cloud Compute Engine, or Azure Resource Manager).</li>
+<li><strong>Provisioners</strong>: Plugins that install and configure
+software on the running machine before turning it into an image.
+Examples include shell scripts, Ansible, Chef, or Puppet.</li>
+<li><strong>Post-Processors</strong>: Modules that take the artifact
+generated by the builder and upload, re-package, or compress it (e.g.,
+converting a raw disk image or pushing to an artifact registry).</li>
+</ol>
+<h3 id="the-build-execution-lifecycle">The Build Execution
+Lifecycle</h3>
+<p>When you run <code>packer build template.pkr.hcl</code> on a Linux
+host, the operating system and Packer execute the following
+sequence:</p>
+<h4 id="1-configuration-validation-and-plugin-resolution">1.
+Configuration Validation and Plugin Resolution</h4>
+<p>Packer parses the configuration syntax, resolves variable
+definitions, and verifies credentials. If external plugins are declared,
+Packer downloads them into <code>~/.packer.d/plugins</code> or the
+project-local directory, verifying their SHA256 checksums.</p>
+<h4 id="2-target-environment-provisioning">2. Target Environment
+Provisioning</h4>
+<p>The builder instructs either a local virtualization engine or a
+remote cloud API to launch a base instance:</p>
+<ul>
+<li><strong>Local Builds (e.g., QEMU/KVM):</strong> On Linux, Packer
+leverages native kernel features like KVM (<code>/dev/kvm</code>) for
+hardware-accelerated virtualization. It uses
+<code>qemu-system-x86_64</code> to boot an installation ISO or base
+cloud image.</li>
+<li><strong>Remote Builds (e.g., AWS/GCP):</strong> Packer uses Linux's
+networking stack to issue authenticated REST API calls over TLS,
+provisioning a temporary virtual machine in the cloud provider's
+infrastructure.</li>
+</ul>
+<h4 id="3-establishing-communication">3. Establishing Communication</h4>
+<p>Once the temporary machine is running, Packer waits for network
+accessibility. Under Linux, it generates ephemeral SSH key pairs or
+self-signed WinRM certificates, binds to local network sockets, and
+polls the guest instance until an SSH or WinRM connection succeeds.</p>
+<h4 id="4-guest-customization-provisioning">4. Guest Customization
+(Provisioning)</h4>
+<p>Through the established communicator channel, Packer streams commands
+and files to the guest operating system. If using the shell provisioner,
+Linux pipes local scripts directly over SSH to the target. For
+provisioners like Ansible, Packer can execute the local Ansible binary
+on the host Linux system, tunneling commands via an SSH proxy
+(<code>ProxyCommand</code>) directly to the target environment.</p>
+<h4 id="5-cleanup-and-sanitization">5. Cleanup and Sanitization</h4>
+<p>To ensure the machine image is completely reusable and identical
+across iterations, provisioners execute cleanup routines inside the
+target machine. Common tasks include:</p>
+<ul>
+<li>Truncating log files (<code>/var/log/*</code>).</li>
+<li>Removing machine-specific identifiers (such as
+<code>/etc/machine-id</code>).</li>
+<li>Deleting temporary SSH keys and network lease caches.</li>
+<li>Zeroing free disk space to improve final image compression.</li>
+</ul>
+<h4 id="6-artifact-capture-and-export">6. Artifact Capture and
+Export</h4>
+<p>After the guest machine halts:</p>
+<ul>
+<li><strong>For local images:</strong> The Linux host uses utilities
+like <code>qemu-img</code> to convert raw storage devices into target
+formats such as QCOW2, VMDK, or VHD.</li>
+<li><strong>For cloud images:</strong> Packer triggers the provider's
+snapshot and image creation APIs, tags the resulting AMI or disk
+template, and terminates the temporary virtual machine to prevent
+orphaned resources.</li>
+</ul>
+<h3 id="ensuring-identical-images">Ensuring Identical Images</h3>
+<p>The combination of Linux and Packer guarantees repeatability by
+enforcing Infrastructure as Code (IaC) principles:</p>
+<ul>
+<li><strong>Deterministic Inputs:</strong> The entire image definition
+is version-controlled. Any change to the operating system dependencies
+must be committed to code.</li>
+<li><strong>Hermetic Builds in CI/CD:</strong> Linux runners in
+continuous integration systems (such as GitLab CI or GitHub Actions) can
+spin up isolated, ephemeral containers to execute Packer builds,
+preventing host environmental drift from bleeding into target
+images.</li>
+<li><strong>Immutable Artifacts:</strong> Instead of updating running
+servers in place, Linux administrators replace instances entirely using
+new images built by Packer, eliminating configuration drift across
+development, staging, and production environments.</li>
+</ul></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

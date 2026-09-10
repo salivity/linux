@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How to Use edquota for Linux Quota Administration - linux</title>
+    <meta name="description" content="Disk quota management is a crucial administrative task in multi-user Linux environments to prevent individual users or groups from exhausting storage resources. This article covers how the Linux operating system handles quota administration using the edq">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-to-use-edquota-for-linux-quota-administration">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How to Use edquota for Linux Quota Administration - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-to-use-edquota-for-linux-quota-administration" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="Disk quota management is a crucial administrative task in multi-user Linux environments to prevent individual users or groups from exhausting storage resources. This article covers how the Linux operating system handles quota administration using the edq" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-to-use-edquota-for-linux-quota-administration">How to Use
+edquota for Linux Quota Administration</h1>
+<p>Disk quota management is a crucial administrative task in multi-user
+Linux environments to prevent individual users or groups from exhausting
+storage resources. This article covers how the Linux operating system
+handles quota administration using the <code>edquota</code> command,
+including prerequisites, understanding block and inode metrics,
+configuring soft and hard limits, setting grace periods, and duplicating
+quota settings across multiple users.</p>
+<h2 id="prerequisites-for-quota-administration">Prerequisites for Quota
+Administration</h2>
+<p>Before using <code>edquota</code>, disk quotas must be supported and
+enabled on the target filesystem:</p>
+<ol type="1">
+<li><strong>Mount Options</strong>: Update <code>/etc/fstab</code> to
+include <code>usrquota</code> and/or <code>grpquota</code> in the
+options field for the partition.</li>
+<li><strong>Quota Database</strong>: Run
+<code>quotacheck -cugm /mountpoint</code> to create the
+<code>aquota.user</code> and <code>aquota.group</code> index files.</li>
+<li><strong>Activation</strong>: Enable quotas on the system using
+<code>quotaon -v /mountpoint</code>.</li>
+</ol>
+<p>Once initialized, the <code>edquota</code> utility serves as the
+primary tool to modify these binary index files safely.</p>
+<h2 id="understanding-edquota-metrics-and-limits">Understanding edquota
+Metrics and Limits</h2>
+<p>The <code>edquota</code> command opens an interactive text editor
+(determined by the <code>$EDITOR</code> environment variable, defaulting
+to <code>vi</code> or <code>nano</code>) populated with quota rules for
+a designated user or group.</p>
+<p>Each entry defines allocations across two resources:</p>
+<ul>
+<li><strong>Blocks</strong>: Represents actual disk space consumed
+(typically measured in 1-kilobyte units).</li>
+<li><strong>Inodes</strong>: Represents the total number of distinct
+files, directories, and links created.</li>
+</ul>
+<p>For both blocks and inodes, administrators assign two types of
+constraints:</p>
+<ul>
+<li><strong>Soft Limit</strong>: A threshold that generates a warning
+when exceeded. Users can temporarily bypass this limit during an
+allotted grace period.</li>
+<li><strong>Hard Limit</strong>: An absolute ceiling that cannot be
+crossed. If reached, the system immediately rejects write operations or
+file creation.</li>
+</ul>
+<h2 id="editing-user-and-group-quotas">Editing User and Group
+Quotas</h2>
+<p>To configure storage rules for a specific user:</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> edquota username</span></code></pre></div>
+<p>To configure quotas for a specific group:</p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> edquota <span class="at">-g</span> groupname</span></code></pre></div>
+<p>The editor opens a formatted layout similar to the following:</p>
+<pre class="text"><code>Disk quotas for user alice (uid 1001):
+  Filesystem     blocks    soft    hard   inodes   soft   hard
+  /dev/sda1        4096   50000   60000       12    100    120</code></pre>
+<ul>
+<li>The first <code>blocks</code> column and the first
+<code>inodes</code> column display current usage and are updated
+automatically by the system.</li>
+<li>The <code>soft</code> and <code>hard</code> columns are manually
+defined. Setting a limit to <code>0</code> disables that constraint
+(unlimited).</li>
+<li>Save and exit the editor to apply the changes immediately without
+restarting services.</li>
+</ul>
+<h2 id="configuring-grace-periods">Configuring Grace Periods</h2>
+<p>When a user exceeds a soft limit, a grace period countdown begins. If
+the user fails to reduce their usage below the soft limit before the
+timer expires, the soft limit acts as a hard limit.</p>
+<p>To change the default grace period (typically 7 days):</p>
+<div class="sourceCode" id="cb4"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> edquota <span class="at">-t</span></span></code></pre></div>
+<p>This presents an editor interface specifying time frames for blocks
+and inodes:</p>
+<pre class="text"><code>Grace period before enforcing soft limits for users:
+Time units may be: days, hours, minutes, or seconds
+  Filesystem             Block grace period     Inode grace period
+  /dev/sda1                     7days                  7days</code></pre>
+<p>Adjust the units as needed (e.g., <code>48hours</code>,
+<code>14days</code>) and save the file.</p>
+<h2 id="duplicating-quotas-across-users">Duplicating Quotas Across
+Users</h2>
+<p>Manually configuring quotas for dozens or hundreds of accounts is
+inefficient. The <code>edquota</code> command provides a prototype flag
+(<code>-p</code>) to duplicate an established configuration to other
+accounts:</p>
+<div class="sourceCode" id="cb6"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> edquota <span class="at">-p</span> prototype_user user1 user2 user3</span></code></pre></div>
+<p>This applies the exact block and inode thresholds configured on
+<code>prototype_user</code> to the target accounts while preserving
+their current usage counts. It can also be combined with shell
+expansions to apply limits to entire ranges of users:</p>
+<div class="sourceCode" id="cb7"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> edquota <span class="at">-p</span> standard_user <span class="va">$(</span><span class="fu">getent</span> passwd <span class="kw">|</span> <span class="fu">awk</span> <span class="at">-F:</span> <span class="st">&#39;$3 &gt;= 1000 {print $1}&#39;</span><span class="va">)</span></span></code></pre></div>
+<h2 id="verifying-quota-assignments">Verifying Quota Assignments</h2>
+<p>After administering quotas with <code>edquota</code>, verify that
+settings have taken effect:</p>
+<ul>
+<li><strong>View individual user quota</strong>:
+<code>quota -vs username</code></li>
+<li><strong>Generate a system-wide quota report</strong>:
+<code>repquota -avugs</code></li>
+</ul></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

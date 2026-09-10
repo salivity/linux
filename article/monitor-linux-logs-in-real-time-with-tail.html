@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monitor Linux Logs in Real Time with Tail - linux</title>
+    <meta name="description" content="This guide demonstrates how to use the Linux tail command to track and monitor log files as they update in real time. You will learn the primary command flags for live streaming, how to handle log rotation, how to view multiple files simultaneously, and">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/monitor-linux-logs-in-real-time-with-tail">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Monitor Linux Logs in Real Time with Tail - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/monitor-linux-logs-in-real-time-with-tail" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="This guide demonstrates how to use the Linux tail command to track and monitor log files as they update in real time. You will learn the primary command flags for live streaming, how to handle log rotation, how to view multiple files simultaneously, and" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="monitor-linux-logs-in-real-time-with-tail">Monitor Linux Logs in
+Real Time with Tail</h1>
+<p>This guide demonstrates how to use the Linux <code>tail</code>
+command to track and monitor log files as they update in real time. You
+will learn the primary command flags for live streaming, how to handle
+log rotation, how to view multiple files simultaneously, and how to
+filter real-time output using standard Linux utilities.</p>
+<h3 id="basic-real-time-monitoring-with-the--f-flag">Basic Real-Time
+Monitoring with the <code>-f</code> Flag</h3>
+<p>By default, the <code>tail</code> command prints the last 10 lines of
+a specified file and exits. To monitor changes continuously, use the
+<code>-f</code> (follow) option. This tells <code>tail</code> to keep
+the file open and output new lines as they are appended.</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">tail</span> <span class="at">-f</span> /var/log/syslog</span></code></pre></div>
+<p>To stop monitoring at any time, press <code>Ctrl + C</code>.</p>
+<h3 id="handling-log-rotation-with-the--f-flag">Handling Log Rotation
+with the <code>-F</code> Flag</h3>
+<p>In production environments, services regularly rotate logs using
+tools like <code>logrotate</code>. When a log rotates, the original file
+is renamed, and a new empty file is created with the original name. The
+standard <code>-f</code> flag tracks the file descriptor, meaning it
+will stop displaying new output once the rotation occurs.</p>
+<p>To ensure continuous tracking across rotations, use the
+<code>-F</code> flag. This flag tracks the file by its filename and
+automatically retries if the file becomes inaccessible or is
+recreated.</p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">tail</span> <span class="at">-F</span> /var/log/nginx/access.log</span></code></pre></div>
+<h3 id="displaying-a-specific-number-of-historical-lines">Displaying a
+Specific Number of Historical Lines</h3>
+<p>If you need more context before live monitoring begins, combine the
+<code>-f</code> flag with the <code>-n</code> flag to specify how many
+existing lines to output initially.</p>
+<p>To display the last 50 lines before following new lines:</p>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">tail</span> <span class="at">-n</span> 50 <span class="at">-f</span> /var/log/auth.log</span></code></pre></div>
+<h3 id="monitoring-multiple-log-files-simultaneously">Monitoring
+Multiple Log Files Simultaneously</h3>
+<p>You can pass multiple file paths to <code>tail</code> to stream more
+than one log at once. The command will prepend each output block with a
+header indicating which file generated the logs.</p>
+<div class="sourceCode" id="cb4"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">tail</span> <span class="at">-f</span> /var/log/nginx/access.log /var/log/nginx/error.log</span></code></pre></div>
+<h3 id="filtering-real-time-output-with-grep">Filtering Real-Time Output
+with Grep</h3>
+<p>You can pipe the real-time stream from <code>tail</code> directly
+into <code>grep</code> to isolate specific errors, IP addresses, or
+keywords.</p>
+<div class="sourceCode" id="cb5"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">tail</span> <span class="at">-f</span> /var/log/syslog <span class="kw">|</span> <span class="fu">grep</span> <span class="at">--line-buffered</span> <span class="st">&quot;error&quot;</span></span></code></pre></div>
+<p>Using the <code>--line-buffered</code> flag with <code>grep</code>
+ensures that matching lines are printed to the terminal immediately
+rather than held in a memory buffer.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

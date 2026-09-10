@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linux Rootless Containers with Buildah Explained - linux</title>
+    <meta name="description" content="This article explores how the Linux operating system facilitates the execution and creation of rootless containers using the Buildah image-building tool. By leveraging core Linux kernel security primitives—primarily user namespaces, subordinate UID/GID">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/linux-rootless-containers-with-buildah-explained">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Linux Rootless Containers with Buildah Explained - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/linux-rootless-containers-with-buildah-explained" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="This article explores how the Linux operating system facilitates the execution and creation of rootless containers using the Buildah image-building tool. By leveraging core Linux kernel security primitives—primarily user namespaces, subordinate UID/GID" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="linux-rootless-containers-with-buildah-explained">Linux Rootless
+Containers with Buildah Explained</h1>
+<p>This article explores how the Linux operating system facilitates the
+execution and creation of rootless containers using the Buildah
+image-building tool. By leveraging core Linux kernel security
+primitives—primarily user namespaces, subordinate UID/GID mappings, and
+user-space storage and networking subsystems—Linux allows Buildah to
+build Open Container Initiative (OCI) images entirely within
+unprivileged user space without requiring root privileges or a
+background daemon.</p>
+<h3 id="the-foundation-linux-user-namespaces">The Foundation: Linux User
+Namespaces</h3>
+<p>The primary Linux kernel feature powering rootless containers is the
+user namespace (<code>user_namespaces(7)</code>). Namespaces isolate
+system resources so that a group of processes perceives a dedicated
+instance of those resources.</p>
+<p>A user namespace specifically isolates security-related attributes:
+user IDs (UIDs), group IDs (GIDs), keys, and capabilities. When Buildah
+initiates a build process as an unprivileged user:</p>
+<ol type="1">
+<li>It requests the creation of a new user namespace using the
+<code>clone()</code> or <code>unshare()</code> system calls with the
+<code>CLONE_NEWUSER</code> flag.</li>
+<li>Inside this namespace, the invoking unprivileged host user is mapped
+to UID 0 (root).</li>
+<li>The process is granted full Linux capabilities (such as
+<code>CAP_CHOWN</code>, <code>CAP_MKNOD</code>, and
+<code>CAP_SETUID</code>) <em>strictly within the scope of that user
+namespace</em>.</li>
+<li>Outside the namespace, the process retains only the permissions and
+constraints of the standard unprivileged user on the host system.</li>
+</ol>
+<h3 id="subordinate-uid-and-gid-mapping">Subordinate UID and GID
+Mapping</h3>
+<p>Standard container images typically involve files owned by multiple
+different UIDs and GIDs (e.g., <code>bin</code>, <code>daemon</code>,
+<code>nobody</code>). Because a regular Linux user only controls one UID
+and GID by default, Linux provides subordinate UID and GID mechanisms to
+allocate ranges of IDs to non-root users.</p>
+<ul>
+<li><strong>Configuration Files:</strong> The mappings are defined in
+<code>/etc/subuid</code> and <code>/etc/subgid</code>. An entry like
+<code>user:100000:65536</code> grants the user a block of 65,536
+subordinate IDs starting at 100000.</li>
+<li><strong>Helper Utilities:</strong> The kernel delegates the mapping
+setup to setuid-root helper binaries: <code>newuidmap</code> and
+<code>newgidmap</code>. Buildah invokes these utilities to configure the
+<code>/proc/[pid]/uid_map</code> and <code>/proc/[pid]/gid_map</code>
+interfaces, mapping the host's subordinate IDs to internal container IDs
+(e.g., UIDs 1–65535 inside the container).</li>
+</ul>
+<p>This architecture allows Buildah to run <code>chown</code> or package
+manager commands that assign arbitrary file ownership inside the build
+environment without colliding with host system accounts.</p>
+<h3 id="storage-and-the-filesystem-layer">Storage and the Filesystem
+Layer</h3>
+<p>Building an image requires modifying file layers, creating temporary
+mounts, and tracking changes. Linux handles rootless storage through
+specialized paths and drivers:</p>
+<ul>
+<li><strong>Storage Location:</strong> Rather than writing to the
+system-wide <code>/var/lib/containers/storage</code>, rootless Buildah
+operates out of the user's home directory, typically
+<code>$HOME/.local/share/containers/storage</code>.</li>
+<li><strong>OverlayFS in User Namespaces:</strong> Modern Linux kernels
+(version 5.11 and later) allow mounting OverlayFS directly within an
+unprivileged user namespace. When supported, the kernel directly manages
+layer copy-up operations.</li>
+<li><strong>FUSE OverlayFS Fallback:</strong> On older kernels or
+distributions where unprivileged native OverlayFS is restricted, Buildah
+uses <code>fuse-overlayfs</code>. This FUSE (Filesystem in Userspace)
+driver intercepts filesystem calls and performs copy-on-write layering
+entirely in user space, bypassing kernel-level mount restrictions.</li>
+</ul>
+<h3 id="networking-in-rootless-builds">Networking in Rootless
+Builds</h3>
+<p>When Buildah executes commands that require network access (such as
+<code>RUN apt update</code> or <code>RUN curl</code>), the Linux kernel
+blocks standard network namespace creation by unprivileged users if
+external interface routing is required.</p>
+<p>To resolve this, Linux environments run user-space networking
+tools:</p>
+<ul>
+<li><strong>slirp4netns / pasta:</strong> These tools create a TAP
+device inside the container's network namespace and translate network
+calls into standard, unprivileged socket operations on the host. The
+host kernel processes the packets as ordinary outbound traffic
+originating from the non-root user.</li>
+</ul>
+<h3 id="daemonless-architecture">Daemonless Architecture</h3>
+<p>Unlike traditional container platforms that rely on a privileged
+background daemon running as root (such as the Docker daemon), Buildah
+does not use a client-server model. When a user runs
+<code>buildah bud</code> or <code>buildah from</code>:</p>
+<ol type="1">
+<li>Buildah executes directly as a child process of the user's current
+shell.</li>
+<li>It interacts directly with the Linux kernel APIs.</li>
+<li>Once the build process finishes, the temporary namespaces and helper
+processes terminate, leaving behind the generated OCI-compliant image
+artifacts in user-owned local storage.</li>
+</ol>
+<p>By combining user namespaces, UID/GID allocation, user-space storage
+drivers, and user-mode networking, Linux provides an isolated,
+unprivileged sandbox that Buildah utilizes to build production-ready
+container images securely.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How Linux Manages NVIDIA and Nouveau Drivers - linux</title>
+    <meta name="description" content="Linux manages the coexistence of proprietary NVIDIA drivers and open-source Nouveau drivers through a structured system of kernel module blacklisting, initial RAM disk (initramfs) configuration, and user-space library dispatching. Because both drivers ta">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-linux-manages-nvidia-and-nouveau-drivers">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How Linux Manages NVIDIA and Nouveau Drivers - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-linux-manages-nvidia-and-nouveau-drivers" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="Linux manages the coexistence of proprietary NVIDIA drivers and open-source Nouveau drivers through a structured system of kernel module blacklisting, initial RAM disk (initramfs) configuration, and user-space library dispatching. Because both drivers ta" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-linux-manages-nvidia-and-nouveau-drivers">How Linux Manages
+NVIDIA and Nouveau Drivers</h1>
+<p>Linux manages the coexistence of proprietary NVIDIA drivers and
+open-source Nouveau drivers through a structured system of kernel module
+blacklisting, initial RAM disk (initramfs) configuration, and user-space
+library dispatching. Because both drivers target the exact same graphics
+hardware and kernel interfaces, they cannot run simultaneously. The
+operating system handles this conflict cleanly by preventing Nouveau
+from claiming the hardware when proprietary drivers are installed, while
+using vendor-neutral libraries to preserve system stability without
+permanently modifying or breaking the underlying open-source files.</p>
+<h2 id="the-hardware-conflict">The Hardware Conflict</h2>
+<p>Both the Nouveau driver and the proprietary NVIDIA driver require
+exclusive access to the GPU's memory registers, interrupts, and Kernel
+Mode Setting (KMS) subsystem. If both drivers attempt to initialize the
+hardware at the same time, it results in a kernel panic or an
+unrecoverable system freeze. To prevent this, Linux treats driver
+selection as a mutually exclusive configuration rather than a runtime
+competition.</p>
+<h2 id="kernel-module-blacklisting">Kernel Module Blacklisting</h2>
+<p>The primary mechanism used to silence Nouveau is kernel module
+blacklisting. When the proprietary NVIDIA driver package is installed
+via a package manager or the official installer, it automatically drops
+a configuration file into <code>/etc/modprobe.d/</code> (such as
+<code>blacklist-nouveau.conf</code>).</p>
+<p>This configuration file typically includes directives like:</p>
+<pre class="text"><code>blacklist nouveau
+options nouveau modeset=0</code></pre>
+<p>The <code>blacklist</code> directive instructs the module loader
+(<code>modprobe</code>) not to automatically load Nouveau when the GPU
+hardware is detected on the PCIe bus. Setting <code>modeset=0</code>
+disables Nouveau's Kernel Mode Setting, preventing the driver from
+attempting to configure the display pipeline even if loaded
+manually.</p>
+<h2 id="initramfs-regeneration">Initramfs Regeneration</h2>
+<p>Because modern Linux distributions load essential storage and display
+drivers early in the boot process via the initial RAM file system
+(initramfs or initrd), blacklisting on the root filesystem alone is not
+sufficient.</p>
+<p>During the installation of the proprietary driver, the system
+automatically rebuilds the initramfs (using tools such as
+<code>dracut</code> or <code>update-initramfs</code>). This update
+ensures the blacklist rules are embedded directly into the boot image.
+Consequently, the kernel skips Nouveau from the very first moments of
+the boot process, leaving the GPU uninitialized until the proprietary
+<code>nvidia</code>, <code>nvidia_modeset</code>,
+<code>nvidia_uvm</code>, and <code>nvidia_drm</code> kernel modules are
+invoked.</p>
+<h2 id="user-space-isolation-with-glvnd">User-Space Isolation with
+GLVND</h2>
+<p>Historically, installing the proprietary driver risked breaking
+Nouveau because the proprietary installer would overwrite system OpenGL
+libraries like <code>libGL.so</code>. If a user later disabled the
+NVIDIA driver, Nouveau would fail because its expected Mesa libraries
+were gone.</p>
+<p>Modern Linux solves this using the OpenGL Vendor-Neutral Dispatch
+(GLVND) architecture. GLVND acts as a traffic controller between
+user-space applications and graphics drivers:</p>
+<ul>
+<li>Applications link against a generic <code>libGL.so</code> provided
+by GLVND.</li>
+<li>GLVND checks which driver is actively managing the display server or
+hardware context.</li>
+<li>GLVND dynamically dispatches rendering calls to either the
+proprietary NVIDIA backend or Mesa (used by Nouveau).</li>
+</ul>
+<p>Because system libraries are no longer overwritten, the open-source
+graphics stack remains completely intact on the filesystem.</p>
+<h2 id="safe-fallback-and-recovery">Safe Fallback and Recovery</h2>
+<p>If the proprietary NVIDIA driver fails to build during a kernel
+update or is uninstalled, reverting to Nouveau is straightforward. The
+removal process deletes the blacklist entries in
+<code>/etc/modprobe.d/</code> and regenerates the initramfs. Upon the
+next reboot, the kernel detects the NVIDIA GPU, finds no blacklist
+restrictions, automatically loads the Nouveau driver, and relies on Mesa
+via GLVND to restore desktop display functions seamlessly.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

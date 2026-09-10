@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Managing Linux Software RAID with mdadm - linux</title>
+    <meta name="description" content="Linux manages software Redundant Array of Independent Disks (RAID) configurations through a combination of the kernel-level Multiple Device (MD) driver and the user-space utility known as mdadm. This system allows administrators to combine multiple physi">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/managing-linux-software-raid-with-mdadm">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Managing Linux Software RAID with mdadm - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/managing-linux-software-raid-with-mdadm" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="Linux manages software Redundant Array of Independent Disks (RAID) configurations through a combination of the kernel-level Multiple Device (MD) driver and the user-space utility known as mdadm. This system allows administrators to combine multiple physi" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="managing-linux-software-raid-with-mdadm">Managing Linux Software
+RAID with mdadm</h1>
+<p>Linux manages software Redundant Array of Independent Disks (RAID)
+configurations through a combination of the kernel-level Multiple Device
+(MD) driver and the user-space utility known as <code>mdadm</code>. This
+system allows administrators to combine multiple physical storage drives
+into a single logical device to achieve data redundancy, increased
+performance, or both, without the need for an expensive hardware RAID
+controller. This article explains how the MD subsystem operates, how
+<code>mdadm</code> handles array creation and maintenance, and how the
+operating system detects and recovers from drive failures.</p>
+<h3 id="the-architecture-md-driver-and-mdadm">The Architecture: MD
+Driver and mdadm</h3>
+<p>Linux software RAID relies on a two-tier architecture:</p>
+<ol type="1">
+<li><strong>The Kernel MD Driver:</strong> The low-level Multiple Device
+driver operates directly within the Linux kernel. It handles block-level
+I/O operations, calculates parity for levels like RAID 5 and 6, handles
+data striping across disks (RAID 0), and mirrors data blocks across
+drives (RAID 1).</li>
+<li><strong>The <code>mdadm</code> Tool:</strong> This is the
+administrative user-space CLI tool. It interacts with the MD driver to
+create, configure, monitor, assemble, and update RAID devices. While the
+kernel routes data, <code>mdadm</code> dictates how the array is
+organized and writes metadata—known as "superblocks"—to the
+participating storage partitions.</li>
+</ol>
+<h3 id="array-creation-and-metadata-management">Array Creation and
+Metadata Management</h3>
+<p>When initializing an array, <code>mdadm</code> writes an on-disk
+superblock to each member drive. This superblock contains unique
+identifiers (UUIDs), the RAID level, array layout, and drive sequence
+details.</p>
+<p>To create an array, an administrator runs:</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">mdadm</span> <span class="at">--create</span> /dev/md0 <span class="at">--level</span><span class="op">=</span>1 <span class="at">--raid-devices</span><span class="op">=</span>2 /dev/sdb1 /dev/sdc1</span></code></pre></div>
+<p>Once this command executes, the kernel creates a virtual block device
+(<code>/dev/md0</code>). File systems like ext4 or XFS are then built
+directly onto this virtual device, making the underlying striping or
+mirroring completely transparent to user applications.</p>
+<h3 id="configuration-and-boot-assembly">Configuration and Boot
+Assembly</h3>
+<p>Because drive device letters (<code>/dev/sdX</code>) can change upon
+system reboot, Linux relies on <code>mdadm</code> metadata and
+configuration files to assemble arrays predictably:</p>
+<ul>
+<li><strong>/etc/mdadm/mdadm.conf:</strong> This file stores the
+definitions and UUIDs of the arrays on the system. It helps the
+operating system scan and discover which physical devices belong to
+which virtual array.</li>
+<li><strong>Initramfs Integration:</strong> If the root file system sits
+on a RAID array, the initial RAM filesystem (<code>initramfs</code>)
+includes <code>mdadm</code> binaries and scripts to assemble the array
+before mounting the root partition and handing off control to
+systemd.</li>
+</ul>
+<h3 id="real-time-monitoring-and-status">Real-Time Monitoring and
+Status</h3>
+<p>Linux provides visibility into active arrays through both the
+<code>/proc</code> virtual file system and <code>mdadm</code>
+diagnostics.</p>
+<ul>
+<li><strong>/proc/mdstat:</strong> Reading this file provides an instant
+snapshot of all active RAID devices, displaying their sync status,
+active disks, and rebuild percentages:
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span> /proc/mdstat</span></code></pre></div></li>
+<li><strong>Detailed Device Querying:</strong> Running
+<code>mdadm --detail /dev/md0</code> outputs comprehensive health
+metrics, state flags (such as <code>clean</code>, <code>active</code>,
+or <code>degraded</code>), and a detailed list of participating
+partitions.</li>
+<li><strong>Daemon Monitoring:</strong> The <code>mdadm</code>
+monitoring daemon (<code>mdadm --monitor</code>) runs as a background
+systemd service. It constantly watches kernel events and can send email
+alerts or execute custom scripts if an array degrades or a drive
+fails.</li>
+</ul>
+<h3 id="failure-handling-and-array-rebuilding">Failure Handling and
+Array Rebuilding</h3>
+<p>When a physical disk fails, the Linux MD driver marks the disk as
+faulty, transitions the array into a <code>degraded</code> state, and
+ceases writing to the damaged device while keeping the file system
+accessible.</p>
+<p>The recovery workflow typically consists of three administrative
+actions:</p>
+<ol type="1">
+<li><strong>Marking and Removing:</strong> The failed drive is flagged
+and detached:
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="ex">mdadm</span> /dev/md0 <span class="at">--fail</span> /dev/sdb1 <span class="at">--remove</span> /dev/sdb1</span></code></pre></div></li>
+<li><strong>Replacing the Hardware:</strong> The physical drive is
+swapped out, and an identical partition scheme is applied to the new
+drive.</li>
+<li><strong>Hot-Adding the Replacement:</strong> The new partition is
+added to the array:
+<div class="sourceCode" id="cb4"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="ex">mdadm</span> /dev/md0 <span class="at">--add</span> /dev/sdb1</span></code></pre></div></li>
+</ol>
+<p>Upon adding the replacement device, the kernel MD driver
+automatically initiates a resynchronization process, calculating missing
+data via parity or reading from mirrored drives to restore full
+redundancy without system downtime.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

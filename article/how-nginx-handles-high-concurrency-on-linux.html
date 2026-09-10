@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How Nginx Handles High Concurrency on Linux - linux</title>
+    <meta name="description" content="This article explores how the Nginx web server achieves high concurrency and low latency on the Linux operating system. By moving away from traditional thread-per-connection models, Nginx utilizes an asynchronous, event-driven architecture paired with Li">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-nginx-handles-high-concurrency-on-linux">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How Nginx Handles High Concurrency on Linux - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-nginx-handles-high-concurrency-on-linux" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="This article explores how the Nginx web server achieves high concurrency and low latency on the Linux operating system. By moving away from traditional thread-per-connection models, Nginx utilizes an asynchronous, event-driven architecture paired with Li" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-nginx-handles-high-concurrency-on-linux">How Nginx Handles
+High Concurrency on Linux</h1>
+<p>This article explores how the Nginx web server achieves high
+concurrency and low latency on the Linux operating system. By moving
+away from traditional thread-per-connection models, Nginx utilizes an
+asynchronous, event-driven architecture paired with Linux-native system
+calls to manage hundreds of thousands of simultaneous connections
+efficiently. Below is a breakdown of the architectural design, kernel
+interactions, and resource management strategies that make this
+performance possible.</p>
+<h3 id="the-master-worker-architecture">The Master-Worker
+Architecture</h3>
+<p>Nginx operates using a master-worker process architecture rather than
+spawning a new process or thread for every incoming HTTP request.</p>
+<ul>
+<li><strong>Master Process:</strong> Runs with elevated privileges to
+read configurations, bind to network ports, and manage worker processes.
+It handles lifecycle events like reloads, upgrades, and restarts without
+dropping client connections.</li>
+<li><strong>Worker Processes:</strong> Run as unprivileged users and
+perform the actual work of accepting and processing client requests.
+Typically, the number of worker processes is configured to match the
+number of available CPU cores. By binding one worker per CPU core, Nginx
+virtually eliminates the operating system overhead of CPU thread context
+switching and ensures optimal CPU cache utilization.</li>
+</ul>
+<h3 id="event-driven-asynchronous-processing">Event-Driven, Asynchronous
+Processing</h3>
+<p>Traditional web servers often assign one thread or process to each
+client connection. Under heavy traffic, this approach consumes vast
+amounts of RAM and stalls CPU resources as threads block while waiting
+for network I/O or disk operations.</p>
+<p>Nginx replaces this with an event-driven, non-blocking state machine.
+A single worker process does not wait for a network read or write to
+complete before moving to the next task. Instead, it continuously loops
+through an event queue, processing available data for thousands of
+connections sequentially. When an operation cannot proceed
+immediately—such as waiting for a client to send more data—the worker
+moves on to serve other active connections.</p>
+<h3 id="the-power-of-the-linux-epoll-subsystem">The Power of the Linux
+<code>epoll</code> Subsystem</h3>
+<p>At the heart of Nginx’s high-throughput capability on Linux is the
+<code>epoll</code> I/O multiplexing system call.</p>
+<p>Older systems relied on <code>select()</code> or <code>poll()</code>,
+which operate in <span class="math inline">\(O(N)\)</span> time
+complexity. With thousands of open connections, the operating system had
+to scan the entire list of file descriptors to find which ones were
+ready for reading or writing.</p>
+<p>Linux <code>epoll</code> solves this by monitoring descriptors in
+<span class="math inline">\(O(1)\)</span> time:</p>
+<ul>
+<li><strong>Callback Registration:</strong> When an Nginx worker
+registers network sockets with <code>epoll</code>, the Linux kernel
+tracks them using a red-black tree.</li>
+<li><strong>Ready List:</strong> Instead of scanning every descriptor,
+the kernel adds active descriptors to an event-ready list via hardware
+interrupts.</li>
+<li><strong>Instant Notification:</strong> When Nginx queries
+<code>epoll_wait()</code>, the kernel returns only the file descriptors
+that have pending network events. This allows Nginx to handle 100,000+
+idle and active connections with minimal CPU consumption.</li>
+</ul>
+<h3 id="non-blocking-disk-io-and-sendfile">Non-Blocking Disk I/O and
+<code>sendfile</code></h3>
+<p>While network I/O is asynchronous via <code>epoll</code>, standard
+file access on Linux can still cause worker processes to block. Nginx
+overcomes this through specific Linux storage features:</p>
+<ul>
+<li><strong><code>sendfile</code> System Call:</strong> For serving
+static files, Nginx bypasses user space entirely. The
+<code>sendfile()</code> system call instructs the Linux kernel to
+transfer data directly from the disk page cache to the network socket
+buffer. This zero-copy mechanism avoids copying data back and forth
+between kernel space and user space.</li>
+<li><strong>Asynchronous AIO and Thread Pools:</strong> For large files
+that could stall the event loop, Nginx can be configured to offload
+blocking file operations to a dedicated thread pool using Linux
+asynchronous I/O (<code>aio</code>).</li>
+</ul>
+<h3 id="minimal-memory-overhead">Minimal Memory Overhead</h3>
+<p>Nginx is designed with strict memory management. A persistent
+connection requires only a tiny footprint—often less than a few
+kilobytes of RAM. Nginx uses pre-allocated memory pools for requests,
+headers, and buffers. This eliminates memory fragmentation and avoids
+the overhead of repeated <code>malloc()</code> and <code>free()</code>
+system calls during high-traffic spikes.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

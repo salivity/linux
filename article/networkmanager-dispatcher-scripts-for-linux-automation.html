@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NetworkManager Dispatcher Scripts for Linux Automation - linux</title>
+    <meta name="description" content="NetworkManager dispatcher scripts provide an automated, event-driven mechanism for executing custom commands and programs whenever network state changes occur in a Linux operating system. This article explains the purpose of these scripts, how they funct">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/networkmanager-dispatcher-scripts-for-linux-automation">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="NetworkManager Dispatcher Scripts for Linux Automation - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/networkmanager-dispatcher-scripts-for-linux-automation" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="NetworkManager dispatcher scripts provide an automated, event-driven mechanism for executing custom commands and programs whenever network state changes occur in a Linux operating system. This article explains the purpose of these scripts, how they funct" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1
+id="networkmanager-dispatcher-scripts-for-linux-automation">NetworkManager
+Dispatcher Scripts for Linux Automation</h1>
+<p>NetworkManager dispatcher scripts provide an automated, event-driven
+mechanism for executing custom commands and programs whenever network
+state changes occur in a Linux operating system. This article explains
+the purpose of these scripts, how they function, their execution
+environment, and how administrators use them to streamline network
+operations, manage system services, and enforce dynamic security
+policies.</p>
+<h3 id="what-are-networkmanager-dispatcher-scripts">What Are
+NetworkManager Dispatcher Scripts?</h3>
+<p>NetworkManager dispatcher scripts are executable files placed in the
+<code>/etc/NetworkManager/dispatcher.d/</code> directory. NetworkManager
+executes these scripts automatically in response to specific network
+events, such as an interface establishing a connection, disconnecting,
+or changing IP configurations. Rather than manually running commands or
+relying on continuous background polling, administrators use dispatcher
+scripts to trigger actions only when an actual state transition
+happens.</p>
+<h3 id="how-dispatcher-scripts-function">How Dispatcher Scripts
+Function</h3>
+<p>When a network transition occurs, the <code>nm-dispatcher</code>
+daemon executes the scripts within the directory in alphabetical order.
+To execute safely, each script must be owned by <code>root</code>, have
+execute permissions (<code>chmod 755</code>), and must not be writable
+by any user other than <code>root</code>.</p>
+<p>NetworkManager passes two primary positional parameters to each
+script:</p>
+<ol type="1">
+<li><code>$1</code> (Interface Name): The name of the network interface
+involved (e.g., <code>eth0</code>, <code>wlan0</code>).</li>
+<li><code>$2</code> (Action/Event): The specific event that triggered
+the script (e.g., <code>up</code>, <code>down</code>,
+<code>pre-up</code>, <code>vpn-up</code>, <code>vpn-down</code>).</li>
+</ol>
+<p>In addition to positional arguments, NetworkManager exposes dynamic
+connection details through environment variables, including
+<code>CONNECTION_UUID</code>, <code>CONNECTION_ID</code>,
+<code>IP4_ADDRESS_0</code>, and <code>DEVICE_IP_IFACE</code>. These
+variables allow scripts to identify specific Wi-Fi networks, VPN
+profiles, or Ethernet ports and act accordingly.</p>
+<h3 id="core-automation-use-cases">Core Automation Use Cases</h3>
+<ul>
+<li><strong>Dynamic Firewall Configuration:</strong> Administrators can
+adapt firewall profiles depending on the connected network. For example,
+a laptop connecting to a home Wi-Fi network can trigger a script to open
+local file-sharing ports, while switching to an untrusted public network
+can automatically switch the firewall to a restrictive profile.</li>
+<li><strong>Mounting and Unmounting Network Storage:</strong> Dispatcher
+scripts can automatically mount Network File System (NFS) or Server
+Message Block (SMB) network drives when an office local area network
+(LAN) connects, and cleanly unmount them before the connection
+completely terminates to prevent hung filesystem processes.</li>
+<li><strong>Dynamic DNS and Routing Updates:</strong> When an interface
+obtains a new public or private IP address via DHCP, a script can notify
+an external Dynamic DNS (DDNS) provider or inject custom routing table
+entries required for complex split-tunnel environments.</li>
+<li><strong>Service Control:</strong> Specific system daemons—such as
+synchronization tools, backups, or proprietary monitoring agents—can be
+started when a high-speed wired connection is active and stopped when
+switching to mobile broadband or metered connections.</li>
+<li><strong>Compliance and Logging:</strong> Organizations use scripts
+to log connection metadata, verify system compliance, and push alerts to
+centralized logging servers upon network connection.</li>
+</ul>
+<p>By leveraging dispatcher scripts, Linux administrators achieve
+low-overhead, precise automation that reacts instantly to changing
+network topologies without requiring user intervention.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

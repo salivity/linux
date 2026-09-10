@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linux Initrd vs Initramfs: Key Differences - linux</title>
+    <meta name="description" content="During the Linux boot process, the kernel requires a temporary root filesystem to load essential drivers and prepare the real storage device. Historically, Linux used the Initial RAM Disk (initrd) for this purpose, but modern systems rely almost exclusiv">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/linux-initrd-vs-initramfs-key-differences">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Linux Initrd vs Initramfs: Key Differences - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/linux-initrd-vs-initramfs-key-differences" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="During the Linux boot process, the kernel requires a temporary root filesystem to load essential drivers and prepare the real storage device. Historically, Linux used the Initial RAM Disk (initrd) for this purpose, but modern systems rely almost exclusiv" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="linux-initrd-vs-initramfs-key-differences">Linux Initrd vs
+Initramfs: Key Differences</h1>
+<p>During the Linux boot process, the kernel requires a temporary root
+filesystem to load essential drivers and prepare the real storage
+device. Historically, Linux used the Initial RAM Disk
+(<code>initrd</code>) for this purpose, but modern systems rely almost
+exclusively on the Initial RAM Filesystem (<code>initramfs</code>).
+While both provide early userspace capabilities, the Linux operating
+system manages them fundamentally differently at the architectural,
+memory management, and execution levels.</p>
+<h3 id="architecture-block-device-vs-tmpfs">Architecture: Block Device
+vs. Tmpfs</h3>
+<p>The primary difference between <code>initrd</code> and
+<code>initramfs</code> lies in how the kernel treats the allocated
+memory:</p>
+<ul>
+<li><strong>initrd (Block Device):</strong> An <code>initrd</code> image
+is a filesystem image (typically ext2) wrapped inside a simulated block
+device (<code>/dev/ramX</code>). Because it acts as a block device, the
+Linux kernel must include a built-in filesystem driver just to read the
+image before it can load any modular drivers.</li>
+<li><strong>initramfs (Archive in Tmpfs):</strong> An
+<code>initramfs</code> is a <code>cpio</code> archive (usually
+compressed with gzip, xz, or zstd) unpacked directly into an instance of
+<code>tmpfs</code>, the kernel's native in-memory filesystem. Because
+<code>tmpfs</code> interacts directly with the VFS (Virtual File System)
+page cache, no intermediate block device or filesystem driver is
+required to mount it.</li>
+</ul>
+<h3 id="memory-overhead-and-caching">Memory Overhead and Caching</h3>
+<p>The operational structure of <code>initrd</code> introduces
+significant memory inefficiency:</p>
+<ul>
+<li><strong>Double Caching in initrd:</strong> When using
+<code>initrd</code>, the kernel creates a RAM disk block device and
+reads data into the page cache. Because the contents are treated as a
+block device containing a filesystem, the files extracted inside it are
+cached a second time. This causes the same data to occupy double the
+physical memory. Furthermore, the size of a RAM disk is fixed at
+creation time, meaning unused space allocated to <code>/dev/ram0</code>
+is wasted.</li>
+<li><strong>Dynamic Sizing in initramfs:</strong> <code>tmpfs</code>
+scales dynamically based precisely on the size of the files stored
+within it. There is no block layer overhead and zero duplicate caching,
+as the kernel reads directly from the page cache.</li>
+</ul>
+<h3 id="execution-flow-and-root-transition">Execution Flow and Root
+Transition</h3>
+<p>The kernel follows different sequences to initialize userspace and
+switch to the permanent root filesystem:</p>
+<h4 id="the-initrd-process">The initrd Process</h4>
+<ol type="1">
+<li>The bootloader loads the kernel and the <code>initrd</code> file
+into memory.</li>
+<li>The kernel creates a RAM disk device (<code>/dev/ram0</code>) and
+mounts it as the temporary root.</li>
+<li>The kernel executes <code>/linuxrc</code> in userspace.</li>
+<li>Once <code>/linuxrc</code> loads storage and bus drivers, it mounts
+the real root filesystem.</li>
+<li>The kernel calls <code>pivot_root</code> to make the real filesystem
+the new root, unmounts the temporary root, and launches
+<code>/sbin/init</code>.</li>
+<li>Reclaiming the memory used by <code>/dev/ram0</code> requires
+tearing down the block device, which can leave lingering artifacts if
+not handled precisely.</li>
+</ol>
+<h4 id="the-initramfs-process">The initramfs Process</h4>
+<ol type="1">
+<li>The bootloader loads the <code>initramfs</code> archive into memory
+(or the archive is built directly into the kernel binary).</li>
+<li>The kernel initializes an instance of <code>rootfs</code> (an
+internal <code>tmpfs</code>) and unpacks the <code>cpio</code> archive
+directly into it.</li>
+<li>The kernel executes <code>/init</code> as PID 1.</li>
+<li>Once <code>/init</code> prepares the system and mounts the real root
+device, it uses utility commands like <code>switch_root</code> or
+<code>run-init</code>.</li>
+<li><code>switch_root</code> deletes all files within the
+<code>tmpfs</code> to immediately free the memory, moves the mounted
+real root filesystem to <code>/</code>, and executes the real
+<code>/sbin/init</code>.</li>
+</ol>
+<h3 id="kernel-integration">Kernel Integration</h3>
+<p>An <code>initrd</code> must always be prepared as a standalone disk
+image and loaded separately by bootloaders like GRUB. In contrast,
+<code>initramfs</code> allows deep integration: a <code>cpio</code>
+archive can be embedded directly into the kernel binary
+(<code>vmlinux</code>) during compilation. This makes
+<code>initramfs</code> suitable for embedded devices and specialized
+environments where a single self-contained kernel binary is required
+without relying on external image loading.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

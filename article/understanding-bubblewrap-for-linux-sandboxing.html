@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Understanding Bubblewrap for Linux Sandboxing - linux</title>
+    <meta name="description" content="Bubblewrap is a lightweight sandboxing tool designed to run unprivileged applications in restricted environments on the Linux operating system. This article explores the architecture of Bubblewrap, explaining how it leverages Linux namespaces, capability">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/understanding-bubblewrap-for-linux-sandboxing">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Understanding Bubblewrap for Linux Sandboxing - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/understanding-bubblewrap-for-linux-sandboxing" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="Bubblewrap is a lightweight sandboxing tool designed to run unprivileged applications in restricted environments on the Linux operating system. This article explores the architecture of Bubblewrap, explaining how it leverages Linux namespaces, capability" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="understanding-bubblewrap-for-linux-sandboxing">Understanding
+Bubblewrap for Linux Sandboxing</h1>
+<p>Bubblewrap is a lightweight sandboxing tool designed to run
+unprivileged applications in restricted environments on the Linux
+operating system. This article explores the architecture of Bubblewrap,
+explaining how it leverages Linux namespaces, capability dropping, and
+filesystem isolation to secure untrusted software without compromising
+host system integrity.</p>
+<h3 id="the-need-for-unprivileged-sandboxing">The Need for Unprivileged
+Sandboxing</h3>
+<p>Historically, creating isolated environments in Linux required
+superuser permissions. Tools relied on <code>chroot</code> or privileged
+container runtimes, introducing security risks because any vulnerability
+in the setup process could expose the host to root-level privilege
+escalation. While modern Linux kernels support unprivileged user
+namespaces, exposing this functionality directly to arbitrary
+applications expands the kernel attack surface.</p>
+<p>Bubblewrap (<code>bwrap</code>) solves this dilemma by serving as a
+tiny, audited utility that bridges the gap. It can be installed as a
+setuid binary on systems where unprivileged user namespaces are
+disabled, or run as a standard unprivileged executable where they are
+permitted. Its minimal codebase drastically reduces the risk of
+privilege escalation while still enforcing strict confinement.</p>
+<h3 id="core-isolation-mechanisms">Core Isolation Mechanisms</h3>
+<p>Bubblewrap isolates processes by coordinating several core Linux
+kernel features:</p>
+<ul>
+<li><strong>Mount Namespaces and Ephemeral Filesystems:</strong>
+Bubblewrap creates a new filesystem layout for the target process. It
+constructs a temporary root (<code>tmpfs</code>) and binds only
+necessary host directories—such as <code>/usr</code>, <code>/bin</code>,
+and <code>/lib</code>—typically as read-only. Sensitive directories,
+including <code>/home</code> and <code>/etc</code>, are completely
+hidden unless explicitly shared, preventing untrusted code from
+modifying system files or reading private data.</li>
+<li><strong>Process and IPC Isolation:</strong> By launching inside new
+PID (Process ID) and IPC (Inter-Process Communication) namespaces, the
+sandboxed process cannot inspect, signal, or communicate with processes
+running outside the container.</li>
+<li><strong>Network Namespaces:</strong> Network access can be cut off
+entirely using the <code>--unshare-net</code> flag. When network
+isolation is active, the sandboxed application cannot access local
+loopback services, remote servers, or internal network interfaces.</li>
+<li><strong>Dropping Capabilities:</strong> Immediately after
+configuring the requested namespaces and mounts, Bubblewrap drops all
+Linux capabilities (such as <code>CAP_SYS_ADMIN</code> and
+<code>CAP_NET_ADMIN</code>) before running the requested executable. The
+child process runs with strictly standard user permissions.</li>
+<li><strong>Seccomp Filtering:</strong> Bubblewrap supports passing
+Berkeley Packet Filter (BPF) programs to restrict which system calls the
+contained process is allowed to make, blocking access to kernel
+interfaces that might harbor zero-day exploits.</li>
+</ul>
+<h3 id="real-world-application-and-ecosystem-role">Real-World
+Application and Ecosystem Role</h3>
+<p>Bubblewrap does not function as an end-user application or a package
+manager on its own; it is designed as a foundational building block for
+higher-level tools.</p>
+<p>Its most prominent use case is in Flatpak, the application
+distribution framework for desktop Linux. Flatpak uses Bubblewrap under
+the hood to restrict desktop applications from freely accessing user
+documents, cameras, microphones, or background processes. It is also
+widely used in continuous integration pipelines, automated code
+execution sandboxes, and web browser isolation layers to execute
+untrusted scripts safely.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

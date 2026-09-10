@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Role of the xinetd Super-Server in Linux - linux</title>
+    <meta name="description" content="The xinetd (Extended Internet Services Daemon) daemon is an open-source super-server that managed network connections and controlled access to individual Internet services in older Linux operating systems. By listening on network ports on behalf of other">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/role-of-the-xinetd-super-server-in-linux">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Role of the xinetd Super-Server in Linux - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/role-of-the-xinetd-super-server-in-linux" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="The xinetd (Extended Internet Services Daemon) daemon is an open-source super-server that managed network connections and controlled access to individual Internet services in older Linux operating systems. By listening on network ports on behalf of other" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="role-of-the-xinetd-super-server-in-linux">Role of the xinetd
+Super-Server in Linux</h1>
+<p>The <code>xinetd</code> (Extended Internet Services Daemon) daemon is
+an open-source super-server that managed network connections and
+controlled access to individual Internet services in older Linux
+operating systems. By listening on network ports on behalf of other
+passive services and spawning them only upon receiving an active
+request, <code>xinetd</code> conserved system resources, added granular
+access controls, and protected systems against common denial-of-service
+(DoS) attacks before modern init systems like <code>systemd</code>
+introduced native socket activation.</p>
+<h3 id="the-purpose-of-a-super-server">The Purpose of a
+Super-Server</h3>
+<p>In early UNIX and Linux environments, running every network
+service—such as Telnet, FTP, TFTP, or <code>rsh</code>—as a continuous
+background daemon placed a heavy load on limited hardware. Each idling
+daemon consumed memory and process table entries.</p>
+<p>To solve this, Linux used a "super-server." Instead of running dozens
+of separate daemons, the system ran a single master daemon: originally
+<code>inetd</code>, and later the more secure and feature-rich
+<code>xinetd</code>.</p>
+<h3 id="key-functions-of-xinetd">Key Functions of xinetd</h3>
+<ul>
+<li><strong>On-Demand Service Activation:</strong> <code>xinetd</code>
+bound itself to the ports specified in its configuration files. When a
+client initiated a connection to a specific port, <code>xinetd</code>
+intercepted the request, launched the appropriate daemon (such as
+<code>in.tftpd</code>), passed the active network socket to that
+process, and exited itself from that particular transaction.</li>
+<li><strong>Resource Optimization:</strong> Because individual service
+daemons only ran while actively servicing requests, idle systems used
+significantly less RAM and processing power. Once a connection
+terminated, the spawned daemon closed.</li>
+<li><strong>Granular Access Control:</strong> Unlike its predecessor
+<code>inetd</code>, <code>xinetd</code> natively implemented robust
+access control mechanisms without requiring external wrappers like
+<code>tcpd</code>. Administrators could restrict services based on:
+<ul>
+<li>Remote host IP addresses or subnets (<code>only_from</code> and
+<code>no_access</code> directives).</li>
+<li>Time-of-day restrictions (<code>access_times</code>).</li>
+<li>Network interfaces to bind to specific IP addresses.</li>
+</ul></li>
+<li><strong>Denial of Service (DoS) Prevention:</strong>
+<code>xinetd</code> provided built-in rate-limiting and
+connection-throttling mechanisms. Administrators could configure:
+<ul>
+<li>Limits on total concurrent instances of a service
+(<code>instances</code>).</li>
+<li>Per-source IP connection limits (<code>per_source</code>).</li>
+<li>Connection rate limits over a specific time window
+(<code>cps</code>).</li>
+</ul></li>
+<li><strong>Logging and Auditing:</strong> <code>xinetd</code> offered
+advanced logging capabilities via <code>syslog</code> or dedicated
+files, recording connection attempts, duration, remote user IDs, and
+failures.</li>
+</ul>
+<h3 id="how-xinetd-operates">How xinetd Operates</h3>
+<p>The primary configuration file for the daemon is
+<code>/etc/xinetd.conf</code>, which sets global defaults. Individual
+services are defined within modular files located in the
+<code>/etc/xinetd.d/</code> directory.</p>
+<p>A standard service configuration defines the network socket type
+(stream or datagram), protocol (TCP or UDP), execution user, binary path
+(<code>server</code>), and the <code>wait</code> parameter, which
+determines whether <code>xinetd</code> processes requests
+single-threaded or spawns multiple concurrent instances.</p>
+<h3 id="legacy-status-in-modern-linux">Legacy Status in Modern
+Linux</h3>
+<p>In modern Linux distributions, <code>xinetd</code> is largely
+deprecated. Contemporary systems rely on <code>systemd</code>, which
+provides native socket-based activation through <code>.socket</code>
+unit files. This eliminates the need for a separate super-server while
+providing the same on-demand resource-saving capabilities across all
+system services.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

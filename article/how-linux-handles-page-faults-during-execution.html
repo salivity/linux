@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How Linux Handles Page Faults During Execution - linux</title>
+    <meta name="description" content="This article provides an overview of how the Linux kernel manages page faults when applications run. A page fault is a hardware interrupt raised by the CPU's Memory Management Unit (MMU) when an application attempts to access a virtual memory page that i">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-linux-handles-page-faults-during-execution">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How Linux Handles Page Faults During Execution - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-linux-handles-page-faults-during-execution" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="This article provides an overview of how the Linux kernel manages page faults when applications run. A page fault is a hardware interrupt raised by the CPU's Memory Management Unit (MMU) when an application attempts to access a virtual memory page that i" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-linux-handles-page-faults-during-execution">How Linux
+Handles Page Faults During Execution</h1>
+<p>This article provides an overview of how the Linux kernel manages
+page faults when applications run. A page fault is a hardware interrupt
+raised by the CPU's Memory Management Unit (MMU) when an application
+attempts to access a virtual memory page that is not currently mapped to
+physical RAM. Linux resolves these interrupts dynamically through a
+series of checks, hardware-to-kernel handoffs, and memory-mapping
+strategies, categorizing each event as a minor fault, a major fault, or
+an invalid access violation.</p>
+<h3 id="the-trigger-virtual-to-physical-address-translation">The
+Trigger: Virtual to Physical Address Translation</h3>
+<p>Linux uses virtual memory, isolating processes by granting each its
+own virtual address space. The CPU's Memory Management Unit (MMU)
+translates these virtual addresses into physical addresses using page
+tables.</p>
+<p>When a process references an address whose corresponding Page Table
+Entry (PTE) is marked as "not present" or violates access permissions
+(such as writing to a read-only page), the MMU cannot complete the
+translation. The hardware immediately pauses the offending instruction
+and triggers a page fault exception.</p>
+<h3 id="the-architecture-exception-handler">The Architecture Exception
+Handler</h3>
+<p>When the page fault occurs, the CPU switches to kernel mode and jumps
+to the architecture-specific fault handler, such as
+<code>do_page_fault()</code> on x86 architectures. The CPU registers
+pass critical details to the kernel:</p>
+<ul>
+<li><strong>Faulting Address:</strong> The virtual address that
+triggered the fault (stored in the <code>CR2</code> register on
+x86).</li>
+<li><strong>Error Code:</strong> Hardware-generated flags indicating
+whether the access was a read or write, executed in user or kernel mode,
+and whether a translation table entry was present.</li>
+<li><strong>Instruction Pointer:</strong> The memory address of the
+instruction that caused the fault.</li>
+</ul>
+<h3 id="evaluating-the-memory-region-vma">Evaluating the Memory Region
+(VMA)</h3>
+<p>The Linux kernel checks the process's memory descriptor
+(<code>mm_struct</code>) and searches its Virtual Memory Areas (VMAs) to
+determine whether the requested address falls within a legally allocated
+region.</p>
+<ol type="1">
+<li><strong>Invalid Memory Access:</strong> If the address does not
+belong to any valid VMA, or if the access violates the region’s
+permissions (e.g., attempting to write to a read-only code segment), the
+kernel flags an invalid access. The kernel sends a <code>SIGSEGV</code>
+(Segmentation Fault) signal to the process, which typically terminates
+the application unless a custom signal handler is configured.</li>
+<li><strong>Valid Access:</strong> If the address is within a legal VMA
+and the access permissions match, the kernel proceeds to resolve the
+missing page using <code>handle_mm_fault()</code>.</li>
+</ol>
+<h3 id="types-of-page-faults">Types of Page Faults</h3>
+<p>Linux classifies valid page faults into two primary categories based
+on whether disk access is required:</p>
+<h4 id="minor-soft-page-faults">Minor (Soft) Page Faults</h4>
+<p>A minor page fault occurs when the data required already resides in
+physical memory, but the process's page tables have not yet established
+a mapping. Common scenarios include:</p>
+<ul>
+<li><strong>Page Cache Hits:</strong> A file-backed page is already
+loaded in RAM because another process accessed it.</li>
+<li><strong>Shared Libraries:</strong> Dynamic libraries like
+<code>glibc</code> that are shared across multiple running
+processes.</li>
+<li><strong>Demand Zero Allocation:</strong> Newly allocated memory via
+<code>malloc()</code> or <code>mmap()</code> is not assigned physical
+frames until accessed for the first time. The kernel maps these directly
+to a pre-cleared, zero-filled physical page without performing disk
+I/O.</li>
+</ul>
+<p>Because minor faults avoid storage operations, the kernel resolves
+them quickly by updating the PTE and assigning the existing physical
+frame.</p>
+<h4 id="major-hard-page-faults">Major (Hard) Page Faults</h4>
+<p>A major page fault occurs when the required page is not in physical
+RAM and must be read from disk. This happens when:</p>
+<ul>
+<li>Code or data from an executable binary is accessed for the first
+time.</li>
+<li>Memory mapped files need to be retrieved from persistent
+storage.</li>
+<li>Pages that were previously swapped out to disk or zswap must be
+restored.</li>
+</ul>
+<p>During a major fault, the kernel initiates an asynchronous I/O
+operation to read the page from disk into a newly allocated physical
+page frame. Because disk I/O is slow, the kernel places the faulting
+process into a sleeping state (<code>TASK_UNINTERRUPTIBLE</code> or
+<code>TASK_INTERRUPTIBLE</code>) and schedules other tasks to run on the
+CPU.</p>
+<h4 id="copy-on-write-cow-faults">Copy-on-Write (COW) Faults</h4>
+<p>When a process calls <code>fork()</code>, child processes share the
+parent’s physical pages to save memory, with all shared pages marked as
+read-only. When either process attempts to write to one of these shared
+pages, a page fault occurs. The kernel catches the permission mismatch,
+allocates a new physical frame, duplicates the contents from the
+original page, updates the faulting process's page table to point to the
+new frame, and sets the permissions to read-write.</p>
+<h3 id="resolution-and-execution-resumption">Resolution and Execution
+Resumption</h3>
+<p>Once the physical frame is allocated and populated:</p>
+<ol type="1">
+<li>The kernel updates the corresponding Page Table Entry (PTE) with the
+physical frame address and marks the entry as present with the
+appropriate access flags.</li>
+<li>The kernel updates the Translation Lookaside Buffer (TLB) so the CPU
+caches the new translation.</li>
+<li>If the process was sleeping due to a major fault, the kernel marks
+the process as runnable, returning it to the runqueue.</li>
+<li>The kernel switches execution context back to user mode, restarting
+the exact instruction that previously faulted. With the page table entry
+now present, the instruction completes without interruption.</li>
+</ol></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

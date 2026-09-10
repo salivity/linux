@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Linux Root Directory Explained - linux</title>
+    <meta name="description" content="This article provides a comprehensive overview of the root directory in the Linux operating system, explaining its fundamental role as the top of the unified filesystem hierarchy. Readers will discover how the root directory manages system storage, why e">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/the-linux-root-directory-explained">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="The Linux Root Directory Explained - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/the-linux-root-directory-explained" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="This article provides a comprehensive overview of the root directory in the Linux operating system, explaining its fundamental role as the top of the unified filesystem hierarchy. Readers will discover how the root directory manages system storage, why e" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="the-linux-root-directory-explained">The Linux Root Directory
+Explained</h1>
+<p>This article provides a comprehensive overview of the root directory
+in the Linux operating system, explaining its fundamental role as the
+top of the unified filesystem hierarchy. Readers will discover how the
+root directory manages system storage, why every file and hardware
+device originates from this single location, and how standardized
+subdirectories maintain overall operating system stability and
+organization.</p>
+<p>In Linux, the root directory is designated by a single forward slash
+(<code>/</code>). Unlike operating systems such as Windows that assign
+separate drive letters (like <code>C:</code> or <code>D:</code>) to
+different storage devices, Linux organizes everything into an inverted
+tree structure. The root directory sits at the absolute base—or trunk—of
+this tree, serving as the common ancestor from which every other folder,
+file, and system resource branches out.</p>
+<p>The root directory achieves system-wide unification through a
+mechanism called mounting. When a computer detects a physical hard
+drive, solid-state drive, optical disc, or network share, Linux does not
+create a separate storage partition outside the primary structure.
+Instead, the storage device is mounted to an empty directory within the
+root hierarchy. For example, a secondary drive might be attached to
+<code>/mnt/storage</code> or <code>/media/backup</code>. To the
+operating system and the user, accessing an external drive is
+functionally identical to accessing a local folder, because all paths
+must trace back to the root (<code>/</code>).</p>
+<p>Everything in the Linux operating system adheres to the concept of
+"everything is a file." Hardware devices, active processes, and system
+configurations are all presented as files situated under directories
+linked directly to root. The Filesystem Hierarchy Standard (FHS) defines
+the specific roles of these primary subdirectories:</p>
+<ul>
+<li><strong>/bin and /sbin:</strong> Essential user binaries and system
+administration binaries required for system booting and repair.</li>
+<li><strong>/etc:</strong> Host-specific system-wide configuration
+files.</li>
+<li><strong>/home:</strong> Personal user directories containing
+personal files and configurations.</li>
+<li><strong>/dev:</strong> Device files representing hardware components
+like disks, terminals, and input devices.</li>
+<li><strong>/proc and /sys:</strong> Virtual filesystems generated
+dynamically by the Linux kernel to expose system and hardware
+states.</li>
+<li><strong>/var:</strong> Variable data files, including system logs,
+mail queues, and temporary database files.</li>
+</ul>
+<p>The root directory also defines system security and permissions.
+Access to modify the contents directly inside <code>/</code> is strictly
+restricted to the superuser, commonly known as the <code>root</code>
+user. Because critical operating files reside in branches directly
+dependent on the root directory, maintaining rigid permissions at this
+base level prevents unprivileged users or rogue applications from
+compromising the stability of the entire platform. If the root directory
+becomes corrupted or unavailable, the operating system cannot locate its
+kernel modules, libraries, or initialization scripts, rendering the
+system inoperable.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

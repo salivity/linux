@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>What Is BorgBackup and How Does It Deduplicate Data? - linux</title>
+    <meta name="description" content="BorgBackup, commonly known as Borg, is an open-source, deduplicating backup tool designed for Linux and Unix-like operating systems that provides secure, space-efficient storage for critical data. This article explores what BorgBackup is, highlights its">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/what-is-borgbackup-and-how-does-it-deduplicate-data">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="What Is BorgBackup and How Does It Deduplicate Data? - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/what-is-borgbackup-and-how-does-it-deduplicate-data" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="BorgBackup, commonly known as Borg, is an open-source, deduplicating backup tool designed for Linux and Unix-like operating systems that provides secure, space-efficient storage for critical data. This article explores what BorgBackup is, highlights its" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="what-is-borgbackup-and-how-does-it-deduplicate-data">What Is
+BorgBackup and How Does It Deduplicate Data?</h1>
+<p>BorgBackup, commonly known as Borg, is an open-source, deduplicating
+backup tool designed for Linux and Unix-like operating systems that
+provides secure, space-efficient storage for critical data. This article
+explores what BorgBackup is, highlights its primary features, and
+explains the content-defined chunking process it uses to eliminate
+redundant data across backup archives.</p>
+<h2 id="what-is-borgbackup">What is BorgBackup?</h2>
+<p>BorgBackup is a command-line backup program built with an emphasis on
+speed, security, and storage efficiency. Unlike traditional backup
+utilities that create full or differential image archives, Borg stores
+data in a dedicated repository where individual backups—termed
+"archives"—function as complete snapshots while only consuming storage
+for newly introduced changes.</p>
+<p>Key features of BorgBackup include:</p>
+<ul>
+<li><strong>Authenticated Encryption:</strong> Client-side encryption
+secures all data using AES-256 or ChaCha20-Poly1305 before it leaves the
+host machine.</li>
+<li><strong>Data Compression:</strong> Files can be compressed using
+algorithms like LZ4, Zstandard, Zlib, or LZMA prior to storage.</li>
+<li><strong>Remote Storage:</strong> Backups can be pushed to remote
+servers via SSH without needing dedicated daemon services beyond
+standard SSH access.</li>
+<li><strong>FUSE Mounting:</strong> Archives can be mounted as local
+filesystems, allowing users to inspect and restore individual files
+seamlessly using standard file managers or command-line utilities.</li>
+</ul>
+<h2 id="how-borgbackup-deduplicates-data">How BorgBackup Deduplicates
+Data</h2>
+<p>Borg achieves exceptional storage savings through chunk-based data
+deduplication. Rather than comparing entire files or using rigid block
+boundaries, Borg evaluates incoming data streams dynamically to detect
+repeated content across different files, directories, and past
+backups.</p>
+<h3 id="1-content-defined-chunking">1. Content-Defined Chunking</h3>
+<p>Borg splits files into variable-length pieces called chunks using a
+rolling hash algorithm (specifically, a cyclic polynomial algorithm
+known as Buzhash). As a file is read, the rolling hash slides
+byte-by-byte over the data stream. When the hash value matches a
+specific mathematical pattern, a chunk boundary is declared.</p>
+<p>Because chunk boundaries are determined by the content itself rather
+than fixed offsets:</p>
+<ul>
+<li>Adding or deleting bytes at the beginning or middle of a file only
+changes the chunks immediately surrounding the modification.</li>
+<li>The remaining chunks retain identical boundaries, ensuring the rest
+of the file continues to match previously stored data.</li>
+</ul>
+<h3 id="2-cryptographic-hashing-and-chunk-identification">2.
+Cryptographic Hashing and Chunk Identification</h3>
+<p>Once a chunk is created, Borg computes an authentication hash or HMAC
+(such as HMAC-SHA256 or BLAKE2b) for that specific block of data. This
+hash functions as the chunk's unique fingerprint ID.</p>
+<h3 id="3-repository-wide-index-lookup">3. Repository-Wide Index
+Lookup</h3>
+<p>Borg maintains a repository-wide index that tracks every unique chunk
+ID that has already been stored. Before saving a chunk:</p>
+<ul>
+<li>Borg checks the chunk ID against this local cache and the repository
+index.</li>
+<li>If the chunk ID already exists, the data is identified as duplicate.
+Borg skips storing the data, increments a reference counter, and merely
+adds a pointer to the existing chunk in the archive's metadata.</li>
+<li>If the chunk ID is not found, the chunk is treated as new data. It
+is compressed, encrypted, and written to the repository.</li>
+</ul>
+<h3 id="4-cross-archive-deduplication">4. Cross-Archive
+Deduplication</h3>
+<p>Deduplication in Borg is global across the entire repository. This
+means:</p>
+<ul>
+<li>Identical files stored in different locations on the system are
+saved only once.</li>
+<li>Unaltered files between consecutive backup runs consume zero
+additional storage.</li>
+<li>Renaming or moving large directories does not cause data to be
+re-uploaded or duplicated.</li>
+<li>Different machines sharing a repository (or backups of multiple
+similar virtual environments) can deduplicate against each other if
+configured properly.</li>
+</ul>
+<p>By combining content-defined chunking with cryptographic indexing,
+BorgBackup provides Linux systems with efficient daily backups,
+drastically lowering bandwidth requirements and disk footprint.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

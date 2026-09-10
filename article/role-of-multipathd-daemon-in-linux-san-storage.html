@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Role of Multipathd Daemon in Linux SAN Storage - linux</title>
+    <meta name="description" content="In modern enterprise Linux environments, maintaining continuous access to storage area network (SAN) resources is critical for system reliability and uptime. The multipathd daemon serves as the user-space component of the Linux Device Mapper Multipathing">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/role-of-multipathd-daemon-in-linux-san-storage">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Role of Multipathd Daemon in Linux SAN Storage - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/role-of-multipathd-daemon-in-linux-san-storage" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="In modern enterprise Linux environments, maintaining continuous access to storage area network (SAN) resources is critical for system reliability and uptime. The multipathd daemon serves as the user-space component of the Linux Device Mapper Multipathing" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="role-of-multipathd-daemon-in-linux-san-storage">Role of
+Multipathd Daemon in Linux SAN Storage</h1>
+<p>In modern enterprise Linux environments, maintaining continuous
+access to storage area network (SAN) resources is critical for system
+reliability and uptime. The <code>multipathd</code> daemon serves as the
+user-space component of the Linux Device Mapper Multipathing
+(DM-Multipath) framework, tasked with continuously monitoring, managing,
+and optimizing redundant physical connections between a host and its
+storage arrays. This article examines the core responsibilities of
+<code>multipathd</code>, detailing how it executes path failure
+detection, automated failover, dynamic device discovery, and load
+balancing across active storage routes.</p>
+<h3 id="path-monitoring-and-failure-detection">Path Monitoring and
+Failure Detection</h3>
+<p>The primary function of <code>multipathd</code> is actively
+supervising the health of all configured physical paths to a storage
+LUN. Because a single logical drive can be accessed via multiple host
+bus adapters (HBAs), SAN switches, and storage controllers, hardware
+failures can happen at various points in the fabric.</p>
+<p>The daemon uses path checkers—such as <code>tur</code> (Test Unit
+Ready), <code>directio</code>, or <code>readsector0</code>—to
+periodically poll each physical path. If a path fails to respond within
+a specified timeout, <code>multipathd</code> detects the failure
+immediately, alters the path state in the routing map, and instructs the
+kernel to bypass the degraded route for all subsequent input/output
+(I/O) operations.</p>
+<h3 id="automated-failover-and-failback">Automated Failover and
+Failback</h3>
+<p>When a path failure occurs, <code>multipathd</code> manages the
+failover process to prevent application downtime or data corruption:</p>
+<ul>
+<li><strong>Failover:</strong> Once a path is flagged as dead,
+<code>multipathd</code> updates the Device Mapper multipath map in the
+kernel. The kernel reroutes active I/O queues to secondary or alternate
+surviving paths without exposing an I/O error to the operating system's
+file system or applications.</li>
+<li><strong>Failback:</strong> The daemon continues to poll failed paths
+in the background. When the underlying hardware or connection is
+repaired, <code>multipathd</code> detects the recovery, re-evaluates
+path priority, and seamlessly integrates the path back into the active
+path group.</li>
+</ul>
+<h3 id="dynamic-topology-and-configuration-updates">Dynamic Topology and
+Configuration Updates</h3>
+<p>In dynamic enterprise environments, storage configurations change
+frequently. The <code>multipathd</code> daemon monitors system events
+(such as <code>udev</code> events) to react dynamically to changes
+without requiring server reboots:</p>
+<ul>
+<li><strong>Device Discovery:</strong> When new LUNs are masked and
+mapped to the host, <code>multipathd</code> aggregates the underlying
+<code>/dev/sd*</code> block devices into unified
+<code>/dev/mapper/mpath*</code> virtual devices.</li>
+<li><strong>Device Removal:</strong> When storage administrators unmap a
+LUN, the daemon flushes remaining buffers, closes the multipath target,
+and cleans up the associated device-mapper mappings.</li>
+<li><strong>Runtime Reconfiguration:</strong> Changes made to the
+<code>/etc/multipath.conf</code> file can be applied dynamically via the
+multipath interactive shell (<code>multipathd -k</code>) or by reloading
+the service, allowing administrators to adjust timeouts, polling
+intervals, and path groupings on live systems.</li>
+</ul>
+<h3 id="load-balancing-and-performance-optimization">Load Balancing and
+Performance Optimization</h3>
+<p>Beyond handling faults, <code>multipathd</code> helps optimize SAN
+bandwidth utilization. Working with the kernel's DM-Multipath drivers,
+the daemon configures how I/O is distributed across functional paths
+based on predefined routing algorithms:</p>
+<ul>
+<li><strong>Round-Robin:</strong> I/O requests are distributed
+sequentially across all active paths in a priority group.</li>
+<li><strong>Queue-Length:</strong> New I/O operations are directed to
+the path with the fewest outstanding requests.</li>
+<li><strong>Service-Time:</strong> I/O is routed based on path
+throughput and latency, sending traffic to the path best equipped to
+complete the request fastest.</li>
+</ul>
+<p>By actively coordinating these mechanisms, <code>multipathd</code>
+abstracts the complexity of redundant SAN fabrics into unified,
+high-performing, and fault-tolerant block devices for the Linux
+operating system.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

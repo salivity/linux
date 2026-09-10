@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How Initramfs Works in the Linux Boot Sequence - linux</title>
+    <meta name="description" content="The initial RAM file system, or initramfs, is a temporary root file system loaded into memory during the Linux boot process to prepare the system before the real root file system can be mounted. Modern Linux systems rely on diverse and complex storage se">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-initramfs-works-in-the-linux-boot-sequence">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How Initramfs Works in the Linux Boot Sequence - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-initramfs-works-in-the-linux-boot-sequence" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="The initial RAM file system, or initramfs, is a temporary root file system loaded into memory during the Linux boot process to prepare the system before the real root file system can be mounted. Modern Linux systems rely on diverse and complex storage se" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-initramfs-works-in-the-linux-boot-sequence">How Initramfs
+Works in the Linux Boot Sequence</h1>
+<p>The initial RAM file system, or initramfs, is a temporary root file
+system loaded into memory during the Linux boot process to prepare the
+system before the real root file system can be mounted. Modern Linux
+systems rely on diverse and complex storage setups—such as RAID, LVM,
+network-attached storage, or LUKS encryption—which often require device
+drivers and user-space utilities that are not built directly into the
+kernel. This article explains the exact role initramfs plays during the
+Linux boot sequence, detailing its loading phase, execution flow, and
+how it hands over control to the permanent operating system.</p>
+<h3 id="1-bootloader-handoff">1. Bootloader Handoff</h3>
+<p>The boot sequence begins with firmware (BIOS or UEFI), which
+initializes hardware and launches the bootloader (such as GRUB). The
+bootloader locates the Linux kernel image (<code>vmlinuz</code>) and the
+initramfs image (<code>initramfs.img</code> or <code>initrd.img</code>)
+on the boot partition. It loads both files into physical system memory
+(RAM) and then transfers execution control directly to the kernel,
+providing it with the memory coordinates of the loaded initramfs
+archive.</p>
+<h3 id="2-kernel-initialization-and-unpacking">2. Kernel Initialization
+and Unpacking</h3>
+<p>Once the kernel takes control, it sets up core processor functions,
+virtual memory, and internal data structures. The initramfs is typically
+a gzipped or zstd-compressed <code>cpio</code> archive. The kernel
+checks the allocated memory space, extracts this archive, and populates
+a temporary, memory-backed file system called <code>tmpfs</code> (or
+<code>rootfs</code>). At this point, the kernel mounts this in-memory
+file system as its provisional root directory (<code>/</code>).</p>
+<h3 id="3-execution-of-the-init-script">3. Execution of the
+<code>/init</code> Script</h3>
+<p>With the temporary root file system mounted, the kernel executes the
+first user-space program located at <code>/init</code>. Unlike a fully
+booted system where PID 1 is a comprehensive init system like systemd,
+this initial <code>/init</code> process is typically a specialized shell
+script or a minimal systemd-based environment provided by tools such as
+Dracut, Mkinitcpio, or Initramfs-tools.</p>
+<p>The <code>/init</code> program executes several critical preparation
+steps:</p>
+<ul>
+<li><strong>Hardware Detection:</strong> It queries device nodes and
+system buses (such as PCI, USB, and NVMe) using utilities like
+<code>udev</code> or <code>mdev</code>.</li>
+<li><strong>Driver Loading:</strong> It loads essential kernel modules
+(<code>.ko</code> files) stored within the initramfs that match the
+detected hardware, including storage controllers and file system drivers
+(such as ext4, Btrfs, or XFS).</li>
+<li><strong>Storage Assembly:</strong> It runs required utilities to
+unlock encrypted partitions via <code>cryptsetup</code>, assemble
+software RAID arrays via <code>mdadm</code>, activate Logical Volume
+Manager (LVM) volume groups, or initialize network interfaces for
+PXE/NFS-based network roots.</li>
+</ul>
+<h3 id="4-mounting-the-real-root-file-system">4. Mounting the Real Root
+File System</h3>
+<p>Once the target storage device is accessible and its partition
+structure is recognized, the <code>/init</code> script reads the kernel
+command line parameters (such as <code>root=UUID=...</code>) to identify
+the permanent root device. It then mounts the real root partition to a
+predefined mount point within the temporary file system, traditionally
+<code>/sysroot</code> or <code>/newroot</code>.</p>
+<h3 id="5-the-root-transition-switch_root">5. The Root Transition
+(<code>switch_root</code>)</h3>
+<p>After successfully mounting the real root file system and verifying
+its integrity, the initramfs completes its final task:</p>
+<ol type="1">
+<li>It cleans up the temporary environment by moving virtual file
+systems like <code>/dev</code>, <code>/proc</code>, and
+<code>/sys</code> over to the real root mount point.</li>
+<li>It calls the <code>switch_root</code> utility (or equivalent system
+call).</li>
+<li><code>switch_root</code> deletes all files from the
+<code>tmpfs</code> to free up system memory, shifts
+<code>/sysroot</code> to become the new system root directory
+(<code>/</code>), and replaces the running <code>/init</code> process
+with the real initialization daemon (typically <code>/sbin/init</code>
+or <code>/usr/lib/systemd/systemd</code>) as PID 1.</li>
+</ol>
+<p>From this transition point onward, the Linux operating system runs
+entirely off its permanent disk storage, having successfully navigated
+the initialization phase via the initramfs.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

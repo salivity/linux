@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>What Is Docker: Linux Containerization Explained - linux</title>
+    <meta name="description" content="Docker is an open-source platform that enables developers to build, package, and run applications inside isolated environments called containers. This article explains what Docker is, how it leverages foundational Linux kernel features to provide operati">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/what-is-docker-linux-containerization-explained">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="What Is Docker: Linux Containerization Explained - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/what-is-docker-linux-containerization-explained" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="Docker is an open-source platform that enables developers to build, package, and run applications inside isolated environments called containers. This article explains what Docker is, how it leverages foundational Linux kernel features to provide operati" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="what-is-docker-linux-containerization-explained">What Is Docker:
+Linux Containerization Explained</h1>
+<p>Docker is an open-source platform that enables developers to build,
+package, and run applications inside isolated environments called
+containers. This article explains what Docker is, how it leverages
+foundational Linux kernel features to provide operating-system-level
+virtualization, and the specific innovations Docker introduced that
+transformed a complex, niche Linux capability into the universal
+standard for modern software deployment.</p>
+<h2 id="understanding-containerization">Understanding
+Containerization</h2>
+<p>Containerization is a form of operating-system-level virtualization
+that allows an application and all its dependencies—binaries, libraries,
+and configuration files—to be bundled together into a single,
+lightweight package.</p>
+<p>Unlike traditional Virtual Machines (VMs), which require a full guest
+operating system running on top of a hypervisor, containers share the
+host machine’s operating system kernel. Because they do not need to boot
+a separate OS, containers use significantly fewer system resources,
+start in seconds rather than minutes, and maintain complete isolation
+from other processes on the host.</p>
+<h2 id="linux-container-foundations-before-docker">Linux Container
+Foundations Before Docker</h2>
+<p>Container technology was not invented by Docker; it existed in the
+Linux ecosystem for years prior to Docker's release in 2013. The Linux
+kernel provided several underlying mechanisms to isolate processes:</p>
+<ul>
+<li><strong>Chroot:</strong> Introduced early in Unix history,
+<code>chroot</code> changed the apparent root directory for a process,
+creating a primitive form of filesystem isolation.</li>
+<li><strong>Control Groups (cgroups):</strong> Merged into the Linux
+kernel in 2008, <code>cgroups</code> allocate and limit hardware
+resources—such as CPU, memory, disk I/O, and network bandwidth—among
+groups of processes.</li>
+<li><strong>Linux Namespaces:</strong> Namespaces isolate system
+resources for processes, ensuring a process inside a container cannot
+see or modify resources outside its environment. Key namespaces include
+PID (process IDs), NET (network interfaces), MNT (mount points), and IPC
+(inter-process communication).</li>
+<li><strong>LXC (Linux Containers):</strong> Introduced in 2008, LXC
+combined cgroups and namespaces into a functional container
+runtime.</li>
+</ul>
+<p>While LXC was technically capable, it was difficult to configure,
+lacked portability between different Linux distributions, and required
+deep systems-administration expertise to manage securely and
+consistently.</p>
+<h2 id="how-docker-popularized-containerization">How Docker Popularized
+Containerization</h2>
+<p>Docker launched in 2013 as an open-source project built initially on
+top of LXC. It solved the usability and portability challenges that
+previously prevented widespread adoption by introducing four critical
+components:</p>
+<h3 id="1-the-dockerfile-and-layered-images">1. The Dockerfile and
+Layered Images</h3>
+<p>Docker introduced the <code>Dockerfile</code>, a simple, declarative
+text file that defines the exact steps needed to build a container
+image. Combined with copy-on-write union filesystems (such as AUFS and
+later OverlayFS), Docker images are constructed in reusable, cached
+layers. If multiple containers use the same base OS layer, the host
+stores it once, drastically reducing disk footprint and build times.</p>
+<h3 id="2-standardized-portability-build-once-run-anywhere">2.
+Standardized Portability ("Build Once, Run Anywhere")</h3>
+<p>Prior to Docker, an environment configured on a developer's machine
+often broke when deployed to staging or production servers. Docker
+encapsulated the entire runtime environment, ensuring that a container
+behaves identically on an engineer's laptop, an on-premises Linux
+server, or a public cloud instance.</p>
+<h3 id="3-a-simple-developer-centric-cli">3. A Simple, Developer-Centric
+CLI</h3>
+<p>Docker replaced complex systems configuration with an intuitive,
+standardized command-line interface. Commands like
+<code>docker build</code>, <code>docker pull</code>, and
+<code>docker run</code> abstracted the intricate setup of cgroups and
+namespaces into single commands that any developer could master in an
+afternoon.</p>
+<h3 id="4-docker-hub-and-image-ecosystem">4. Docker Hub and Image
+Ecosystem</h3>
+<p>Docker created Docker Hub, a centralized registry where individuals
+and organizations could publish, discover, and download pre-built
+container images. This eliminated the need to configure standard
+software stacks—such as databases, web servers, or language
+runtimes—from scratch.</p>
+<h2 id="impact-on-the-industry">Impact on the Industry</h2>
+<p>By making Linux containers accessible, Docker triggered a fundamental
+shift in software architecture. It accelerated the transition from
+monolithic applications to microservices, became a cornerstone of modern
+Continuous Integration and Continuous Deployment (CI/CD) pipelines, and
+laid the operational groundwork for container orchestration platforms
+like Kubernetes. Through standardization and abstraction, Docker turned
+native Linux isolation primitives into the bedrock of modern cloud
+computing.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

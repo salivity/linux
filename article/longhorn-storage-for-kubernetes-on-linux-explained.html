@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Longhorn Storage for Kubernetes on Linux Explained - linux</title>
+    <meta name="description" content="This article explores the purpose, architecture, and core capabilities of Longhorn, an open-source distributed block storage system tailored for Kubernetes clusters running on the Linux operating system. It examines how Longhorn addresses the challenge o">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/longhorn-storage-for-kubernetes-on-linux-explained">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Longhorn Storage for Kubernetes on Linux Explained - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/longhorn-storage-for-kubernetes-on-linux-explained" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="This article explores the purpose, architecture, and core capabilities of Longhorn, an open-source distributed block storage system tailored for Kubernetes clusters running on the Linux operating system. It examines how Longhorn addresses the challenge o" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="longhorn-storage-for-kubernetes-on-linux-explained">Longhorn
+Storage for Kubernetes on Linux Explained</h1>
+<p>This article explores the purpose, architecture, and core
+capabilities of Longhorn, an open-source distributed block storage
+system tailored for Kubernetes clusters running on the Linux operating
+system. It examines how Longhorn addresses the challenge of managing
+stateful workloads in containerized environments by transforming local
+Linux host storage into resilient, highly available persistent volumes,
+complete with built-in replication, backup, and disaster recovery
+features.</p>
+<p>Kubernetes inherently treats infrastructure as ephemeral, making
+persistent data management for stateful applications—such as databases
+and message queues—a primary operational challenge. Longhorn solves this
+by functioning as a lightweight, reliable, and Cloud Native Computing
+Foundation (CNCF) incubated distributed block storage platform. It
+bridges the gap between local Linux physical storage and
+Kubernetes-native application requirements without requiring expensive
+external Storage Area Networks (SAN).</p>
+<p>At its core, Longhorn aggregates local storage drives (SSDs, NVMe, or
+HDDs) across individual Linux nodes and converts them into distributed
+block devices. By utilizing standard Linux kernel mechanisms such as
+iSCSI and container storage interface (CSI) drivers, Longhorn exposes
+these aggregated disks as Kubernetes Persistent Volumes (PVs). This
+enables stateful containers to mount enterprise-grade block storage
+dynamically, regardless of which physical node scheduled the pod.</p>
+<p>A key architectural strength of Longhorn is its microservice-driven
+controller model. Instead of relying on a centralized storage controller
+that could introduce a single point of failure, Longhorn assigns a
+dedicated storage controller pod to each volume. This controller
+synchronously replicates data across multiple Linux nodes within the
+cluster. If a host node or drive fails, Longhorn continues serving the
+workload from a healthy replica on another node with zero downtime,
+automatically rebuilding the missing replica once healthy infrastructure
+becomes available.</p>
+<p>Beyond synchronous replication, Longhorn provides robust data
+protection directly within the Kubernetes ecosystem. It supports
+incremental, crash-consistent snapshots and asynchronous offsite backups
+to secondary object storage systems, such as Amazon S3 or NFS targets.
+Operators can orchestrate disaster recovery volumes across separate
+Kubernetes clusters, allowing rapid restoration in the event of total
+site failure.</p>
+<p>Ultimately, Longhorn's purpose on Linux-based Kubernetes platforms is
+to simplify storage operations. It removes the complexity of traditional
+enterprise storage solutions by providing an intuitive management
+interface, native declarative API support, and a lean footprint,
+delivering resilient and scalable block storage natively within the
+cloud-native ecosystem.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How Linux Uses Shim Bootloader for Secure Boot - linux</title>
+    <meta name="description" content="This article provides an overview of how Linux distributions natively support UEFI Secure Boot using a lightweight first-stage bootloader called "shim." It covers the chain of trust established from the motherboard firmware to the operating system kernel">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-linux-uses-shim-bootloader-for-secure-boot">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How Linux Uses Shim Bootloader for Secure Boot - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-linux-uses-shim-bootloader-for-secure-boot" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="This article provides an overview of how Linux distributions natively support UEFI Secure Boot using a lightweight first-stage bootloader called "shim." It covers the chain of trust established from the motherboard firmware to the operating system kernel" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-linux-uses-shim-bootloader-for-secure-boot">How Linux Uses
+Shim Bootloader for Secure Boot</h1>
+<p>This article provides an overview of how Linux distributions natively
+support UEFI Secure Boot using a lightweight first-stage bootloader
+called "shim." It covers the chain of trust established from the
+motherboard firmware to the operating system kernel, the role of
+Microsoft's third-party signing authority, and how users can manage
+custom keys using the Machine Owner Key (MOK) architecture.</p>
+<h2 id="the-secure-boot-challenge-in-linux">The Secure Boot Challenge in
+Linux</h2>
+<p>UEFI Secure Boot is designed to prevent unauthorized or malicious
+code from executing during the boot process. It achieves this by
+checking the cryptographic signature of boot components against trusted
+public keys stored in the motherboard's Non-Volatile RAM (NVRAM).</p>
+<p>By default, virtually all modern PC hardware comes pre-loaded with
+the Microsoft UEFI Third-Party Marketplace Certificate Authority (CA)
+key. Motherboard vendors rarely include Linux distribution-specific keys
+in their firmware. To allow Linux distributions to boot out-of-the-box
+on standard hardware without requiring users to disable Secure Boot or
+manually import keys into the BIOS/UEFI, the Linux community developed
+the shim bootloader.</p>
+<h2 id="what-is-the-shim-bootloader">What Is the Shim Bootloader?</h2>
+<p>The shim bootloader is a small, vendor-neutral EFI application
+(typically distributed as <code>shimx64.efi</code>). Its primary
+function is to act as a bridge between the UEFI firmware and the primary
+Linux bootloader, such as GRUB 2.</p>
+<p>Because it is relatively small and changes infrequently, Linux
+distributions can submit shim binaries to Microsoft to be signed with
+the widely pre-installed Microsoft Third-Party UEFI CA key. Once signed,
+the firmware treats the shim as trusted software.</p>
+<h2 id="the-secure-boot-execution-flow">The Secure Boot Execution
+Flow</h2>
+<p>When a computer with Secure Boot enabled powers on, Linux establishes
+a chain of trust through several sequential steps:</p>
+<ol type="1">
+<li><strong>Firmware to Shim</strong>: The UEFI firmware initializes and
+attempts to run the bootloader defined in the boot order. It checks the
+digital signature of <code>shimx64.efi</code> using the Microsoft key
+stored in its NVRAM database (<code>db</code>). Because the signature is
+valid, the firmware executes shim.</li>
+<li><strong>Shim to Second-Stage Bootloader</strong>: Once in control,
+shim needs to load the primary bootloader (usually GRUB, named
+<code>grubx64.efi</code>). Shim carries the specific distribution's
+embedded public key (such as Canonical, Red Hat, or openSUSE). It uses
+this embedded key to verify the signature of <code>grubx64.efi</code>
+before executing it.</li>
+<li><strong>GRUB to the Linux Kernel</strong>: GRUB reads its
+configuration and loads the Linux kernel (<code>vmlinuz</code>). GRUB
+uses the verification services provided by shim to check that the kernel
+image is signed by a recognized key.</li>
+<li><strong>Kernel Lockdown</strong>: Once loaded, modern Linux kernels
+enter a restricted operation state often referred to as "Lockdown mode."
+This state restricts user-space access (even as the <code>root</code>
+user) from modifying running kernel memory, disabling kernel module
+signature checks, or performing direct hardware access that could
+circumvent Secure Boot guarantees.</li>
+</ol>
+<h2 id="the-machine-owner-key-mok-system">The Machine Owner Key (MOK)
+System</h2>
+<p>While the embedded vendor key handles official distribution packages,
+users often need to load custom kernels or out-of-tree hardware drivers
+(such as proprietary GPU drivers or VirtualBox modules). To support this
+without compromising system security, shim integrates the Machine Owner
+Key (MOK) system.</p>
+<p>The MOK architecture consists of two primary components:</p>
+<ul>
+<li><strong><code>mokutil</code></strong>: A user-space command-line
+tool in Linux. Users can generate their own public/private key pairs,
+sign local kernel modules, and use <code>mokutil</code> to stage the
+public key for enrollment.</li>
+<li><strong>MokManager (<code>mmx64.efi</code>)</strong>: A fallback EFI
+binary invoked by shim when it detects a pending key enrollment request.
+Because user-space tools cannot automatically alter the Secure Boot
+trust chain, MokManager requires the user to physically confirm the key
+addition at the console during the next system reboot.</li>
+</ul>
+<p>Once a key is enrolled into the MOK database, shim stores it securely
+in NVRAM. During subsequent boots, shim will validate any binaries or
+modules signed with this user-generated key, enabling flexibility while
+preserving the integrity of the secure boot sequence.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

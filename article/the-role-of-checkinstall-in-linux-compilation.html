@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Role of CheckInstall in Linux Compilation - linux</title>
+    <meta name="description" content="Compiling software from source gives Linux users access to the latest upstream features, but the traditional make install step often leads to package management issues. The checkinstall utility solves this problem by monitoring the installation process,">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/the-role-of-checkinstall-in-linux-compilation">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="The Role of CheckInstall in Linux Compilation - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/the-role-of-checkinstall-in-linux-compilation" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="Compiling software from source gives Linux users access to the latest upstream features, but the traditional make install step often leads to package management issues. The checkinstall utility solves this problem by monitoring the installation process," />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="the-role-of-checkinstall-in-linux-compilation">The Role of
+CheckInstall in Linux Compilation</h1>
+<p>Compiling software from source gives Linux users access to the latest
+upstream features, but the traditional <code>make install</code> step
+often leads to package management issues. The <code>checkinstall</code>
+utility solves this problem by monitoring the installation process,
+creating a native package (such as <code>.deb</code>, <code>.rpm</code>,
+or a Slackware-compatible tarball), and installing it through the
+system's native package manager. This article explains how
+<code>checkinstall</code> works, why it is superior to raw source
+installation, and its primary benefits and limitations for system
+administrators and developers.</p>
+<h3 id="the-problem-with-traditional-make-install">The Problem with
+Traditional <code>make install</code></h3>
+<p>When building software from source, the standard workflow consists of
+three commands:</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">./configure</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> make install</span></code></pre></div>
+<p>While the first two commands configure and build the binaries
+locally, the final command—<code>make install</code>—copies binaries,
+libraries, man pages, and configuration files directly into system
+directories (typically under <code>/usr/local/</code> or
+<code>/usr/</code>).</p>
+<p>The critical flaw in this approach is that the native Linux package
+manager (such as <code>dpkg</code> on Debian/Ubuntu or <code>rpm</code>
+on Fedora/RHEL) remains entirely unaware of these files. This creates
+several problems:</p>
+<ul>
+<li><strong>Difficult Uninstallation:</strong> If the source directory
+is deleted or the developer did not provide a
+<code>make uninstall</code> target, removing the software requires
+manually finding and deleting individual files across multiple
+directories.</li>
+<li><strong>Overwritten Dependencies:</strong> Files installed manually
+can silently overwrite files managed by the package manager, leading to
+broken dependencies.</li>
+<li><strong>Lack of Tracking:</strong> Tools like <code>apt</code>,
+<code>dnf</code>, or <code>zypper</code> cannot query, update, or audit
+manually compiled binaries.</li>
+</ul>
+<h3 id="how-checkinstall-works">How CheckInstall Works</h3>
+<p>The <code>checkinstall</code> utility acts as an interception layer
+between the source code's installation scripts and the filesystem.
+Instead of running <code>sudo make install</code>, the user
+executes:</p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> checkinstall</span></code></pre></div>
+<p>During this command, <code>checkinstall</code> runs
+<code>make install</code> (or a custom install script) inside a
+monitored environment using <code>installwatch</code>. It logs every
+file created, modified, or removed during the installation phase.</p>
+<p>Once the installation routine finishes, <code>checkinstall</code>
+performs the following steps:</p>
+<ol type="1">
+<li>Prompts the user to define package metadata, including name,
+version, release number, license, and description.</li>
+<li>Packages the newly created files into a native package format
+(<code>.deb</code>, <code>.rpm</code>, or Slackware
+<code>.tgz</code>).</li>
+<li>Passes the resulting package to the host system’s package manager
+(<code>dpkg</code>, <code>rpm</code>, or <code>installpkg</code>) for
+installation.</li>
+<li>Stores a copy of the generated package in the build directory for
+future use or distribution to other machines with matching
+architectures.</li>
+</ol>
+<h3 id="key-benefits">Key Benefits</h3>
+<ul>
+<li><strong>Clean Removals:</strong> Because the software is registered
+with the system package manager, removing it is as straightforward as
+removing any standard repository package (e.g.,
+<code>sudo apt remove &lt;package-name&gt;</code> or
+<code>sudo rpm -e &lt;package-name&gt;</code>).</li>
+<li><strong>Conflict Prevention:</strong> Package managers can warn
+users if a compiled program attempts to overwrite files owned by an
+existing system package.</li>
+<li><strong>Portability:</strong> The generated package file can be
+copied and installed on other systems running the same distribution and
+architecture without needing to recompile the source code on each
+machine.</li>
+<li><strong>Filesystem Cleanliness:</strong> Prevents orphan files from
+cluttering <code>/usr/local/bin</code>, <code>/usr/local/lib</code>, and
+<code>/usr/local/share</code>.</li>
+</ul>
+<h3 id="limitations">Limitations</h3>
+<p>While <code>checkinstall</code> is an essential tool for maintaining
+system hygiene during source builds, it is not a complete substitute for
+professional distro packaging:</p>
+<ul>
+<li><strong>Dependency Resolution:</strong> It does not automatically
+detect or declare complex runtime dependencies; these must be tracked
+and installed manually.</li>
+<li><strong>Complex Scripts:</strong> Certain complex installation
+scripts that alter system users, systemd services, or dynamically modify
+configuration files during installation may not package cleanly with
+<code>checkinstall</code>.</li>
+</ul>
+<p>For local development machines and custom server builds,
+<code>checkinstall</code> provides a lightweight, highly effective
+compromise between the flexibility of building from source and the
+reliability of package-managed systems.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

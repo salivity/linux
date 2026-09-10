@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>What Is DXVK and How Does It Work on Linux? - linux</title>
+    <meta name="description" content="This article provides an overview of DXVK, explaining its fundamental role as a graphics translation layer for the Linux operating system. You will learn how DXVK converts Microsoft DirectX calls into modern Vulkan commands, why it is superior to older t">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/what-is-dxvk-and-how-does-it-work-on-linux">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="What Is DXVK and How Does It Work on Linux? - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/what-is-dxvk-and-how-does-it-work-on-linux" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="This article provides an overview of DXVK, explaining its fundamental role as a graphics translation layer for the Linux operating system. You will learn how DXVK converts Microsoft DirectX calls into modern Vulkan commands, why it is superior to older t" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="what-is-dxvk-and-how-does-it-work-on-linux">What Is DXVK and How
+Does It Work on Linux?</h1>
+<p>This article provides an overview of DXVK, explaining its fundamental
+role as a graphics translation layer for the Linux operating system. You
+will learn how DXVK converts Microsoft DirectX calls into modern Vulkan
+commands, why it is superior to older translation methods, and how it
+serves as a critical component within gaming platforms like Valve's
+Proton and Wine to deliver near-native gaming performance on Linux.</p>
+<h2 id="what-is-dxvk">What Is DXVK?</h2>
+<p>DXVK is an open-source, Vulkan-based translation layer for Direct3D
+9, Direct3D 10, and Direct3D 11. Because Microsoft's DirectX APIs are
+proprietary and native only to Windows, Linux systems cannot interpret
+these graphical instructions natively. DXVK acts as a bridge,
+intercepting DirectX graphics calls made by Windows applications and
+converting them into equivalent instructions for Vulkan, a modern,
+low-overhead, cross-platform graphics API supported natively on
+Linux.</p>
+<h2 id="the-problem-dxvk-solves">The Problem DXVK Solves</h2>
+<p>Historically, compatibility layers like Wine translated Direct3D
+calls into OpenGL. While functional, this approach suffered from severe
+performance bottlenecks. OpenGL's high CPU overhead and single-threaded
+nature created significant latency, leading to low frame rates, severe
+stuttering, and graphical artifacts in modern 3D games.</p>
+<p>DXVK resolves this issue by targeting Vulkan instead of OpenGL.
+Vulkan provides low-level, explicit control over the GPU, closely
+mirroring modern DirectX design principles. By matching the low-level
+architecture of modern graphics hardware, DXVK significantly reduces CPU
+overhead and delivers framerates that often rival those achieved
+natively on Windows.</p>
+<h2 id="how-dxvk-operates">How DXVK Operates</h2>
+<p>When a Windows game runs on Linux via a compatibility tool, the
+execution flow follows these steps:</p>
+<ol type="1">
+<li><strong>API Interception:</strong> DXVK replaces the standard
+dynamic link libraries (<code>d3d9.dll</code>,
+<code>d3d10core.dll</code>, <code>d3d11.dll</code>, and
+<code>dxgi.dll</code>) typically provided by Windows.</li>
+<li><strong>Instruction Mapping:</strong> When the game issues a draw
+call or shader pipeline command, the replaced library intercepts the
+instruction and translates it in real time into the corresponding Vulkan
+function.</li>
+<li><strong>Hardware Execution:</strong> The resulting Vulkan commands
+are passed directly to the native Linux GPU driver, which executes the
+instructions on the graphics hardware with minimal latency.</li>
+</ol>
+<h2 id="role-in-wine-and-valves-proton">Role in Wine and Valve's
+Proton</h2>
+<p>DXVK is not an emulator; it is a foundational component of modern
+Linux gaming ecosystems:</p>
+<ul>
+<li><strong>Valve's Proton:</strong> Steam Play utilizes Proton, a
+customized distribution of Wine that includes DXVK by default. DXVK is
+largely responsible for the high compatibility and performance of
+thousands of Windows-only games running on the Steam Deck and desktop
+Linux.</li>
+<li><strong>Standalone Wine:</strong> Users running standalone Wine
+environments (or managers like Lutris and Heroic Games Launcher) can
+inject DXVK to run non-Steam titles, drastically improving compatibility
+across classic and modern releases.</li>
+</ul>
+<h2 id="key-advantages">Key Advantages</h2>
+<ul>
+<li><strong>Near-Native Performance:</strong> By eliminating the CPU
+bottlenecks associated with OpenGL wrappers, games run smoothly with
+minimal overhead.</li>
+<li><strong>Shader Compilation Improvements:</strong> DXVK leverages
+modern graphics driver extensions, such as graphics pipeline libraries,
+to minimize shader compilation stutter during gameplay.</li>
+<li><strong>Broad Compatibility:</strong> It supports complex rendering
+techniques found in games spanning over a decade of DirectX 9 through
+DirectX 11 development.</li>
+</ul></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

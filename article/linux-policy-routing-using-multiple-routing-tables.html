@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linux Policy Routing Using Multiple Routing Tables - linux</title>
+    <meta name="description" content="Linux manages advanced packet forwarding through Policy-Based Routing (PBR), a mechanism that determines packet paths based on custom attributes rather than relying solely on the destination IP address. By combining the Routing Policy Database (RPDB) wit">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/linux-policy-routing-using-multiple-routing-tables">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Linux Policy Routing Using Multiple Routing Tables - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/linux-policy-routing-using-multiple-routing-tables" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="Linux manages advanced packet forwarding through Policy-Based Routing (PBR), a mechanism that determines packet paths based on custom attributes rather than relying solely on the destination IP address. By combining the Routing Policy Database (RPDB) wit" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="linux-policy-routing-using-multiple-routing-tables">Linux Policy
+Routing Using Multiple Routing Tables</h1>
+<p>Linux manages advanced packet forwarding through Policy-Based Routing
+(PBR), a mechanism that determines packet paths based on custom
+attributes rather than relying solely on the destination IP address. By
+combining the Routing Policy Database (RPDB) with multiple independent
+routing tables, the Linux kernel allows administrators to steer traffic
+according to source address, incoming interface, firewall marks, or
+protocol type. This article details the underlying architecture of Linux
+policy routing, how the kernel evaluates routing rules, and how multiple
+tables are configured and processed.</p>
+<h3 id="the-architecture-rpdb-and-multiple-routing-tables">The
+Architecture: RPDB and Multiple Routing Tables</h3>
+<p>Traditional IP routing is destination-based: the kernel consults a
+single routing table and matches the packet's destination against subnet
+prefixes. Linux extends this model using the Routing Policy Database
+(RPDB). The RPDB acts as a selector that sits in front of multiple
+routing tables, dictating which table the kernel must consult for any
+given packet.</p>
+<p>Linux supports up to 2^32 routing tables (historically 255),
+identified by a numeric ID between 0 and 4,294,967,295. By default, the
+system initializes with predefined tables:</p>
+<ul>
+<li><strong><code>local</code> (ID 255):</strong> Contains routes for
+local and broadcast addresses. The kernel automatically maintains this
+table, and it has the highest precedence.</li>
+<li><strong><code>main</code> (ID 254):</strong> The standard routing
+table used for traditional destination-based routes (e.g., standard
+gateways and interface subnets).</li>
+<li><strong><code>default</code> (ID 253):</strong> Reserved for
+post-processing and default routes, though rarely used by modern
+tooling.</li>
+</ul>
+<p>Custom tables are assigned numeric identifiers or friendly aliases
+mapped within <code>/etc/iproute2/rt_tables</code>.</p>
+<h3 id="the-packet-evaluation-process">The Packet Evaluation
+Process</h3>
+<p>When a network packet enters the network stack—either received from a
+network interface or generated locally—the kernel follows a
+deterministic pipeline to select its path:</p>
+<ol type="1">
+<li><strong>Rule Traversal:</strong> The kernel examines the RPDB
+sequentially, ordering rules from lowest priority number (highest
+precedence) to highest priority number.</li>
+<li><strong>Selector Matching:</strong> Each rule specifies selectors
+(criteria) such as source IP prefix, destination IP prefix, Type of
+Service (TOS), firewall mark (<code>fwmark</code>), or input interface
+(<code>iif</code>).</li>
+<li><strong>Table Lookup:</strong> When a packet matches a rule's
+selector, the evaluation jumps to the routing table designated by that
+rule.</li>
+<li><strong>Route Match or Fall-Through:</strong>
+<ul>
+<li>If the designated table contains a route that matches the packet's
+destination, the kernel uses that route and stops processing.</li>
+<li>If no matching route is found in that specific table, the kernel
+returns to the RPDB and resumes evaluation at the next priority
+rule.</li>
+</ul></li>
+<li><strong>Action Execution:</strong> In addition to standard lookups,
+rules can specify actions such as <code>unreachable</code>,
+<code>prohibit</code>, or <code>blackhole</code> to drop matching
+packets immediately.</li>
+</ol>
+<h3 id="defining-routing-tables">Defining Routing Tables</h3>
+<p>Custom routing tables are typically declared in
+<code>/etc/iproute2/rt_tables</code> to give numeric IDs human-readable
+names. For example:</p>
+<pre class="text"><code>200 isp2</code></pre>
+<p>Once defined, routes specific to that table are populated
+independently of the standard <code>main</code> table using the
+<code>ip route</code> utility:</p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Add a default gateway specifically to table &#39;isp2&#39;</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="ex">ip</span> route add default via 192.168.2.1 dev eth1 table isp2</span></code></pre></div>
+<p>Routes in this table remain isolated and will not affect regular
+system traffic until linked to an RPDB rule.</p>
+<h3 id="steering-traffic-with-ip-rule">Steering Traffic with
+<code>ip rule</code></h3>
+<p>The <code>ip rule</code> command configures the RPDB selectors that
+direct traffic to specific tables.</p>
+<ul>
+<li><strong>Source-Based Routing:</strong> Routes packets originating
+from a specific IP address or subnet through a separate table:
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="ex">ip</span> rule add from 192.168.2.100/32 table isp2 priority 1000</span></code></pre></div></li>
+<li><strong>Interface-Based Routing:</strong> Routes packets entering a
+specific interface via a distinct gateway:
+<div class="sourceCode" id="cb4"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="ex">ip</span> rule add iif eth1 table isp2 priority 1010</span></code></pre></div></li>
+<li><strong>Mark-Based Routing (fwmark):</strong> Leverages
+<code>iptables</code> or <code>nftables</code> to mark packets based on
+Layer 4 attributes (such as port numbers or protocols) before routing
+evaluation:
+<div class="sourceCode" id="cb5"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Mark outgoing HTTPS packets with mark 1</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="ex">iptables</span> <span class="at">-t</span> mangle <span class="at">-A</span> OUTPUT <span class="at">-p</span> tcp <span class="at">--dport</span> 443 <span class="at">-j</span> MARK <span class="at">--set-mark</span> 1</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Route marked packets using table &#39;isp2&#39;</span></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a><span class="ex">ip</span> rule add fwmark 1 table isp2 priority 1020</span></code></pre></div></li>
+</ul>
+<h3 id="cache-and-state-management">Cache and State Management</h3>
+<p>Linux maintains a routing cache to speed up lookups for active
+connections. When modifications are made to the RPDB or routing tables
+via <code>ip rule</code> or <code>ip route</code>, the changes take
+effect immediately, but existing path calculations may persist until the
+cache is refreshed. Running <code>ip route flush cache</code>
+invalidates stale cache entries, forcing the kernel to re-evaluate
+active flows against the updated rule hierarchy.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

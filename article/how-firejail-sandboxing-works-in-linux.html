@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How Firejail Sandboxing Works in Linux - linux</title>
+    <meta name="description" content="Firejail is an SUID security sandbox that reduces the risk of security breaches by isolating untrusted applications within restricted execution environments. It utilizes native Linux kernel security features—primarily namespaces, seccomp filtering, and">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-firejail-sandboxing-works-in-linux">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How Firejail Sandboxing Works in Linux - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-firejail-sandboxing-works-in-linux" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="Firejail is an SUID security sandbox that reduces the risk of security breaches by isolating untrusted applications within restricted execution environments. It utilizes native Linux kernel security features—primarily namespaces, seccomp filtering, and" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-firejail-sandboxing-works-in-linux">How Firejail Sandboxing
+Works in Linux</h1>
+<p>Firejail is an SUID security sandbox that reduces the risk of
+security breaches by isolating untrusted applications within restricted
+execution environments. It utilizes native Linux kernel security
+features—primarily namespaces, seccomp filtering, and capabilities—to
+constrain a program's access to files, networks, and system resources
+without requiring complex configuration or virtual machines.</p>
+<h3 id="linux-namespaces">Linux Namespaces</h3>
+<p>Firejail builds the foundation of its isolation using Linux
+namespaces. Namespaces partition kernel resources so that a process sees
+only its own isolated instance of a global resource.</p>
+<ul>
+<li><strong>Mount Namespaces (CLONE_NEWNS):</strong> Firejail creates a
+dedicated filesystem view for the sandboxed application. It can mount
+clean <code>/tmp</code> directories, hide sensitive user directories
+(such as <code>~/.ssh</code> or <code>~/.gnupg</code>) using read-only
+mounts or temporary overlays, and replace system configuration files
+without altering the host filesystem.</li>
+<li><strong>Network Namespaces (CLONE_NEWNET):</strong> Applications can
+run with an isolated network stack. Firejail can connect the sandbox to
+a new virtual Ethernet interface, bridge, or loopback device, or
+disconnect networking entirely using the <code>--net=none</code>
+option.</li>
+<li><strong>PID Namespaces (CLONE_NEWPID):</strong> Process ID
+virtualization hides processes running on the host from the sandboxed
+application, preventing unauthorized inter-process inspection or
+signaling.</li>
+<li><strong>IPC and UTS Namespaces:</strong> Firejail isolates
+Inter-Process Communication (IPC) to prevent shared-memory attacks,
+while UTS namespaces allow the sandbox to define independent hostnames
+and domain names.</li>
+</ul>
+<h3 id="system-call-filtering-via-seccomp">System Call Filtering via
+Seccomp</h3>
+<p>To prevent applications from exploiting kernel vulnerabilities,
+Firejail relies on Secure Computing Mode with Berkeley Packet Filters
+(seccomp-bpf). By default or through application profiles, Firejail
+drops access to dangerous or unnecessary system calls. Calls such as
+<code>ptrace</code> (process tracing), <code>sys_chroot</code>,
+<code>kexec_load</code>, and various obsolete or vulnerable legacy calls
+are blocked. If a compromised application attempts to invoke a
+restricted system call, the kernel immediately terminates the process or
+returns an error.</p>
+<h3 id="linux-capabilities-dropping">Linux Capabilities Dropping</h3>
+<p>Linux splits traditional superuser privileges into distinct units
+known as capabilities (via <code>libcap</code>). Although Firejail runs
+with SUID privileges to configure namespaces and mounts, it drops these
+elevated privileges before executing the target program. Furthermore,
+Firejail strips standard user capabilities—such as
+<code>CAP_SYS_ADMIN</code>, <code>CAP_NET_ADMIN</code>, and
+<code>CAP_RAW_IO</code>—ensuring that even if a process achieves a local
+privilege escalation within the sandbox, it cannot alter system-wide
+settings or access hardware directly.</p>
+<h3 id="filesystem-hardening-and-private-directories">Filesystem
+Hardening and Private Directories</h3>
+<p>Beyond mount namespaces, Firejail implements explicit filesystem
+access controls:</p>
+<ul>
+<li><strong>Blacklisting:</strong> Standard profiles automatically block
+read and write access to critical user data, password stores, and shell
+histories.</li>
+<li><strong>Whitelisting:</strong> Firejail can enforce a strict model
+where only explicitly defined directories and files (such as an
+application's specific configuration directory) are visible inside the
+sandbox.</li>
+<li><strong>Private and Overlay Filesystems:</strong> Firejail can
+instantiate temporary filesystems in RAM or use OverlayFS, ensuring that
+any file created, modified, or downloaded by the application is
+discarded upon exit.</li>
+</ul>
+<h3 id="resource-allocation-with-control-groups-cgroups">Resource
+Allocation with Control Groups (cgroups)</h3>
+<p>Firejail integrates with Linux Control Groups (cgroups) to enforce
+hardware limits on sandboxed processes. Administrators can define
+maximum thresholds for CPU usage, memory consumption, and network
+bandwidth. This prevents a misbehaving or compromised process from
+launching Denial-of-Service (DoS) attacks against the host system.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

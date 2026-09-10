@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How Android Uses a Modified Linux Kernel - linux</title>
+    <meta name="description" content="The Android operating system relies on a customized version of the open-source Linux kernel to serve as its core foundation for hardware management, security, and low-level system services. While Android retains fundamental Linux features—such as proce">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-android-uses-a-modified-linux-kernel">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How Android Uses a Modified Linux Kernel - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-android-uses-a-modified-linux-kernel" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="The Android operating system relies on a customized version of the open-source Linux kernel to serve as its core foundation for hardware management, security, and low-level system services. While Android retains fundamental Linux features—such as proce" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-android-uses-a-modified-linux-kernel">How Android Uses a
+Modified Linux Kernel</h1>
+<p>The Android operating system relies on a customized version of the
+open-source Linux kernel to serve as its core foundation for hardware
+management, security, and low-level system services. While Android
+retains fundamental Linux features—such as process scheduling, memory
+allocation, and networking—Google introduced critical modifications
+tailored specifically to the resource constraints, battery requirements,
+and unique user experience demands of mobile devices.</p>
+<h2 id="the-foundation-standard-linux-capabilities">The Foundation:
+Standard Linux Capabilities</h2>
+<p>At its base, Android uses the Linux kernel as a hardware abstraction
+layer (HAL). The kernel enables Android to interface directly with
+device hardware, such as processors, display controllers, cameras, flash
+storage, and wireless radios.</p>
+<p>In addition to hardware communication, Android uses the standard
+Linux multi-user model for security. Instead of assigning user IDs
+(UIDs) exclusively to physical people, Android assigns a unique UID to
+each installed application. This creates an isolated software sandbox
+that prevents applications from accessing each other's data without
+explicit permission.</p>
+<h2 id="key-modifications-introduced-by-android">Key Modifications
+Introduced by Android</h2>
+<p>To make the Linux kernel suitable for mobile devices, Android
+developers added several proprietary subsystems and architectural
+enhancements:</p>
+<h3 id="1-binder-inter-process-communication">1. Binder (Inter-Process
+Communication)</h3>
+<p>Standard Linux supports traditional Inter-Process Communication (IPC)
+mechanisms like sockets and shared memory. However, Android introduced
+<strong>Binder</strong>, a specialized IPC system optimized for mobile
+performance and security. Binder provides high-speed, remote procedure
+call (RPC) mechanisms with built-in reference counting and UID
+verification, enabling sandboxed apps to securely communicate with core
+system services.</p>
+<h3 id="2-low-memory-killer-lmk">2. Low Memory Killer (LMK)</h3>
+<p>Standard Linux handles low-memory scenarios using an Out-of-Memory
+(OOM) killer, which acts as a last resort to keep the system running.
+Because mobile devices frequently exhaust available RAM, Android
+implemented the <strong>Low Memory Killer</strong> (and later userspace
+LMKD). This system categorizes running applications based on their
+state—such as foreground, visible, service, or background—and
+systematically terminates non-essential background processes before
+memory pressure degrades user responsiveness.</p>
+<h3 id="3-ashmem-anonymous-shared-memory">3. Ashmem (Anonymous Shared
+Memory)</h3>
+<p>Android added <strong>Ashmem</strong>, an alternative to standard
+POSIX shared memory. Ashmem allows processes to share memory buffers
+while giving the kernel permission to reclaim those memory pages if the
+system runs low on RAM and the processes are not actively using
+them.</p>
+<h3 id="4-specialized-power-management-wakelocks">4. Specialized Power
+Management (Wakelocks)</h3>
+<p>Battery conservation is critical for mobile architectures. Android
+introduced <strong>Wakelocks</strong> into the kernel to alter the
+standard Linux power state. When an Android device screen turns off, the
+kernel attempts to place the CPU into a deep sleep state. A wakelock
+allows an active process (such as audio playback or an incoming call
+handler) to prevent the CPU from entering low-power sleep until the task
+completes.</p>
+<h2
+id="evolution-toward-upstream-linux-and-the-generic-kernel-image">Evolution
+Toward Upstream Linux and the Generic Kernel Image</h2>
+<p>Historically, the Android kernel diverged significantly from the
+mainline Linux kernel maintained by the open-source community. This
+separation created fragmentation, as device manufacturers had to apply
+extensive patches to support specific chipsets.</p>
+<p>In modern versions of Android, Google introduced the <strong>Generic
+Kernel Image (GKI)</strong> architecture. The GKI decouples the core
+system kernel from vendor-specific hardware drivers using loadable
+kernel modules and stable interfaces. This initiative aligns Android
+much closer to the upstream Linux kernel, streamlining system security
+updates and reducing the engineering overhead required to maintain
+Android across diverse hardware platforms.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

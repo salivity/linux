@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>What Is a Display Manager in Linux? - linux</title>
+    <meta name="description" content="A display manager, also known as a login manager, is a graphical user interface presented at the end of the Linux boot process that handles user authentication and starts desktop sessions. This article covers the core purpose of a display manager, how it">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/what-is-a-display-manager-in-linux">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="What Is a Display Manager in Linux? - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/what-is-a-display-manager-in-linux" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="A display manager, also known as a login manager, is a graphical user interface presented at the end of the Linux boot process that handles user authentication and starts desktop sessions. This article covers the core purpose of a display manager, how it" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="what-is-a-display-manager-in-linux">What Is a Display Manager in
+Linux?</h1>
+<p>A display manager, also known as a login manager, is a graphical user
+interface presented at the end of the Linux boot process that handles
+user authentication and starts desktop sessions. This article covers the
+core purpose of a display manager, how it interacts with the underlying
+display server and desktop environments, popular implementations in
+modern distributions, and how it differs from other graphical components
+in Linux.</p>
+<h2 id="the-core-function-of-a-display-manager">The Core Function of a
+Display Manager</h2>
+<p>In the Linux operating system, the display manager acts as the
+graphical gateway to your system. Instead of dropping the user into a
+text-based terminal prompt (TTY) after booting, the system launches a
+display manager to provide a visual login screen.</p>
+<p>Its primary responsibilities include:</p>
+<ul>
+<li><strong>User Authentication:</strong> Providing input fields for
+usernames, passwords, or biometric authentication via Pluggable
+Authentication Modules (PAM).</li>
+<li><strong>Session Selection:</strong> Allowing users to choose which
+installed desktop environment (such as GNOME, KDE Plasma, or XFCE) or
+window manager (such as i3 or Sway) they want to load.</li>
+<li><strong>Session Launching:</strong> Spawning the chosen user session
+and handing off control from root privileges to the authenticated user
+account.</li>
+<li><strong>Display Server Integration:</strong> Initializing and
+managing the graphical display server, whether running X11 (X.Org) or
+Wayland.</li>
+</ul>
+<h2 id="how-a-display-manager-works">How a Display Manager Works</h2>
+<p>When a Linux system boots, the init system (typically
+<code>systemd</code>) loads core services, hardware drivers, and the
+networking stack. Once reaching the graphical target
+(<code>graphical.target</code>), the init system launches the display
+manager daemon.</p>
+<p>The display manager is split into two primary components: the backend
+daemon and the frontend "greeter." The daemon runs with administrative
+privileges to manage sessions and display servers, while the greeter is
+the visible GUI containing the login form, session picker, and
+accessibility options. Once valid credentials are submitted, the greeter
+closes, the user session loads, and the display manager remains running
+quietly in the background to handle session locking or switching between
+multiple logged-in users.</p>
+<h2 id="common-display-managers-in-linux">Common Display Managers in
+Linux</h2>
+<p>Different Linux distributions and desktop environments use specific
+display managers tailored to their technology stacks:</p>
+<ul>
+<li><strong>GDM (GNOME Display Manager):</strong> The default display
+manager for the GNOME desktop environment. It offers deep integration
+with GNOME Shell, native Wayland support, and features like automatic
+login and fast user switching.</li>
+<li><strong>SDDM (Simple Desktop Display Manager):</strong> The
+preferred display manager for KDE Plasma and LXQt. It is written in C++
+and uses QML to support modern, highly customizable graphical
+themes.</li>
+<li><strong>LightDM:</strong> A lightweight, cross-desktop display
+manager designed to be fast, memory-efficient, and desktop-agnostic. It
+supports separate greeters written in various toolkits, such as GTK or
+Qt, making it common in distributions like Linux Mint and Xubuntu.</li>
+<li><strong>Ly:</strong> A lightweight, text-based (TUI) display manager
+suitable for minimal systems, old hardware, or users who run standalone
+window managers without heavy graphical toolkits.</li>
+</ul>
+<h2
+id="display-manager-vs-desktop-environment-vs-window-manager">Display
+Manager vs. Desktop Environment vs. Window Manager</h2>
+<p>It is common to confuse the various layers of the Linux graphical
+stack:</p>
+<ul>
+<li><strong>Display Server (X11/Wayland):</strong> The foundation that
+coordinates inputs (mouse, keyboard) and outputs (drawing pixels on
+screen).</li>
+<li><strong>Display Manager (e.g., GDM, SDDM):</strong> The graphical
+login prompt that authenticates users and initiates the session.</li>
+<li><strong>Desktop Environment (e.g., GNOME, KDE Plasma):</strong> The
+complete software suite, including panels, menus, default applications,
+and styling, that loads after login.</li>
+<li><strong>Window Manager (e.g., KWin, Mutter, i3):</strong> The
+component responsible for placing, moving, and resizing application
+windows on the screen.</li>
+</ul>
+<h2 id="managing-display-managers">Managing Display Managers</h2>
+<p>Display managers run as system services and can be configured or
+swapped using standard service management commands. On
+<code>systemd</code>-based distributions, you can check the status of
+your current display manager with:</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">systemctl</span> status display-manager</span></code></pre></div>
+<p>To switch between installed display managers, administrators can
+disable the active manager and enable a new one:</p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> systemctl disable gdm</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> systemctl enable sddm</span></code></pre></div>
+<p>A display manager is not strictly mandatory to use Linux. Advanced
+users and server administrators often disable the display manager
+entirely, booting directly to a terminal prompt and launching their
+graphical environment manually using commands such as
+<code>startx</code> or dedicated Wayland compositors.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How to Hot-Swap SATA Drives in Linux Using Sysfs - linux</title>
+    <meta name="description" content="This article provides an overview of how the Linux operating system detects and manages hot-swapped SATA drives using the sysfs virtual filesystem. When hardware is plugged or unplugged from an active system, the Linux kernel relies on its SCSI subsystem">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-to-hot-swap-sata-drives-in-linux-using-sysfs">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How to Hot-Swap SATA Drives in Linux Using Sysfs - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-to-hot-swap-sata-drives-in-linux-using-sysfs" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="This article provides an overview of how the Linux operating system detects and manages hot-swapped SATA drives using the sysfs virtual filesystem. When hardware is plugged or unplugged from an active system, the Linux kernel relies on its SCSI subsystem" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-to-hot-swap-sata-drives-in-linux-using-sysfs">How to
+Hot-Swap SATA Drives in Linux Using Sysfs</h1>
+<p>This article provides an overview of how the Linux operating system
+detects and manages hot-swapped SATA drives using the <code>sysfs</code>
+virtual filesystem. When hardware is plugged or unplugged from an active
+system, the Linux kernel relies on its SCSI subsystem abstraction and
+AHCI drivers to dynamically add or drop storage devices. By interacting
+directly with specific control files exposed in <code>/sys</code>,
+system administrators can safely prepare disks for physical removal and
+instruct the kernel to scan for newly inserted storage devices without
+rebooting.</p>
+<h3 id="the-architecture-behind-linux-sata-management">The Architecture
+Behind Linux SATA Management</h3>
+<p>In Linux, SATA devices are abstracted and handled by the
+<code>libata</code> driver layer, which routes them through the SCSI
+subsystem. Because of this, SATA drives appear as SCSI block devices
+(e.g., <code>/dev/sda</code>, <code>/dev/sdb</code>), and their physical
+interfaces (ports) are represented under
+<code>/sys/class/scsi_host/</code>.</p>
+<p>Hot-swapping requires two conditions at the hardware level: the
+motherboard controller must support AHCI mode, and the SATA power and
+data connectors must support hot-plugging. When these criteria are met,
+the kernel can register physical link state changes automatically in
+many modern systems. However, in environments where automatic hardware
+interrupts are not triggered or reliable, software-level control via
+<code>sysfs</code> provides deterministic control over device
+initialization and teardown.</p>
+<h3 id="safely-removing-a-sata-drive">Safely Removing a SATA Drive</h3>
+<p>To remove a SATA drive without causing data corruption or kernel
+panics, the operating system must cease all read and write operations
+and unregister the disk from the active device tree.</p>
+<ol type="1">
+<li><strong>Unmount Filesystems and Stop Services:</strong> Unmount any
+active partitions on the device using <code>umount</code> and stop any
+software RAID or LVM arrays utilizing the drive.</li>
+<li><strong>Flush Hardware Caches:</strong> Run <code>sync</code> to
+ensure any cached data waiting in memory is committed to the physical
+platters or flash cells.</li>
+<li><strong>Delete the Device from the Subsystem:</strong> Issue a
+removal command to the device's specific <code>delete</code> entry in
+<code>sysfs</code>:</li>
+</ol>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> 1 <span class="op">&gt;</span> /sys/block/sdX/device/delete</span></code></pre></div>
+<p><em>(Replace <code>sdX</code> with the designated target device, such
+as <code>sdb</code>.)</em></p>
+<p>Writing <code>1</code> to this file instructs the SCSI mid-layer to
+cleanly detach the device. The kernel flushes any remaining device
+queues, shuts down the read/write channels, removes the
+<code>/dev/sdX</code> entries, and powers down the drive port if
+supported. Once this command finishes execution, the drive can be safely
+disconnected physically.</p>
+<h3 id="detecting-a-newly-inserted-sata-drive">Detecting a Newly
+Inserted SATA Drive</h3>
+<p>When a new SATA drive is plugged into a running machine, the kernel
+might not automatically generate a new device node if the controller
+does not broadcast an interrupt event. In this case, the administrator
+can force a manual scan of the SCSI host adapter.</p>
+<ol type="1">
+<li><strong>Identify the SCSI Host:</strong> Determine which SCSI host
+adapter controls the target SATA port. You can view all available hosts
+by listing the directory:</li>
+</ol>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ls</span> /sys/class/scsi_host/</span></code></pre></div>
+<p>This typically returns entries such as <code>host0</code>,
+<code>host1</code>, <code>host2</code>, etc.</p>
+<ol start="2" type="1">
+<li><strong>Trigger the Rescan:</strong> Write the SCSI scan parameters
+to the <code>scan</code> interface of the appropriate host
+controller:</li>
+</ol>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="st">&quot;- - -&quot;</span> <span class="op">&gt;</span> /sys/class/scsi_host/hostX/scan</span></code></pre></div>
+<p><em>(Replace <code>hostX</code> with the target host interface, such
+as <code>host0</code>, or loop through all available hosts.)</em></p>
+<p>The three dashes (<code>- - -</code>) act as wildcards
+representing:</p>
+<ul>
+<li><strong>Channel:</strong> The controller channel number.</li>
+<li><strong>Target:</strong> The device ID on the channel.</li>
+<li><strong>LUN:</strong> The Logical Unit Number.</li>
+</ul>
+<p>Using wildcards instructs the kernel's SCSI scanning routine to query
+every channel, target, and LUN on that host.</p>
+<h3 id="kernel-execution-flow-during-rescan">Kernel Execution Flow
+During Rescan</h3>
+<p>When the string <code>"- - -"</code> is echoed into the
+<code>scan</code> node:</p>
+<ol type="1">
+<li>The kernel invokes the <code>scsi_scan_host()</code> routine in the
+SCSI mid-layer.</li>
+<li>The SATA driver (such as <code>ahci</code>) queries the physical PHY
+layer on the SATA ports associated with that controller to negotiate
+link speed and establish communication.</li>
+<li>The kernel sends standard SCSI inquiry commands to the drive to
+gather metadata (vendor, model, serial number, geometry, and
+capacity).</li>
+<li>Upon receiving valid responses, the SCSI subsystem assigns a new
+target identity and creates the corresponding block device files.</li>
+<li>The <code>udev</code> daemon captures the hardware addition event,
+generating the symbolic links in <code>/dev/disk/by-id/</code>,
+<code>/dev/disk/by-uuid/</code>, and the main node
+<code>/dev/sdX</code>.</li>
+</ol>
+<p>You can verify successful detection immediately after running the
+rescan command by inspecting the kernel message buffer with
+<code>dmesg | tail -n 20</code> or by running <code>lsblk</code>.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

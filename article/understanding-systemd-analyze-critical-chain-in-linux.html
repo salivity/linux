@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Understanding systemd-analyze critical-chain in Linux - linux</title>
+    <meta name="description" content="The systemd-analyze critical-chain command is an essential diagnostic utility in modern Linux distributions used to identify and troubleshoot slow boot times. This article explains the significance of the critical-chain output, how to interpret its execu">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/understanding-systemd-analyze-critical-chain-in-linux">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Understanding systemd-analyze critical-chain in Linux - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/understanding-systemd-analyze-critical-chain-in-linux" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="The systemd-analyze critical-chain command is an essential diagnostic utility in modern Linux distributions used to identify and troubleshoot slow boot times. This article explains the significance of the critical-chain output, how to interpret its execu" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1
+id="understanding-systemd-analyze-critical-chain-in-linux">Understanding
+systemd-analyze critical-chain in Linux</h1>
+<p>The <code>systemd-analyze critical-chain</code> command is an
+essential diagnostic utility in modern Linux distributions used to
+identify and troubleshoot slow boot times. This article explains the
+significance of the critical-chain output, how to interpret its
+execution tree, and how system administrators can leverage this tool to
+pinpoint startup bottlenecks and optimize system initialization.</p>
+<h3 id="what-is-the-critical-chain">What is the Critical Chain?</h3>
+<p>During the Linux boot process, <code>systemd</code> starts multiple
+services, sockets, and targets concurrently to minimize startup latency.
+However, because certain units depend on others to complete before they
+can start, a specific sequential path emerges that directly dictates the
+minimum total time required to reach a operational state. This path is
+known as the "critical chain."</p>
+<p>The <code>systemd-analyze critical-chain</code> command prints this
+exact time-critical dependency tree, tracing back from the default boot
+target (usually <code>graphical.target</code> or
+<code>multi-user.target</code>) to the earliest services initialized by
+the kernel.</p>
+<h3 id="how-to-read-the-output">How to Read the Output</h3>
+<p>When you run the command in a terminal:</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">systemd-analyze</span> critical-chain</span></code></pre></div>
+<p>The output displays a tree structure indicating when each unit was
+activated relative to boot time and how long it took to initialize.</p>
+<p>A typical line looks like this:</p>
+<p><code>network-online.target @1.234s</code>
+<code>└─NetworkManager-wait-online.service @456ms +778ms</code></p>
+<ul>
+<li><strong><code>@timestamp</code></strong>: Indicates the exact moment
+the service began initializing after the kernel started.</li>
+<li><strong><code>+duration</code></strong>: Indicates the active time
+taken by the service to complete its initialization.</li>
+<li><strong>Color coding</strong>: On color-enabled terminals, the
+slowest units and major bottlenecks are highlighted in red, allowing you
+to instantly locate the most problematic services.</li>
+</ul>
+<h3 id="key-significance-in-linux-administration">Key Significance in
+Linux Administration</h3>
+<h4 id="1-identifying-true-bottlenecks">1. Identifying True
+Bottlenecks</h4>
+<p>Not every service that takes a long time to start causes a slow boot.
+If a service takes ten seconds to initialize but runs in parallel
+without blocking other dependent services, it does not delay reaching
+the login prompt. The <code>critical-chain</code> command filters out
+these harmless parallel operations and exposes only the services
+actively blocking the startup sequence.</p>
+<h4 id="2-visualizing-dependency-blockers">2. Visualizing Dependency
+Blockers</h4>
+<p>By mapping parent-child relationships, the command reveals unexpected
+dependencies. For example, if a custom background script depends on
+<code>network-online.target</code>, and that target is waiting on a
+misconfigured network interface, the entire boot process stalls. The
+critical chain highlights this dependency chain clearly.</p>
+<h4 id="3-targeted-performance-optimization">3. Targeted Performance
+Optimization</h4>
+<p>Instead of guessing which services to disable, administrators can use
+the output to make informed decisions:</p>
+<ul>
+<li><strong>Disabling or Masking Unneeded Services</strong>: Turn off
+services on the critical path that are not required for your
+workflow.</li>
+<li><strong>Reconfiguring Waits</strong>: Modify services like
+<code>systemd-networkd-wait-online.service</code> or
+<code>NetworkManager-wait-online.service</code> that frequently cause
+delays by waiting for all interfaces to be fully operational.</li>
+<li><strong>Parallelization</strong>: Restructure custom unit files so
+that dependencies are asynchronous, removing them from the critical path
+entirely.</li>
+</ul>
+<p>Evaluating specific targets is also supported by specifying the
+target directly, such as
+<code>systemd-analyze critical-chain multi-user.target</code>, enabling
+granular analysis of specific operational states.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

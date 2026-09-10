@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>What Is the authorized_keys File in Linux? - linux</title>
+    <meta name="description" content="The authorizedkeys file in a Linux operating system user profile serves as a fundamental security component for the Secure Shell (SSH) protocol. Its primary purpose is to store the public keys of clients who are granted permission to log into that specif">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/what-is-the-authorized-keys-file-in-linux">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="What Is the authorized_keys File in Linux? - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/what-is-the-authorized-keys-file-in-linux" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="The authorizedkeys file in a Linux operating system user profile serves as a fundamental security component for the Secure Shell (SSH) protocol. Its primary purpose is to store the public keys of clients who are granted permission to log into that specif" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="what-is-the-authorized_keys-file-in-linux">What Is the
+authorized_keys File in Linux?</h1>
+<p>The <code>authorized_keys</code> file in a Linux operating system
+user profile serves as a fundamental security component for the Secure
+Shell (SSH) protocol. Its primary purpose is to store the public keys of
+clients who are granted permission to log into that specific user
+account using SSH key-based authentication. By replacing or
+supplementing traditional password logins with asymmetric cryptography,
+this file enables secure, automated, and passwordless remote access.</p>
+<h3 id="how-the-authorized_keys-file-works">How the
+<code>authorized_keys</code> File Works</h3>
+<p>SSH authentication relies on asymmetric public-key cryptography,
+which uses a mathematically linked key pair: a private key and a public
+key.</p>
+<ul>
+<li>The <strong>private key</strong> remains strictly with the client
+machine and must never be shared.</li>
+<li>The <strong>public key</strong> is copied to the remote Linux server
+and appended to the target user's <code>authorized_keys</code>
+file.</li>
+</ul>
+<p>When a client attempts to connect to the Linux host via SSH, the SSH
+daemon (<code>sshd</code>) checks the target account's
+<code>authorized_keys</code> file. The server issues a cryptographic
+challenge based on the public key. If the client can prove ownership of
+the corresponding private key by decrypting or signing the challenge,
+the server grants access immediately without prompting for the user's
+Linux password.</p>
+<h3 id="file-location-and-format">File Location and Format</h3>
+<p>The <code>authorized_keys</code> file resides inside a hidden
+directory within the user's home directory:</p>
+<pre class="text"><code>/home/&lt;username&gt;/.ssh/authorized_keys</code></pre>
+<p>For the root user, the typical location is
+<code>/root/.ssh/authorized_keys</code>.</p>
+<p>The file is a standard plaintext document where each line represents
+a single authorized public key. A standard line includes:</p>
+<ol type="1">
+<li><strong>Key Type:</strong> Specifies the cryptographic algorithm
+(e.g., <code>ssh-ed25519</code> or <code>ssh-rsa</code>).</li>
+<li><strong>Key Data:</strong> The base64-encoded string representing
+the actual public key.</li>
+<li><strong>Comment:</strong> An optional identifier, usually noting the
+creation date, email address, or hostname of the key owner.</li>
+</ol>
+<p>Optional options can also precede the key type on the same line to
+restrict capabilities, such as locking down the connection to a specific
+IP address (<code>from="192.168.1.50"</code>) or restricting execution
+to a single predefined command.</p>
+<h3 id="critical-permission-requirements">Critical Permission
+Requirements</h3>
+<p>Because the <code>authorized_keys</code> file directly dictates who
+can access an account, the SSH daemon enforces strict file system
+permission checks. If permissions are too open, the server will reject
+the authentication attempt for security reasons:</p>
+<ul>
+<li><strong>The <code>.ssh</code> directory</strong> must be owned by
+the user and set to permissions <code>700</code>
+(<code>rwx------</code>).</li>
+<li><strong>The <code>authorized_keys</code> file</strong> must be owned
+by the user and set to permissions <code>600</code>
+(<code>rw-------</code>) or <code>644</code>
+(<code>rw-r--r--</code>).</li>
+</ul>
+<h3 id="primary-benefits">Primary Benefits</h3>
+<ul>
+<li><strong>Enhanced Security:</strong> Public-key authentication is
+virtually immune to brute-force password guessing attacks.</li>
+<li><strong>Automation:</strong> Scripts, configuration management tools
+(like Ansible), and CI/CD pipelines rely on this file to interact with
+servers without human interaction.</li>
+<li><strong>Granular Access Management:</strong> System administrators
+can grant access to multiple users by adding their respective public
+keys, and immediately revoke access simply by deleting a specific line
+from the file.</li>
+</ul></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

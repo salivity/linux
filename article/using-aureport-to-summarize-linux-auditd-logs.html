@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Using aureport to Summarize Linux auditd Logs - linux</title>
+    <meta name="description" content="This article provides an overview of the aureport utility in Linux, explaining its role in processing and summarizing events captured by the Linux Audit framework (auditd). By distilling verbose, low-level audit logs into structured, high-level reports,">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/using-aureport-to-summarize-linux-auditd-logs">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Using aureport to Summarize Linux auditd Logs - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/using-aureport-to-summarize-linux-auditd-logs" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="This article provides an overview of the aureport utility in Linux, explaining its role in processing and summarizing events captured by the Linux Audit framework (auditd). By distilling verbose, low-level audit logs into structured, high-level reports," />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="using-aureport-to-summarize-linux-auditd-logs">Using aureport to
+Summarize Linux auditd Logs</h1>
+<p>This article provides an overview of the <code>aureport</code>
+utility in Linux, explaining its role in processing and summarizing
+events captured by the Linux Audit framework (<code>auditd</code>). By
+distilling verbose, low-level audit logs into structured, high-level
+reports, <code>aureport</code> enables system administrators and
+security professionals to monitor user activity, track authentication
+attempts, verify policy compliance, and investigate security incidents
+quickly and effectively.</p>
+<h3 id="the-purpose-of-aureport">The Purpose of aureport</h3>
+<p>The Linux Audit framework records granular system events to
+<code>/var/log/audit/audit.log</code>. While this raw data is rich in
+detail, it is often too dense and voluminous to analyze manually. The
+primary purpose of <code>aureport</code> is to parse these raw records
+and generate concise, human-readable summary tables. Rather than
+searching for individual events, administrators use
+<code>aureport</code> to get statistical overviews and lists categorized
+by event type.</p>
+<h3 id="key-capabilities-and-common-reports">Key Capabilities and Common
+Reports</h3>
+<p>The <code>aureport</code> command provides predefined flags to filter
+and organize log data by specific operational metrics:</p>
+<ul>
+<li><strong>Authentication and Login Reports:</strong> Running
+<code>aureport -au</code> summarizes user authentication attempts,
+detailing successful and failed authentications, the associated
+terminal, and the account used. Running <code>aureport -l</code>
+specifically reports on login events.</li>
+<li><strong>Executable and Command Tracking:</strong> With
+<code>aureport -x</code>, the utility generates reports on executed
+binaries, showing which executables were run, by whom, and whether the
+executions succeeded.</li>
+<li><strong>Failed Events:</strong> Security audits often prioritize
+system failures. Using <code>aureport --failed</code> isolates all
+failed operations across the system, highlighting potential brute-force
+attempts or unauthorized access attempts.</li>
+<li><strong>File Access and System Calls:</strong> Using
+<code>aureport -f</code> produces summaries of file access events, while
+<code>aureport -s</code> details system call events, helping to trace
+unauthorized access to sensitive system paths.</li>
+<li><strong>Account and Configuration Changes:</strong> The
+<code>aureport -m</code> flag tracks modifications to user accounts,
+groups, and system configuration settings, essential for monitoring
+administrative integrity.</li>
+</ul>
+<h3 id="time-based-filtering">Time-Based Filtering</h3>
+<p>To simplify forensic investigations, <code>aureport</code> supports
+temporal filtering:</p>
+<ul>
+<li><strong>Start and End Times:</strong> Using the <code>--start</code>
+and <code>--end</code> options allows users to query logs within
+specific windows (e.g., <code>aureport --start today</code> or
+<code>aureport --start 05/01/2024 08:00:00 --end 05/01/2024 17:00:00</code>).</li>
+<li><strong>External Log Files:</strong> By default,
+<code>aureport</code> parses <code>/var/log/audit/audit.log</code>.
+Administrators can analyze archived or remote logs using the
+<code>-if</code> flag (e.g.,
+<code>aureport -if /path/to/backup.log</code>).</li>
+</ul>
+<h3 id="role-in-security-and-compliance">Role in Security and
+Compliance</h3>
+<p><code>aureport</code> bridges the gap between raw data collection and
+actionable intelligence. Organizations governed by compliance
+standards—such as PCI-DSS, HIPAA, or CIS benchmarks—rely on it to
+conduct routine security reviews without building custom log parsers. By
+combining summary generation via <code>aureport</code> with deeper
+drill-down tools like <code>ausearch</code>, Linux administrators
+maintain clear visibility over their system’s operational and security
+posture.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

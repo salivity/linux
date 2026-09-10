@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How Redis In-Memory Caching Works on Linux - linux</title>
+    <meta name="description" content="Redis is an open-source, in-memory data store widely deployed as a low-latency cache to accelerate database queries, manage user sessions, and handle real-time data streams. On the Linux operating system, Redis achieves sub-millisecond retrieval speeds b">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-redis-in-memory-caching-works-on-linux">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How Redis In-Memory Caching Works on Linux - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-redis-in-memory-caching-works-on-linux" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="Redis is an open-source, in-memory data store widely deployed as a low-latency cache to accelerate database queries, manage user sessions, and handle real-time data streams. On the Linux operating system, Redis achieves sub-millisecond retrieval speeds b" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-redis-in-memory-caching-works-on-linux">How Redis In-Memory
+Caching Works on Linux</h1>
+<p>Redis is an open-source, in-memory data store widely deployed as a
+low-latency cache to accelerate database queries, manage user sessions,
+and handle real-time data streams. On the Linux operating system, Redis
+achieves sub-millisecond retrieval speeds by operating directly within
+physical memory (RAM) and taking advantage of core Linux kernel
+primitives. This article details the technical architecture behind Redis
+caching on Linux, including its memory management, event-driven
+networking model, cache eviction strategies, and reliance on
+Linux-specific process handling.</p>
+<h3 id="in-memory-storage-and-linux-memory-allocation">In-Memory Storage
+and Linux Memory Allocation</h3>
+<p>Traditional databases store data on disk and load it into a memory
+buffer as needed, incurring disk I/O penalties. Redis bypasses disk
+access during read and write cycles by keeping the entire dataset
+resident in system RAM.</p>
+<p>On Linux, Redis typically compiles with the <code>jemalloc</code>
+memory allocator rather than the standard <code>glibc malloc</code>.
+<code>jemalloc</code> reduces memory fragmentation under heavy churn,
+which is common in caching scenarios where keys are continuously
+created, updated, and expired. Redis tracks its allocated memory via the
+<code>used_memory</code> metric and interfaces directly with the Linux
+virtual memory system to read and write data structures without
+intermediary file systems.</p>
+<h3 id="the-event-loop-and-linux-epoll">The Event Loop and Linux
+epoll</h3>
+<p>Redis uses an event-driven, single-threaded execution model for
+processing client requests. Instead of spawning new threads or processes
+for each concurrent connection—which introduces context-switching
+overhead and locking contention—Redis relies on the Linux
+<code>epoll</code> system call.</p>
+<p>The <code>epoll</code> API allows the single Redis thread to monitor
+tens of thousands of open network sockets simultaneously with <span
+class="math inline">\(O(1)\)</span> efficiency. When a network packet
+arrives on a socket, the Linux kernel notifies Redis, which immediately
+reads the command, processes the in-memory lookup or write, and queues
+the response. This enables Redis to handle massive throughput while
+maintaining a tiny CPU and memory footprint.</p>
+<h3 id="cache-eviction-and-memory-limits">Cache Eviction and Memory
+Limits</h3>
+<p>Because system memory on Linux is finite, Redis requires controls to
+prevent the kernel's Out-Of-Memory (OOM) killer from terminating the
+process. Administrators define memory bounds using the
+<code>maxmemory</code> directive.</p>
+<p>Once memory consumption hits this threshold, Redis implements
+configured eviction algorithms to free up space:</p>
+<ul>
+<li><strong>Least Recently Used (LRU):</strong> Removes keys that have
+not been accessed recently.</li>
+<li><strong>Least Frequently Used (LFU):</strong> Tracks access
+frequency and drops rarely used items.</li>
+<li><strong>Volatile vs. Allkeys:</strong> Applies the eviction strategy
+exclusively to keys with a configured Time-To-Live (TTL) or universally
+across all cached keys.</li>
+</ul>
+<p>Rather than maintaining a global sorted list of all keys—which would
+consume prohibitive amounts of memory and CPU cycles—Redis uses an
+approximation algorithm. It samples a small subset of random keys,
+evaluates their access metadata, and evicts the best candidate.</p>
+<h3 id="asynchronous-persistence-via-copy-on-write-cow">Asynchronous
+Persistence via Copy-on-Write (CoW)</h3>
+<p>While primarily a cache, Redis can persist data to disk through
+snapshots (RDB) or write logs (AOF). On Linux, Redis performs snapshots
+without interrupting client commands by utilizing the
+<code>fork()</code> system call.</p>
+<p>When a snapshot begins, Redis forks a child process. Linux uses
+Copy-on-Write (CoW) to share the parent's memory pages with the child
+without duplicating the actual data. The child process reads the shared
+memory space and writes it to disk. If the parent process receives a
+write command while the snapshot is running, the Linux kernel duplicates
+only the specific memory page being modified. This architecture ensures
+ongoing caching requests remain non-blocking.</p>
+<h3 id="linux-kernel-considerations-for-redis">Linux Kernel
+Considerations for Redis</h3>
+<p>Achieving optimal caching performance requires specific Linux kernel
+configurations:</p>
+<ul>
+<li><strong>Overcommit Memory
+(<code>vm.overcommit_memory = 1</code>):</strong> Informs the Linux
+kernel to allow memory allocations beyond physical RAM limits,
+preventing background <code>fork()</code> calls from failing under high
+memory usage.</li>
+<li><strong>Transparent Huge Pages (THP):</strong> Disabling THP is
+recommended for Redis. While 2MB huge pages reduce TLB (Translation
+Lookaside Buffer) misses in some workloads, they drastically increase
+the size of memory pages copied during Copy-on-Write operations, leading
+to latency spikes and memory bloat.</li>
+</ul></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

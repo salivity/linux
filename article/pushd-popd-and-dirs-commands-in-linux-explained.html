@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>pushd, popd, and dirs Commands in Linux Explained - linux</title>
+    <meta name="description" content="Navigating deeply nested directory structures in the Linux terminal using standard cd commands can be slow and repetitive. The dirs, pushd, and popd commands solve this by allowing users to manage a directory stack—a Last-In, First-Out (LIFO) history o">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/pushd-popd-and-dirs-commands-in-linux-explained">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="pushd, popd, and dirs Commands in Linux Explained - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/pushd-popd-and-dirs-commands-in-linux-explained" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="Navigating deeply nested directory structures in the Linux terminal using standard cd commands can be slow and repetitive. The dirs, pushd, and popd commands solve this by allowing users to manage a directory stack—a Last-In, First-Out (LIFO) history o" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="pushd-popd-and-dirs-commands-in-linux-explained">pushd, popd,
+and dirs Commands in Linux Explained</h1>
+<p>Navigating deeply nested directory structures in the Linux terminal
+using standard <code>cd</code> commands can be slow and repetitive. The
+<code>dirs</code>, <code>pushd</code>, and <code>popd</code> commands
+solve this by allowing users to manage a directory stack—a Last-In,
+First-Out (LIFO) history of previously visited locations. This article
+explains the core functions of these three built-in shell commands,
+demonstrates how they manipulate the stack, and provides clear examples
+of how to incorporate them into daily command-line workflows for faster
+directory navigation.</p>
+<h3 id="the-directory-stack-concept">The Directory Stack Concept</h3>
+<p>The directory stack is an internal list maintained by your shell
+(such as Bash or Zsh) that stores directory paths. The current working
+directory is always located at the very top (index <code>0</code>) of
+this stack. Using stack-based navigation allows you to save your current
+place, jump elsewhere to perform an action, and instantly return without
+retyping long file paths.</p>
+<hr />
+<h3 id="the-dirs-command-viewing-the-stack">The <code>dirs</code>
+Command: Viewing the Stack</h3>
+<p>The <code>dirs</code> command displays the list of directories
+currently held in the stack.</p>
+<p>When run by itself without arguments, <code>dirs</code> outputs the
+entire stack on a single line, separated by spaces:</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="bu">dirs</span></span></code></pre></div>
+<h4 id="common-options-for-dirs">Common Options for
+<code>dirs</code>:</h4>
+<ul>
+<li><strong><code>dirs -v</code></strong>: Displays the directory stack
+as a vertical numbered list. This is particularly useful for identifying
+the numerical index of each directory in the stack.</li>
+<li><strong><code>dirs -c</code></strong>: Clears the entire directory
+stack, resetting it to only contain your current working directory.</li>
+<li><strong><code>dirs -l</code></strong>: Prints the full,
+unabbreviated paths rather than substituting the home directory with a
+tilde (<code>~</code>).</li>
+</ul>
+<hr />
+<h3 id="the-pushd-command-adding-directories-to-the-stack">The
+<code>pushd</code> Command: Adding Directories to the Stack</h3>
+<p>The <code>pushd</code> command performs two tasks simultaneously: it
+adds a specified directory to the top of the stack and immediately
+navigates your terminal into that directory.</p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="bu">pushd</span> /var/log</span></code></pre></div>
+<p>When you execute this, <code>/var/log</code> becomes the active
+directory, and your previous directory is placed just below it in the
+stack. Upon execution, <code>pushd</code> automatically prints the
+updated stack.</p>
+<h4 id="key-behaviors-of-pushd">Key Behaviors of
+<code>pushd</code>:</h4>
+<ul>
+<li><strong><code>pushd</code> (without arguments)</strong>: Swaps the
+top two directories on the stack. This acts as an instant toggle between
+your current directory and the one you visited immediately prior.</li>
+<li><strong><code>pushd +N</code></strong>: Rotates the stack so that
+the <em>N</em>th directory (counted from the left or top, starting at 0)
+moves to the top, changing your working directory to it.</li>
+<li><strong><code>pushd -N</code></strong>: Rotates the stack using the
+<em>N</em>th directory counted from the right or bottom.</li>
+</ul>
+<hr />
+<h3 id="the-popd-command-removing-directories-from-the-stack">The
+<code>popd</code> Command: Removing Directories from the Stack</h3>
+<p>The <code>popd</code> command removes a directory from the stack and
+navigates to the directory that moves up to take its place.</p>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="bu">popd</span></span></code></pre></div>
+<p>Running <code>popd</code> with no arguments discards the top
+directory (your current working location) from the stack and immediately
+changes your active directory to the new top entry.</p>
+<h4 id="key-behaviors-of-popd">Key Behaviors of <code>popd</code>:</h4>
+<ul>
+<li><strong><code>popd +N</code></strong>: Removes the <em>N</em>th
+directory from the stack (counted from the top/left) without changing
+your current directory, unless you pop index <code>0</code>.</li>
+<li><strong><code>popd -N</code></strong>: Removes the <em>N</em>th
+directory counted from the bottom/right of the stack.</li>
+</ul>
+<hr />
+<h3 id="practical-workflow-example">Practical Workflow Example</h3>
+<p>Here is how the three commands operate together in a real
+session:</p>
+<ol type="1">
+<li><p><strong>Start in your home directory:</strong></p>
+<div class="sourceCode" id="cb4"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="bu">pwd</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Output: /home/user</span></span></code></pre></div></li>
+<li><p><strong>Push to an application directory:</strong></p>
+<div class="sourceCode" id="cb5"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="bu">pushd</span> /etc/nginx</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="co"># The stack now contains: /etc/nginx /home/user</span></span></code></pre></div></li>
+<li><p><strong>Push to a logs directory:</strong></p>
+<div class="sourceCode" id="cb6"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="bu">pushd</span> /var/log</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="co"># The stack now contains: /var/log /etc/nginx /home/user</span></span></code></pre></div></li>
+<li><p><strong>View the indexed stack:</strong></p>
+<div class="sourceCode" id="cb7"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="bu">dirs</span> <span class="at">-v</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Output:</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="co"># 0  /var/log</span></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a><span class="co"># 1  /etc/nginx</span></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a><span class="co"># 2  /home/user</span></span></code></pre></div></li>
+<li><p><strong>Return to the previous location:</strong></p>
+<div class="sourceCode" id="cb8"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="bu">popd</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Stack is now: /etc/nginx /home/user</span></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Current directory changes automatically to: /etc/nginx</span></span></code></pre></div></li>
+<li><p><strong>Pop the final pushed directory to return
+home:</strong></p>
+<div class="sourceCode" id="cb9"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="bu">popd</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Stack is now: /home/user</span></span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Current directory changes automatically to: /home/user</span></span></code></pre></div></li>
+</ol>
+<p>By utilizing <code>pushd</code>, <code>popd</code>, and
+<code>dirs</code>, you can maintain a fluid, temporary history of
+project paths and avoid typing lengthy absolute paths across complex
+directory trees.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

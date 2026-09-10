@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How Linux Proxy ARP Works in the Routing Stack - linux</title>
+    <meta name="description" content="Proxy ARP in Linux allows a system to respond to Address Resolution Protocol (ARP) requests on behalf of other devices on distinct network segments. This article explains the internal mechanics of Proxy ARP within the Linux network stack, detailing the s">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-linux-proxy-arp-works-in-the-routing-stack">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How Linux Proxy ARP Works in the Routing Stack - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-linux-proxy-arp-works-in-the-routing-stack" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="Proxy ARP in Linux allows a system to respond to Address Resolution Protocol (ARP) requests on behalf of other devices on distinct network segments. This article explains the internal mechanics of Proxy ARP within the Linux network stack, detailing the s" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-linux-proxy-arp-works-in-the-routing-stack">How Linux Proxy
+ARP Works in the Routing Stack</h1>
+<p>Proxy ARP in Linux allows a system to respond to Address Resolution
+Protocol (ARP) requests on behalf of other devices on distinct network
+segments. This article explains the internal mechanics of Proxy ARP
+within the Linux network stack, detailing the sysctl configuration
+flags, how the kernel's ARP processing routine interacts with the
+Forwarding Information Base (FIB), the ingress-to-egress validation
+rules that prevent network loops, and the complete packet lifecycle from
+initial ARP request to forwarded IP traffic.</p>
+<h2 id="enabling-proxy-arp-in-the-kernel">Enabling Proxy ARP in the
+Kernel</h2>
+<p>Proxy ARP operates at Layer 2/Layer 3 boundaries and is governed by
+kernel runtime parameters exposed via <code>sysctl</code>. It is
+disabled by default for security and performance reasons. To activate
+it, administrators toggle interface-specific flags under the
+<code>/proc/sys/net/ipv4/conf/</code> directory:</p>
+<ul>
+<li><code>net.ipv4.conf.&lt;interface&gt;.proxy_arp</code>: Enables
+standard Proxy ARP on the specified interface.</li>
+<li><code>net.ipv4.conf.all.proxy_arp</code>: Globally enables Proxy ARP
+across all interfaces if both the global and per-interface values permit
+it.</li>
+<li><code>net.ipv4.conf.&lt;interface&gt;.proxy_arp_pvlan</code>:
+Enables Private VLAN proxy ARP, allowing the kernel to reply to ARP
+requests even when the target IP resolves out of the same physical or
+logical interface.</li>
+</ul>
+<h2 id="kernel-arp-processing-pipeline">Kernel ARP Processing
+Pipeline</h2>
+<p>When an Ethernet frame carrying an ARP request arrives at a network
+interface, the network device driver passes the <code>sk_buff</code>
+(socket buffer) to the core networking layer via
+<code>netif_receive_skb()</code>. The packet dispatcher identifies
+protocol <code>ETH_P_ARP</code> and routes the buffer to
+<code>arp_process()</code> in the <code>net/ipv4/arp.c</code> kernel
+source file.</p>
+<p>The <code>arp_process()</code> routine evaluates whether to generate
+an ARP reply. If the requested target IP does not match any local
+address assigned to the receiving interface, the kernel checks whether
+Proxy ARP should intervene.</p>
+<h2 id="route-lookup-and-validation-logic">Route Lookup and Validation
+Logic</h2>
+<p>Before synthesizing an ARP reply for a foreign IP address, the Linux
+kernel subjects the request to a strict set of routing and forwarding
+conditions:</p>
+<ol type="1">
+<li><strong>IP Forwarding Verification:</strong> The kernel confirms
+that routing is enabled on the host
+(<code>net.ipv4.ip_forward = 1</code>). A system that cannot forward
+IPv4 datagrams will not proxy ARP requests.</li>
+<li><strong>Forwarding Information Base (FIB) Query:</strong> The kernel
+performs an internal route lookup for the requested IP address. It
+queries the routing tables to see if a valid route exists to the
+destination. If the target address is unreachable or drops into a
+blackhole route, the kernel discards the ARP request.</li>
+<li><strong>Interface Separation Check (Split Horizon):</strong> Under
+standard <code>proxy_arp</code>, the kernel checks the egress interface
+determined by the FIB lookup. The egress interface must be different
+from the ingress interface where the ARP request was received. This rule
+prevents network broadcast storms and routing loops. If
+<code>proxy_arp_pvlan</code> is enabled, this check is relaxed to
+accommodate isolated hosts on the same subnet.</li>
+</ol>
+<h2 id="arp-reply-generation">ARP Reply Generation</h2>
+<p>If the packet satisfies all lookup and filtering criteria, the kernel
+builds an <code>ARPOP_REPLY</code> packet:</p>
+<ul>
+<li><strong>Sender Hardware Address (SHA):</strong> Populated with the
+MAC address of the interface that received the ARP request, not the MAC
+address of the actual target device.</li>
+<li><strong>Sender Protocol Address (SPA):</strong> Populated with the
+target IP address requested by the client.</li>
+<li><strong>Target Hardware Address (THA):</strong> Set to the MAC
+address of the querying host.</li>
+<li><strong>Target Protocol Address (TPA):</strong> Set to the IP
+address of the querying host.</li>
+</ul>
+<p>The generated reply is transmitted directly out of the receiving
+interface back to the requester via <code>dev_queue_xmit()</code>.</p>
+<h2 id="subsequent-data-path-forwarding">Subsequent Data Path
+Forwarding</h2>
+<p>Once the querying client receives the proxy ARP reply, it updates its
+local ARP cache, binding the target IP address to the Linux router's
+interface MAC address.</p>
+<p>When subsequent IP datagrams leave the client, they arrive at the
+Linux host with the router's Layer 2 destination MAC and the final
+host's Layer 3 destination IP. The Linux kernel strips the Layer 2
+header, inspects the Layer 3 header, recognizes the destination as
+non-local, decrements the TTL, and forwards the packet toward the true
+destination via <code>ip_forward()</code> and standard IP routing
+pathways.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

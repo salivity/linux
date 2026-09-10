@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linux Kernel Live Patching: Update Without Rebooting - linux</title>
+    <meta name="description" content="Linux kernel live patching enables system administrators to apply critical security patches and bug fixes to a running kernel without restarting the operating system. This article explains the underlying architecture of live patching, detailing how funct">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/linux-kernel-live-patching-update-without-rebooting">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Linux Kernel Live Patching: Update Without Rebooting - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/linux-kernel-live-patching-update-without-rebooting" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="Linux kernel live patching enables system administrators to apply critical security patches and bug fixes to a running kernel without restarting the operating system. This article explains the underlying architecture of live patching, detailing how funct" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="linux-kernel-live-patching-update-without-rebooting">Linux
+Kernel Live Patching: Update Without Rebooting</h1>
+<p>Linux kernel live patching enables system administrators to apply
+critical security patches and bug fixes to a running kernel without
+restarting the operating system. This article explains the underlying
+architecture of live patching, detailing how function redirection,
+compiler instrumentation, and kernel frameworks cooperate to replace
+vulnerable code in memory, thereby ensuring continuous uptime for
+mission-critical infrastructure.</p>
+<h3 id="the-core-problem-and-the-live-patching-solution">The Core
+Problem and the Live Patching Solution</h3>
+<p>Historically, updating the Linux kernel required compiling or
+installing the new kernel image and rebooting the host. In environments
+demanding high availability, downtime must be minimized, making frequent
+reboots for minor security vulnerabilities impractical.</p>
+<p>Live patching solves this by inserting fixes directly into system
+memory (RAM) while processes continue running. The operating system
+transparently swaps out vulnerable functions with patched versions
+without interrupting active workloads.</p>
+<h3 id="how-the-mechanism-works-under-the-hood">How the Mechanism Works
+Under the Hood</h3>
+<p>The foundational technology behind Linux live patching relies on
+dynamic function tracing (<code>ftrace</code>) and compiler-level
+hooks.</p>
+<ol type="1">
+<li><p><strong>Compiler Instrumentation
+(<code>-mfentry</code>):</strong> When the Linux kernel is compiled, GCC
+or Clang inserts a call to a special tracing hook
+(<code>__fentry__</code>) at the very beginning of every kernel
+function. Normally, these hooks are replaced with <code>NOP</code>
+(no-operation) instructions to ensure zero overhead during standard
+execution.</p></li>
+<li><p><strong>Patch Creation:</strong> A patch is built as a loadable
+kernel module (<code>.ko</code>). Tools compare the original kernel
+source code with the patched source code, isolating the compiled object
+code of only the functions that changed.</p></li>
+<li><p><strong>Loading and Ftrace Redirection:</strong> When the patch
+module is loaded via <code>insmod</code> or automated daemons, it
+leverages the Linux kernel's internal <code>ftrace</code> subsystem. The
+system replaces the <code>NOP</code> instruction at the start of the
+vulnerable function with a jump instruction (trampoline) that points to
+the memory address of the new, patched function. Any subsequent
+execution of the old function immediately diverts to the updated
+code.</p></li>
+</ol>
+<h3 id="ensuring-safety-the-consistency-model">Ensuring Safety: The
+Consistency Model</h3>
+<p>Redirecting execution mid-flight presents a synchronization
+challenge: a process cannot safely have half of a function executed
+using the old logic and the remaining half using the new logic,
+especially if data structures change.</p>
+<p>To maintain system stability, the kernel enforces consistency using
+one of two primary approaches:</p>
+<ul>
+<li><strong>Stop-the-World (Freeze):</strong> The system briefly pauses
+all execution threads to inspect their call stacks. If no thread is
+currently executing inside the target function, the patch is applied
+immediately.</li>
+<li><strong>Per-Task Consistency (Upstream Linux Framework):</strong>
+Built into the upstream <code>livepatch</code> core (introduced in Linux
+4.0), this approach transitions tasks individually. A task uses the old
+code until it reaches a "quiescent state" (such as a system call
+boundary or a safe sleep state), after which it is marked to use the new
+code. Once all tasks have migrated, the old code is permanently
+disabled.</li>
+</ul>
+<h3 id="common-live-patching-tools-and-implementations">Common Live
+Patching Tools and Implementations</h3>
+<p>Several implementations utilize this underlying architecture across
+enterprise distributions:</p>
+<ul>
+<li><strong>Kpatch:</strong> Developed by Red Hat, kpatch converts
+standard diff files into kernel modules using binary diffing to trace
+changed functions.</li>
+<li><strong>kGraft:</strong> Developed by SUSE, kGraft pioneered
+per-task consistency switching to eliminate the need to freeze
+processes.</li>
+<li><strong>Linux <code>livepatch</code>:</strong> The unified upstream
+infrastructure merging the best elements of Kpatch and kGraft, forming
+the base for modern patching tools.</li>
+<li><strong>Canonical Livepatch:</strong> A client-daemon service for
+Ubuntu that automatically fetches and applies signed live patches from
+Canonical's servers.</li>
+<li><strong>Ksplice:</strong> Acquired by Oracle, Ksplice is one of the
+earliest live-patching tools and operates similarly by overwriting
+execution paths in memory.</li>
+</ul>
+<h3 id="limitations-of-live-patching">Limitations of Live Patching</h3>
+<p>While live patching is highly effective for patching Common
+Vulnerabilities and Exposures (CVEs) and logic bugs, it has
+architectural constraints:</p>
+<ul>
+<li><strong>Data Structure Changes:</strong> Altering widely used kernel
+data structures (such as modifying members inside
+<code>struct task_struct</code>) is exceptionally difficult and usually
+unsupported, as existing instances in memory cannot easily be
+remapped.</li>
+<li><strong>Initialization Code:</strong> Code that runs exclusively
+during boot time (<code>__init</code>) cannot be live-patched.</li>
+<li><strong>Temporary Lifespan:</strong> Live patches are intended to
+maintain security until a scheduled maintenance window allows a proper
+reboot into a fully updated kernel image.</li>
+</ul></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

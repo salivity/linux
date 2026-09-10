@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Qt vs GTK for Linux App Development - linux</title>
+    <meta name="description" content="When building graphical applications for the Linux operating system, Qt and GTK represent the two leading GUI toolkits. This article compares Qt and GTK across architecture, programming language support, desktop environment integration, tooling, and lice">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/qt-vs-gtk-for-linux-app-development">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Qt vs GTK for Linux App Development - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/qt-vs-gtk-for-linux-app-development" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="When building graphical applications for the Linux operating system, Qt and GTK represent the two leading GUI toolkits. This article compares Qt and GTK across architecture, programming language support, desktop environment integration, tooling, and lice" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="qt-vs-gtk-for-linux-app-development">Qt vs GTK for Linux App
+Development</h1>
+<p>When building graphical applications for the Linux operating system,
+Qt and GTK represent the two leading GUI toolkits. This article compares
+Qt and GTK across architecture, programming language support, desktop
+environment integration, tooling, and licensing to help developers
+determine which framework best fits their Linux software development
+requirements.</p>
+<h2 id="architecture-and-language-support">Architecture and Language
+Support</h2>
+<p>Qt is built primarily on C++ and provides a comprehensive,
+feature-complete framework that extends far beyond user interfaces,
+including built-in modules for networking, threading, multimedia, and
+database integration. For modern interfaces, Qt offers Qt Quick and QML,
+a declarative, JSON-like language optimized for fluid,
+hardware-accelerated animations. Official bindings are available for
+Python via PySide, alongside community bindings like PyQt.</p>
+<p>GTK (formerly GIMP Toolkit) is written in C and uses the GObject
+object-oriented framework to deliver OOP capabilities in a procedural
+language. Unlike Qt's all-in-one approach, GTK focuses primarily on
+graphical widgets and relies on companion libraries like GLib, Cairo,
+and Pango for system interaction, 2D rendering, and text layout. GTK
+offers robust bindings for a wide range of languages, including Python,
+Rust, Vala, and JavaScript.</p>
+<h2 id="desktop-integration-and-user-experience">Desktop Integration and
+User Experience</h2>
+<p>On Linux, GTK is the native foundation for GNOME, Xfce, and MATE
+desktop environments. Modern GTK (GTK 4) paired with Libadwaita follows
+GNOME Human Interface Guidelines strictly, resulting in applications
+that look and feel completely native on modern GNOME distributions like
+Fedora and Ubuntu. GTK styles its components using standard CSS, making
+UI customization intuitive for developers with web backgrounds.</p>
+<p>Qt is the native toolkit for KDE Plasma and LXQt. Qt applications
+feature advanced theming engines that blend effectively into KDE
+environments while also adapting reasonably well to GTK-based desktops
+through theme translation engines. Qt's built-in platform abstraction
+layer makes it the preferred choice if cross-platform portability beyond
+Linux (to Windows, macOS, Android, or iOS) is a primary project
+goal.</p>
+<h2 id="developer-tooling">Developer Tooling</h2>
+<p>Qt provides an integrated, out-of-the-box developer ecosystem
+centered around Qt Creator, a specialized IDE that combines code
+editing, debugging, UI layout, and QML profiling. Qt also includes Qt
+Designer for visual layout design.</p>
+<p>GTK relies on a more modular toolset. Developers typically use GNOME
+Builder as their IDE, combined with tools like Cambalache or Glade for
+visual XML layout design. Development workflows in GTK are often
+configured using the Meson build system and Flatpak for sandboxed
+application packaging.</p>
+<h2 id="licensing-considerations">Licensing Considerations</h2>
+<p>Licensing represents a critical distinction between the two
+toolkits:</p>
+<ul>
+<li><strong>GTK</strong> is distributed under the GNU Lesser General
+Public License (LGPL), allowing developers to build both open-source and
+proprietary commercial applications without paying licensing fees or
+purchasing commercial support.</li>
+<li><strong>Qt</strong> utilizes a dual-licensing model (commercial and
+open-source under GPL/LGPLv3). While many projects can freely use Qt
+under LGPLv3, the restrictions on static linking and embedded hardware
+often prompt commercial entities to purchase paid Qt licenses.</li>
+</ul>
+<h2 id="summary">Summary</h2>
+<p>Choose GTK if your project prioritizes deep integration with the
+GNOME ecosystem, relies on languages like C or Rust, prefers CSS-driven
+UI styling, or requires uncomplicated LGPL licensing for commercial
+distribution. Choose Qt if you require modern declarative UIs via QML,
+prefer C++ or Python, demand a comprehensive all-in-one framework, or
+plan to deploy your application to platforms outside the Linux
+desktop.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

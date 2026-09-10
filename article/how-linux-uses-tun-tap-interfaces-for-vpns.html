@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How Linux Uses TUN/TAP Interfaces for VPNs - linux</title>
+    <meta name="description" content="Virtual Private Networks (VPNs) rely heavily on Linux TUN and TAP interfaces to create secure, encrypted tunnels over public networks. Rather than routing traffic directly to physical hardware like an Ethernet or Wi-Fi card, the operating system uses the">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-linux-uses-tun-tap-interfaces-for-vpns">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How Linux Uses TUN/TAP Interfaces for VPNs - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-linux-uses-tun-tap-interfaces-for-vpns" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="Virtual Private Networks (VPNs) rely heavily on Linux TUN and TAP interfaces to create secure, encrypted tunnels over public networks. Rather than routing traffic directly to physical hardware like an Ethernet or Wi-Fi card, the operating system uses the" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-linux-uses-tuntap-interfaces-for-vpns">How Linux Uses
+TUN/TAP Interfaces for VPNs</h1>
+<p>Virtual Private Networks (VPNs) rely heavily on Linux TUN and TAP
+interfaces to create secure, encrypted tunnels over public networks.
+Rather than routing traffic directly to physical hardware like an
+Ethernet or Wi-Fi card, the operating system uses these virtual kernel
+devices to pass raw network packets directly to user-space applications.
+This article breaks down how TUN and TAP devices function, the
+distinction between them, and the step-by-step mechanism Linux uses to
+encrypt and transmit traffic through a VPN tunnel.</p>
+<h3 id="understanding-tun-and-tap-devices">Understanding TUN and TAP
+Devices</h3>
+<p>In standard networking, network interfaces (such as <code>eth0</code>
+or <code>wlan0</code>) are backed by physical hardware. TUN (network
+tunnel) and TAP (network tap) are virtual software-only network
+interfaces supported directly by the Linux kernel via the universal
+TUN/TAP driver.</p>
+<p>The primary difference lies in the network layer at which they
+operate:</p>
+<ul>
+<li><strong>TUN (Layer 3 - Network Layer):</strong> Operates with IP
+packets. It strips Ethernet framing, dealing purely with raw IP traffic.
+This makes it ideal for most point-to-point VPN connections, such as
+OpenVPN routed mode or WireGuard, where only IP routing is
+required.</li>
+<li><strong>TAP (Layer 2 - Data Link Layer):</strong> Operates with
+Ethernet frames. It includes MAC addresses and behaves exactly like a
+virtual Ethernet switch port. TAP is used when a VPN needs to bridge
+networks, pass broadcast traffic, or support non-IP protocols.</li>
+</ul>
+<h3 id="the-userspace-to-kernel-interaction">The Userspace-to-Kernel
+Interaction</h3>
+<p>The core feature of TUN/TAP devices is that they bridge the gap
+between kernel-space routing and user-space programs.</p>
+<p>Every TUN/TAP interface is bound to a special character device node
+located at <code>/dev/net/tun</code>. When a VPN application (such as
+OpenVPN) starts, it performs an <code>ioctl()</code> system call on
+<code>/dev/net/tun</code> to request the creation of a virtual network
+interface (for example, <code>tun0</code>). The application obtains a
+standard file descriptor pointing to this device, allowing it to read
+and write raw network packets just like regular file data.</p>
+<h3 id="the-step-by-step-vpn-traffic-flow">The Step-by-Step VPN Traffic
+Flow</h3>
+<p>When a VPN connection is active, outgoing data travels through the
+following sequence:</p>
+<ol type="1">
+<li><strong>Traffic Generation:</strong> A local application (such as a
+web browser) sends an IP packet bound for an external server.</li>
+<li><strong>Kernel Routing:</strong> The Linux kernel inspects its
+routing table. When the VPN connection was established, the VPN software
+configured default routes pointing through <code>tun0</code>. The kernel
+routes the packet to <code>tun0</code>.</li>
+<li><strong>Kernel-to-Userspace Transfer:</strong> Instead of
+transmitting the packet over physical wire, the kernel places the raw IP
+packet into the buffer of <code>/dev/net/tun</code>.</li>
+<li><strong>Encapsulation and Encryption:</strong> The user-space VPN
+client reads the unencrypted packet from <code>/dev/net/tun</code>,
+encrypts the payload, and wraps it into a new outer packet (typically a
+standard UDP or TCP packet).</li>
+<li><strong>Physical Transmission:</strong> The VPN client writes the
+newly encrypted packet to a standard network socket bound to the
+physical interface (<code>eth0</code>). The physical network card
+transmits this packet across the internet to the remote VPN server.</li>
+</ol>
+<p>For incoming traffic, the process reverses: the physical interface
+receives an encrypted UDP/TCP packet, passes it to the VPN application,
+which decrypts it to recover the original raw packet. The application
+then writes that raw packet into <code>/dev/net/tun</code>, causing the
+Linux kernel to receive it on <code>tun0</code> as if it arrived from a
+standard network interface.</p>
+<h3 id="advantages-of-the-tuntap-architecture">Advantages of the TUN/TAP
+Architecture</h3>
+<p>By abstracting network I/O through file descriptors, Linux decouples
+encryption and tunnel logic from kernel internals:</p>
+<ul>
+<li><strong>System Stability:</strong> Cryptographic protocols,
+authentication handshakes, and compression run in user space. If the VPN
+application crashes, it does not bring down the entire operating system
+with a kernel panic.</li>
+<li><strong>Full Kernel Integration:</strong> Despite being virtual,
+<code>tun</code> and <code>tap</code> interfaces interact seamlessly
+with native Linux networking utilities, including <code>iptables</code>,
+<code>nftables</code>, traffic shaping (<code>tc</code>), and
+policy-based routing (<code>ip route</code>).</li>
+<li><strong>Protocol Independence:</strong> Because the Linux kernel
+merely hands over raw packets, user-space developers can implement
+proprietary encapsulation methods, advanced cipher suites, or custom
+transport protocols without modifying the underlying operating
+system.</li>
+</ul></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

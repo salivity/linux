@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mounting Remote Directories Locally With SSHFS - linux</title>
+    <meta name="description" content="The SSHFS (SSH Filesystem) tool is a secure, user-space filesystem client that allows Linux users to mount a remote directory to a local file tree over an SSH connection. This article explores the primary functions of SSHFS, explaining how it works under">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/mounting-remote-directories-locally-with-sshfs">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Mounting Remote Directories Locally With SSHFS - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/mounting-remote-directories-locally-with-sshfs" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="The SSHFS (SSH Filesystem) tool is a secure, user-space filesystem client that allows Linux users to mount a remote directory to a local file tree over an SSH connection. This article explores the primary functions of SSHFS, explaining how it works under" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="mounting-remote-directories-locally-with-sshfs">Mounting Remote
+Directories Locally With SSHFS</h1>
+<p>The SSHFS (SSH Filesystem) tool is a secure, user-space filesystem
+client that allows Linux users to mount a remote directory to a local
+file tree over an SSH connection. This article explores the primary
+functions of SSHFS, explaining how it works under the hood, why it is
+used instead of traditional network file-sharing protocols, and the
+basic commands required to mount and unmount remote storage directly on
+a Linux workstation.</p>
+<h3 id="what-is-sshfs">What is SSHFS?</h3>
+<p>SSHFS is a filesystem client based on the FUSE (Filesystem in
+Userspace) framework and the SFTP (SSH File Transfer Protocol). Its
+primary function is to make files and directories residing on a remote
+server accessible locally, treating them as if they are stored directly
+on the local storage drive. Because it operates entirely over standard
+SSH, it requires no specialized server software beyond an active OpenSSH
+server daemon.</p>
+<h3 id="key-functions-and-capabilities">Key Functions and
+Capabilities</h3>
+<ol type="1">
+<li><p><strong>Seamless Remote File Manipulation</strong><br />
+Once a remote directory is mounted, you can open, edit, save, copy, and
+delete files using native local tools, text editors, IDEs, and
+command-line utilities without manually transferring files via
+<code>scp</code> or <code>sftp</code>.</p></li>
+<li><p><strong>End-to-End Encryption</strong><br />
+All data transfers, directory listings, and authentication requests are
+handled over the SSH protocol, ensuring full encryption across both
+local networks and the public internet.</p></li>
+<li><p><strong>User-Space Operation (FUSE)</strong><br />
+Because SSHFS utilizes FUSE, non-root users can mount and unmount
+directories securely without modifying kernel modules or requiring
+elevated system privileges.</p></li>
+<li><p><strong>Zero Server-Side Configuration</strong><br />
+Unlike NFS (Network File System) or Samba (SMB), which require dedicated
+daemons, open ports, and complex firewall configurations, SSHFS works
+automatically with any server accessible via standard SSH (port
+22).</p></li>
+</ol>
+<h3 id="basic-installation-and-usage">Basic Installation and Usage</h3>
+<p>To use SSHFS, the package must be installed on the local machine:</p>
+<ul>
+<li><strong>Debian/Ubuntu:</strong>
+<code>sudo apt install sshfs</code></li>
+<li><strong>RHEL/CentOS/Fedora:</strong>
+<code>sudo dnf install sshfs</code></li>
+<li><strong>Arch Linux:</strong> <code>sudo pacman -S sshfs</code></li>
+</ul>
+<h4 id="mounting-a-remote-directory">Mounting a Remote Directory</h4>
+<p>To mount a remote path locally, ensure the local mount point
+directory exists, then run:</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">mkdir</span> <span class="at">-p</span> ~/remote_mount</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="ex">sshfs</span> username@remote_host:/path/to/remote/dir ~/remote_mount</span></code></pre></div>
+<p>If SSH key authentication is configured, the mount connects
+automatically; otherwise, SSHFS prompts for the remote user's password.
+Once mounted, all contents of <code>/path/to/remote/dir</code> can be
+accessed under <code>~/remote_mount</code>.</p>
+<h4 id="unmounting-the-directory">Unmounting the Directory</h4>
+<p>To safely disconnect the remote filesystem, use the standard FUSE
+unmount utility or the generic Linux unmount command:</p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="ex">fusermount</span> <span class="at">-u</span> ~/remote_mount</span></code></pre></div>
+<p>Alternatively:</p>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">umount</span> ~/remote_mount</span></code></pre></div>
+<p>SSHFS provides an efficient, lightweight solution for interacting
+with remote file trees, combining the simplicity of local filesystem
+navigation with the robust security of the SSH protocol.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linux Boot Process: BIOS and UEFI Explained - linux</title>
+    <meta name="description" content="The Linux boot process begins the moment a computer is powered on, transitioning control through a tightly orchestrated sequence from low-level motherboard firmware to the Linux kernel. This guide explains how firmware—either legacy BIOS or modern UEFI">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/linux-boot-process-bios-and-uefi-explained">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Linux Boot Process: BIOS and UEFI Explained - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/linux-boot-process-bios-and-uefi-explained" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="The Linux boot process begins the moment a computer is powered on, transitioning control through a tightly orchestrated sequence from low-level motherboard firmware to the Linux kernel. This guide explains how firmware—either legacy BIOS or modern UEFI" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="linux-boot-process-bios-and-uefi-explained">Linux Boot Process:
+BIOS and UEFI Explained</h1>
+<p>The Linux boot process begins the moment a computer is powered on,
+transitioning control through a tightly orchestrated sequence from
+low-level motherboard firmware to the Linux kernel. This guide explains
+how firmware—either legacy BIOS or modern UEFI—initializes hardware
+components, locates the storage device, and executes the primary
+bootloader (typically GRUB) to load Linux into system memory.</p>
+<h3 id="1-power-on-and-hardware-initialization-post">1. Power-On and
+Hardware Initialization (POST)</h3>
+<p>When you press the power button, the computer's power supply
+stabilizes and signals the CPU to begin executing instructions. The CPU
+looks at a hardcoded memory address mapped to the motherboard's
+non-volatile ROM/flash memory, where the system firmware resides.</p>
+<p>The firmware immediately runs the Power-On Self-Test (POST). During
+POST, the firmware checks vital hardware components, including the CPU,
+system RAM, storage drives, graphics adapters, and peripheral
+interfaces. If a critical component fails, the process halts, often
+signaling the error via motherboard diagnostic LEDs or a series of
+audible beeps.</p>
+<h3 id="2-locating-the-boot-media">2. Locating the Boot Media</h3>
+<p>Once POST succeeds, the firmware determines where to boot from by
+consulting a preconfigured boot device priority list (e.g., NVMe drive,
+SATA SSD, USB drive, network). How the system loads the bootloader from
+the selected drive depends on whether the system uses legacy BIOS or
+UEFI.</p>
+<h4 id="legacy-bios-the-mbr-approach">Legacy BIOS: The MBR Approach</h4>
+<ol type="1">
+<li><strong>Master Boot Record (MBR):</strong> The BIOS accesses the
+first 512-byte sector of the designated storage drive, known as the
+MBR.</li>
+<li><strong>Size Limitation:</strong> Because 512 bytes is too small to
+contain file system drivers and complex boot logic, this sector only
+holds the partition table and a tiny stage-1 bootloader code (such as
+GRUB's <code>boot.img</code>).</li>
+<li><strong>Execution Handoff:</strong> The BIOS copies this 512-byte
+payload into RAM at address <code>0x7C00</code> and transfers execution
+to it. This initial code then loads intermediate stages (like
+<code>core.img</code>) from the gap between the MBR and the first
+partition to eventually locate the full bootloader configuration.</li>
+</ol>
+<h4 id="modern-uefi-the-efi-system-partition-esp">Modern UEFI: The EFI
+System Partition (ESP)</h4>
+<ol type="1">
+<li><strong>NVRAM Boot Entries:</strong> Modern systems use UEFI
+(Unified Extensible Firmware Interface), which does not rely on boot
+sectors. Instead, UEFI maintains boot entries stored in motherboard
+NVRAM pointing directly to executable files.</li>
+<li><strong>EFI System Partition (ESP):</strong> UEFI reads storage
+drives partitioned with the GPT (GUID Partition Table) format and looks
+for a dedicated FAT32 partition known as the ESP.</li>
+<li><strong>Direct Execution:</strong> UEFI contains its own basic
+filesystem drivers. It directly executes 64-bit EFI binaries, such as
+<code>/EFI/ubuntu/grubx64.efi</code> or
+<code>/EFI/systemd/systemd-bootx64.efi</code>, bypassing the
+sector-based limitations of BIOS entirely. If Secure Boot is enabled,
+UEFI also cryptographically verifies the signature of the EFI binary
+before running it.</li>
+</ol>
+<h3 id="3-executing-the-bootloader-grub">3. Executing the Bootloader
+(GRUB)</h3>
+<p>Regardless of the initialization path taken, control lands on the
+Linux bootloader, most commonly GRUB 2 (GRand Unified Bootloader).</p>
+<ul>
+<li><strong>Configuration Loading:</strong> GRUB reads its configuration
+file (typically located at <code>/boot/grub/grub.cfg</code>).</li>
+<li><strong>User Interface:</strong> If configured, GRUB displays an
+interactive menu allowing the user to select kernel versions or recovery
+modes.</li>
+<li><strong>Loading Assets:</strong> Once an entry is selected, GRUB
+loads two essential files into RAM:
+<ol type="1">
+<li><strong>The Kernel (<code>vmlinuz</code>):</strong> The compressed,
+executable Linux kernel binary.</li>
+<li><strong>The Initial RAM Disk (<code>initramfs</code> or
+<code>initrd</code>):</strong> A temporary root filesystem containing
+minimal user-space utilities and kernel modules (such as device drivers
+for storage controllers and complex filesystems like LVM or LUKS) needed
+to mount the real root filesystem.</li>
+</ol></li>
+</ul>
+<h3 id="4-transfer-of-control-to-the-linux-kernel">4. Transfer of
+Control to the Linux Kernel</h3>
+<p>With the kernel and <code>initramfs</code> loaded into memory, GRUB
+sets up the kernel execution parameters (passed as boot flags such as
+<code>root=/dev/nvme0n1p2 ro quiet splash</code>). Finally, the
+bootloader terminates its own execution and jumps directly to the entry
+point of the Linux kernel.</p>
+<p>The Linux kernel takes exclusive control of the processor,
+uncompresses itself, initializes internal subsystems, mounts the
+<code>initramfs</code>, and ultimately launches the first user-space
+process (<code>systemd</code> or <code>/sbin/init</code>), completing
+the handover from firmware to the operating system.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

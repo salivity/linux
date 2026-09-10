@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How to Manage Remote Printers with Linux cupsctl - linux</title>
+    <meta name="description" content="The cupsctl command in Linux serves as a specialized administrative tool designed to configure the Common UNIX Printing System (CUPS) daemon directly from the command line. By modifying runtime server directives without requiring manual edits to configur">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/how-to-manage-remote-printers-with-linux-cupsctl">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="How to Manage Remote Printers with Linux cupsctl - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/how-to-manage-remote-printers-with-linux-cupsctl" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="The cupsctl command in Linux serves as a specialized administrative tool designed to configure the Common UNIX Printing System (CUPS) daemon directly from the command line. By modifying runtime server directives without requiring manual edits to configur" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="how-to-manage-remote-printers-with-linux-cupsctl">How to Manage
+Remote Printers with Linux cupsctl</h1>
+<p>The <code>cupsctl</code> command in Linux serves as a specialized
+administrative tool designed to configure the Common UNIX Printing
+System (CUPS) daemon directly from the command line. By modifying
+runtime server directives without requiring manual edits to
+configuration files, <code>cupsctl</code> allows system administrators
+to enable or disable printer sharing, configure remote administration,
+and control how local and networked machines access print queues across
+a network.</p>
+<h3 id="the-underlying-mechanism-of-cupsctl">The Underlying Mechanism of
+<code>cupsctl</code></h3>
+<p>Linux implements <code>cupsctl</code> as a client-side utility that
+communicates directly with the CUPS scheduler daemon
+(<code>cupsd</code>). When an administrator executes
+<code>cupsctl</code> with specific flags, the command queries the
+current server settings using the Internet Printing Protocol (IPP).</p>
+<p>Upon receiving modifications, <code>cupsctl</code> updates the
+primary configuration file located at <code>/etc/cups/cupsd.conf</code>.
+Rather than requiring an administrator to manually stop the service,
+edit raw directives, and restart the daemon, <code>cupsctl</code>
+performs atomic updates to the configuration file and issues a reload
+signal to <code>cupsd</code>. This ensures that changes take effect
+immediately without dropping active print jobs.</p>
+<h3 id="directives-for-remote-printer-management">Directives for Remote
+Printer Management</h3>
+<p>Managing remote printer access via <code>cupsctl</code> centers on
+modifying network exposure and client permissions. The utility provides
+specific options to control these behaviors:</p>
+<ul>
+<li><strong>Printer Sharing (<code>--share-printers</code> /
+<code>--no-share-printers</code>):</strong> Toggles global sharing for
+local queues. When enabled, <code>cupsctl</code> updates the
+configuration to announce printers to the network and sets the internal
+CUPS <code>Browsing</code> directive to <code>Yes</code>.</li>
+<li><strong>Remote Access (<code>--remote-any</code> /
+<code>--no-remote-any</code>):</strong> Dictates which network
+interfaces accept incoming print connections. Enabling
+<code>--remote-any</code> changes the listening directive from the
+loopback interface (<code>Listen localhost:631</code>) to all available
+network adapters (<code>Port 631</code> or <code>Listen *:631</code>),
+and grants access to the root location block
+(<code>&lt;Location /&gt;</code>) for non-local IP addresses.</li>
+<li><strong>Remote Administration (<code>--remote-admin</code> /
+<code>--no-remote-admin</code>):</strong> Governs whether administrative
+tasks—such as adding queues or viewing server logs—can be initiated from
+outside the localhost. Enabling this modifies the
+<code>&lt;Location /admin&gt;</code> block within
+<code>cupsd.conf</code> to allow remote authenticated users.</li>
+<li><strong>Job Cancellation (<code>--user-cancel-any</code> /
+<code>--no-user-cancel-any</code>):</strong> Defines whether remote
+users can cancel any print job in the queue or strictly their own
+submissions.</li>
+</ul>
+<h3 id="inspecting-current-directives">Inspecting Current
+Directives</h3>
+<p>Running <code>cupsctl</code> with no arguments outputs the current
+operational state of remote access features. The output returns
+key-value pairs reflecting the current state of
+<code>cupsd.conf</code>:</p>
+<pre class="text"><code>_debug_logging=0
+_remote_admin=0
+_remote_any=1
+_share_printers=1
+_user_cancel_any=0</code></pre>
+<p>A value of <code>1</code> signifies an active feature, while
+<code>0</code> denotes that the restriction is enforced.</p>
+<h3 id="network-and-firewall-considerations">Network and Firewall
+Considerations</h3>
+<p>While <code>cupsctl</code> properly structures the CUPS daemon to
+handle remote traffic, the host Linux kernel must permit inbound
+connections over IPP. CUPS operates over TCP and UDP on port 631. When
+enabling remote printer access with
+<code>cupsctl --share-printers --remote-any</code>, the host system's
+firewall (such as <code>nftables</code>, <code>iptables</code>, or
+<code>ufw</code>) must be configured to allow inbound packets targeted
+at port 631 from the designated subnets.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

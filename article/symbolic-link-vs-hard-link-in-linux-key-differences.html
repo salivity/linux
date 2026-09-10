@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Symbolic Link vs Hard Link in Linux: Key Differences - linux</title>
+    <meta name="description" content="In the Linux operating system, links are pointers that allow users and applications to access files located elsewhere in the file system without duplicating data. This article explains the fundamental differences between symbolic links (soft links) and h">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/symbolic-link-vs-hard-link-in-linux-key-differences">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Symbolic Link vs Hard Link in Linux: Key Differences - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/symbolic-link-vs-hard-link-in-linux-key-differences" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="In the Linux operating system, links are pointers that allow users and applications to access files located elsewhere in the file system without duplicating data. This article explains the fundamental differences between symbolic links (soft links) and h" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="symbolic-link-vs-hard-link-in-linux-key-differences">Symbolic
+Link vs Hard Link in Linux: Key Differences</h1>
+<p>In the Linux operating system, links are pointers that allow users
+and applications to access files located elsewhere in the file system
+without duplicating data. This article explains the fundamental
+differences between symbolic links (soft links) and hard links, focusing
+on how each relates to filesystem inodes, their behavior when source
+files are deleted, their support for directories, and their ability to
+cross different filesystems.</p>
+<h3 id="inode-association-and-file-identity">Inode Association and File
+Identity</h3>
+<p>The primary technical difference between the two lies in how they
+reference an inode (an index node containing metadata about a file).</p>
+<ul>
+<li><strong>Hard Link:</strong> A hard link points directly to the inode
+of the original file. It shares the exact same inode number,
+permissions, ownership, and data blocks as the target file. To the
+operating system, a hard link is essentially an identical, mirror copy
+of the original filename entry pointing to the same physical data on the
+disk.</li>
+<li><strong>Symbolic Link:</strong> A symbolic link (or symlink) is an
+entirely independent file with its own unique inode number. Instead of
+pointing directly to the file data, a symlink contains a small string
+representing the file path of the target file.</li>
+</ul>
+<h3 id="behavior-when-the-original-file-is-deleted">Behavior When the
+Original File Is Deleted</h3>
+<p>The distinction in inode handling directly impacts what happens when
+the original file is removed:</p>
+<ul>
+<li><strong>Hard Link:</strong> Deleting the original file does not
+delete the underlying data. In Linux, data blocks are only freed when
+the link count of an inode reaches zero. As long as at least one hard
+link remains, the data is completely accessible.</li>
+<li><strong>Symbolic Link:</strong> If the original file is deleted,
+renamed, or moved, the symbolic link becomes broken or "dangling."
+Because the link only points to the path and not the inode itself,
+attempting to access a broken symlink results in a "File not found"
+error.</li>
+</ul>
+<h3 id="cross-filesystem-limitations">Cross-Filesystem Limitations</h3>
+<ul>
+<li><strong>Hard Link:</strong> Hard links cannot cross different
+partitions or filesystems. Inode numbers are unique only within a
+specific filesystem; therefore, an inode on partition
+<code>/dev/sda1</code> cannot be linked to partition
+<code>/dev/sdb1</code>.</li>
+<li><strong>Symbolic Link:</strong> Symlinks can span across different
+filesystems, drives, network shares, and partitions without issue
+because they store only an absolute or relative directory path.</li>
+</ul>
+<h3 id="support-for-directories">Support for Directories</h3>
+<ul>
+<li><strong>Hard Link:</strong> Standard users cannot create hard links
+to directories. Linux restricts this to prevent circular directory
+references, which could cause infinite loops for file-traversal tools
+and filesystem corruption.</li>
+<li><strong>Symbolic Link:</strong> Symbolic links fully support
+directories, making them the standard tool for creating directory
+shortcuts across the filesystem.</li>
+</ul>
+<h3 id="command-usage">Command Usage</h3>
+<p>Both types of links are created using the <code>ln</code>
+command:</p>
+<ul>
+<li>To create a hard link: <code>ln target_file link_name</code></li>
+<li>To create a symbolic link:
+<code>ln -s target_file link_name</code></li>
+</ul>
+<p>In summary, use a hard link when you need resilient access to data
+that survives deletion of the original file entry within the same
+partition. Use a symbolic link when you need to link directories, point
+to files across different drives or partitions, or create flexible
+shortcuts.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

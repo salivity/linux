@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Understanding depmod in Linux Kernel Module Maps - linux</title>
+    <meta name="description" content="The depmod (dependency module) command is a core Linux maintenance utility responsible for generating and updating module dependency lists and map files. By scanning compiled kernel modules located in the /lib/modules/$(uname -r)/ directory, depmod analy">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/understanding-depmod-in-linux-kernel-module-maps">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Understanding depmod in Linux Kernel Module Maps - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/understanding-depmod-in-linux-kernel-module-maps" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="The depmod (dependency module) command is a core Linux maintenance utility responsible for generating and updating module dependency lists and map files. By scanning compiled kernel modules located in the /lib/modules/$(uname -r)/ directory, depmod analy" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="understanding-depmod-in-linux-kernel-module-maps">Understanding
+depmod in Linux Kernel Module Maps</h1>
+<p>The <code>depmod</code> (dependency module) command is a core Linux
+maintenance utility responsible for generating and updating module
+dependency lists and map files. By scanning compiled kernel modules
+located in the <code>/lib/modules/$(uname -r)/</code> directory,
+<code>depmod</code> analyzes their internal symbols to determine which
+modules rely on others. It writes these relationships into structured
+files—most notably <code>modules.dep</code>—allowing dynamic module
+loaders like <code>modprobe</code> to automatically resolve
+prerequisites and load device drivers seamlessly.</p>
+<h3 id="how-depmod-works">How depmod Works</h3>
+<p>Linux kernel modules often do not exist in isolation. Many
+specialized drivers depend on core subsystem modules to provide
+essential functions and symbols. When <code>depmod</code> is executed,
+it reads the Executable and Linkable Format (ELF) headers of every
+<code>.ko</code> (kernel object) file in the kernel's module tree.</p>
+<p>During this scan, <code>depmod</code> extracts two key pieces of
+information:</p>
+<ol type="1">
+<li><strong>Provided symbols:</strong> Functions and variables exported
+by a module using <code>EXPORT_SYMBOL</code>.</li>
+<li><strong>Required symbols:</strong> External functions and variables
+a module expects to be present in memory.</li>
+</ol>
+<p>By matching the unresolved symbols of one module to the exported
+symbols of another, <code>depmod</code> creates an accurate dependency
+graph across the entire module catalog.</p>
+<h3 id="generated-files-and-module-maps">Generated Files and Module
+Maps</h3>
+<p>Once <code>depmod</code> parses the modules, it writes several index
+and mapping files directly into the active kernel’s module directory.
+The primary files include:</p>
+<ul>
+<li><strong><code>modules.dep</code> and
+<code>modules.dep.bin</code>:</strong> Plain text and binary
+representations of the full dependency graph. Each line lists a module
+followed by all other modules required for it to run.</li>
+<li><strong><code>modules.alias</code> and
+<code>modules.alias.bin</code>:</strong> Maps generic device identifiers
+(like PCI IDs or USB vendor/product IDs) to specific module names.</li>
+<li><strong><code>modules.symbols</code> and
+<code>modules.symbols.bin</code>:</strong> Maps exported kernel symbols
+to the specific module that provides them.</li>
+<li><strong><code>modules.devname</code>:</strong> Records static device
+nodes provided by modules for systems using
+<code>systemd-udevd</code>.</li>
+</ul>
+<p>The binary (<code>.bin</code>) versions are optimized indexes
+designed to speed up lookups during boot or device hotplugging.</p>
+<h3 id="the-role-of-depmod-in-module-loading">The Role of depmod in
+Module Loading</h3>
+<p>The output of <code>depmod</code> is essential for the
+<code>modprobe</code> utility. When a user or system event requests a
+module via <code>modprobe &lt;module_name&gt;</code>, the utility does
+not inspect raw binaries to discover dependencies. Instead, it reads
+<code>modules.dep.bin</code>.</p>
+<p>If <code>Module B</code> requires <code>Module A</code>,
+<code>modprobe</code> consults the map generated by <code>depmod</code>,
+loads <code>Module A</code> first, and then loads <code>Module B</code>.
+Without an accurate, updated dependency map, <code>modprobe</code>
+cannot identify prerequisite modules, causing module insertion to fail
+with unresolved symbol errors.</p>
+<h3 id="common-usage-and-triggers">Common Usage and Triggers</h3>
+<p><code>depmod</code> is typically executed automatically during kernel
+package installations, system boots, or hardware configuration changes
+handled by package managers. However, manual execution is necessary when
+compiling out-of-tree drivers, installing third-party kernel modules, or
+testing custom modules.</p>
+<ul>
+<li><strong><code>depmod -a</code>:</strong> Scans all modules for the
+current kernel and rebuilds the dependency maps completely.</li>
+<li><strong><code>depmod -a &lt;kernel-version&gt;</code>:</strong>
+Updates the module map files for a specified, non-running kernel version
+(commonly used during kernel compilation and packaging).</li>
+<li><strong><code>depmod -n</code>:</strong> Performs a dry run,
+outputting the resulting <code>modules.dep</code> file to standard
+output without altering existing files on the disk.</li>
+</ul></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

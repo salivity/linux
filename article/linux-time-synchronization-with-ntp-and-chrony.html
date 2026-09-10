@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linux Time Synchronization with NTP and Chrony - linux</title>
+    <meta name="description" content="Time synchronization in Linux ensures that system clocks remain accurate and uniform across distributed environments, which is critical for log integrity, database transactions, and cryptographic authentication. This article explores how Linux manages ti">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/linux-time-synchronization-with-ntp-and-chrony">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Linux Time Synchronization with NTP and Chrony - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/linux-time-synchronization-with-ntp-and-chrony" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="Time synchronization in Linux ensures that system clocks remain accurate and uniform across distributed environments, which is critical for log integrity, database transactions, and cryptographic authentication. This article explores how Linux manages ti" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="linux-time-synchronization-with-ntp-and-chrony">Linux Time
+Synchronization with NTP and Chrony</h1>
+<p>Time synchronization in Linux ensures that system clocks remain
+accurate and uniform across distributed environments, which is critical
+for log integrity, database transactions, and cryptographic
+authentication. This article explores how Linux manages time between
+hardware and the kernel, how the Network Time Protocol (NTP) algorithm
+measures and corrects time discrepancies, and how modern implementations
+like Chrony and the legacy <code>ntpd</code> daemon actively maintain
+synchronization.</p>
+<h3 id="system-clock-vs-hardware-clock">System Clock vs. Hardware
+Clock</h3>
+<p>Linux distinguishes between two primary clocks:</p>
+<ul>
+<li><strong>The Hardware Clock (Real-Time Clock / RTC):</strong> A
+battery-backed chip on the motherboard that tracks time even when the
+system is powered off.</li>
+<li><strong>The System Clock (Kernel Clock):</strong> A software-driven
+clock maintained by the operating system kernel once booted, derived
+from CPU timer interrupts.</li>
+</ul>
+<p>At boot, the kernel reads the RTC to initialize the system clock.
+Once the OS is running, the system clock takes over. Because physical
+quartz crystals on motherboards are vulnerable to temperature
+fluctuations and hardware imperfections, the system clock inevitably
+drifts from real-world time. Time synchronization software corrects this
+drift.</p>
+<h3 id="the-network-time-protocol-ntp-mechanism">The Network Time
+Protocol (NTP) Mechanism</h3>
+<p>Linux uses the Network Time Protocol (NTP) to exchange timing
+information over UDP port 123. NTP organizes time sources into a
+hierarchical system known as "strata":</p>
+<ul>
+<li><strong>Stratum 0:</strong> High-precision atomic clocks, GPS
+receivers, or radio clocks.</li>
+<li><strong>Stratum 1:</strong> Servers directly connected to Stratum 0
+devices.</li>
+<li><strong>Stratum 2:</strong> Servers that synchronize with Stratum 1
+servers across a network, serving as relays for clients and lower
+strata.</li>
+</ul>
+<p>To determine the accurate time, an NTP client periodically exchanges
+timestamped packets with one or more reference servers. Each exchange
+records four timestamps:</p>
+<ol type="1">
+<li>When the client sends the request (<span
+class="math inline">\(T_1\)</span>).</li>
+<li>When the server receives the request (<span
+class="math inline">\(T_2\)</span>).</li>
+<li>When the server sends the response (<span
+class="math inline">\(T_3\)</span>).</li>
+<li>When the client receives the response (<span
+class="math inline">\(T_4\)</span>).</li>
+</ol>
+<p>Using these values, the client calculates two essential metrics:</p>
+<ul>
+<li><strong>Round-Trip Delay:</strong> <span
+class="math inline">\(\text{Delay} = (T_4 - T_1) - (T_3 -
+T_2)\)</span></li>
+<li><strong>Clock Offset:</strong> <span
+class="math inline">\(\text{Offset} = \frac{(T_2 - T_1) + (T_3 -
+T_4)}{2}\)</span></li>
+</ul>
+<p>By querying multiple servers, the client filters out network jitter
+and rejects unreliable servers ("falsetickers") to compute a
+statistically robust time offset.</p>
+<h3 id="correcting-the-clock-slewing-vs-stepping">Correcting the Clock:
+Slewing vs. Stepping</h3>
+<p>When a discrepancy is detected, the Linux kernel corrects the system
+clock using one of two methods:</p>
+<ul>
+<li><strong>Stepping:</strong> Instantly jumping the clock forward or
+backward to the correct time. While necessary during initial boot or
+when drift is massive, backward steps can cause serious issues with
+logs, databases, and scheduled cron jobs.</li>
+<li><strong>Slewing:</strong> Gradually accelerating or decelerating the
+rate at which the kernel updates system time until it aligns with real
+time. In Linux, this is achieved through system calls such as
+<code>adjtimex()</code>, altering the clock frequency smoothly without
+creating duplicate timestamps or moving backward.</li>
+</ul>
+<h3 id="chrony-vs-ntpd">Chrony vs. NTPd</h3>
+<p>Linux systems primarily use either the traditional <code>ntpd</code>
+daemon or the modern <code>chronyd</code> (Chrony) service to automate
+this process.</p>
+<h4 id="chrony-chronyd">Chrony (<code>chronyd</code>)</h4>
+<p>Chrony is the default time synchronization utility in modern
+distributions like RHEL, CentOS, Rocky Linux, Fedora, and Debian/Ubuntu
+variants. Chrony was designed to address the realities of modern compute
+environments:</p>
+<ul>
+<li><strong>Fast Synchronization:</strong> It calculates clock drift
+significantly faster than <code>ntpd</code>, stabilizing the clock in
+minutes rather than hours.</li>
+<li><strong>Intermittent Connectivity:</strong> It handles network
+drops, fluctuating latency, and mobile connections gracefully.</li>
+<li><strong>Virtualization Support:</strong> Chrony performs well in
+virtual machines and containers where system clocks frequently stall or
+desynchronize when the host is under load.</li>
+<li><strong>Management:</strong> Administrators control and query Chrony
+using the <code>chronyc</code> command-line utility (e.g.,
+<code>chronyc sources -v</code> and <code>chronyc tracking</code>).</li>
+</ul>
+<h4 id="the-ntp-daemon-ntpd">The NTP Daemon (<code>ntpd</code>)</h4>
+<p>The reference implementation of the Network Time Protocol,
+<code>ntpd</code>, is an older, battle-tested service. It is designed
+for permanently connected physical servers that require microsecond
+precision over long periods of stable operation. It prioritizes
+stability over rapid adjustment, exclusively slewing the clock under
+normal operations once the initial offset is resolved. Its state is
+queried using <code>ntpq</code> (e.g., <code>ntpq -p</code>).</p>
+<h3 id="synchronization-with-the-hardware-clock">Synchronization with
+the Hardware Clock</h3>
+<p>To ensure the hardware clock stays accurate while the machine is
+running, the Linux kernel utilizes "11-minute mode." Whenever the system
+clock is synchronized by an NTP or Chrony daemon, the kernel
+automatically writes the accurate system time back to the RTC every 11
+minutes. This ensures that subsequent reboots start with an accurate
+baseline time before network services become available.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

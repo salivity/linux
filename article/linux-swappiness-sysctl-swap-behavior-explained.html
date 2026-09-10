@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linux Swappiness: Sysctl Swap Behavior Explained - linux</title>
+    <meta name="description" content="The vm.swappiness sysctl parameter in the Linux operating system controls the relative balance between reclaiming anonymous memory pages to swap space and evicting file system page caches. This article explains how the swappiness parameter functions with">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/linux-swappiness-sysctl-swap-behavior-explained">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Linux Swappiness: Sysctl Swap Behavior Explained - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/linux-swappiness-sysctl-swap-behavior-explained" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="The vm.swappiness sysctl parameter in the Linux operating system controls the relative balance between reclaiming anonymous memory pages to swap space and evicting file system page caches. This article explains how the swappiness parameter functions with" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="linux-swappiness-sysctl-swap-behavior-explained">Linux
+Swappiness: Sysctl Swap Behavior Explained</h1>
+<p>The <code>vm.swappiness</code> sysctl parameter in the Linux
+operating system controls the relative balance between reclaiming
+anonymous memory pages to swap space and evicting file system page
+caches. This article explains how the swappiness parameter functions
+within the Linux virtual memory manager, what its numerical values
+represent, how to adjust it, and how tuning this setting impacts system
+performance and responsiveness.</p>
+<h3 id="the-role-of-swappiness-in-linux-memory-management">The Role of
+Swappiness in Linux Memory Management</h3>
+<p>Physical memory (RAM) in Linux holds two primary types of pages:</p>
+<ol type="1">
+<li><strong>File-backed pages (Page Cache):</strong> Cached data read
+from disks or binaries. Reclaiming these pages is computationally
+inexpensive because the kernel can simply drop them; if needed again,
+they are re-read from storage.</li>
+<li><strong>Anonymous pages:</strong> Memory allocated directly by
+active processes, such as stack and heap memory. To free RAM containing
+anonymous pages, the kernel must write them to disk in swap space, which
+requires active I/O.</li>
+</ol>
+<p>The <code>swappiness</code> parameter, configured through
+<code>vm.swappiness</code>, determines the kernel's preference when
+system memory pressure occurs. It serves as a ratio weighing the cost of
+reclaiming file-backed caches against the cost of swapping out anonymous
+memory.</p>
+<h3 id="the-swappiness-scale">The Swappiness Scale</h3>
+<p>Swappiness accepts integer values, traditionally ranging from 0 to
+100 (and up to 200 in newer Linux kernels supporting zswap or zram):</p>
+<ul>
+<li><strong>0:</strong> Instructs the kernel to avoid swapping anonymous
+pages for as long as possible. Swapping only occurs when the system is
+under extreme memory pressure to avoid Out-of-Memory (OOM)
+conditions.</li>
+<li><strong>1 – 10:</strong> Heavily favors keeping process memory in
+physical RAM and discarding file cache instead. This setting is common
+for low-latency database engines (such as MySQL, PostgreSQL, or Redis)
+where swapping causes unacceptable query delays.</li>
+<li><strong>60:</strong> The default value on most Linux distributions.
+It represents a balanced approach where the kernel actively reclaims
+both file cache and inactive anonymous pages to preserve a responsive
+balance of free memory.</li>
+<li><strong>100:</strong> Treats the reclamation of anonymous memory and
+file-backed memory with equal priority. The kernel aggressively swaps
+out unused process memory to maintain a large file system cache.</li>
+</ul>
+<h3 id="how-to-check-and-configure-swappiness">How to Check and
+Configure Swappiness</h3>
+<p>To view the current swappiness setting on a running system,
+execute:</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">sysctl</span> vm.swappiness</span></code></pre></div>
+<p>or read directly from the virtual file system:</p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span> /proc/sys/vm/swappiness</span></code></pre></div>
+<h4 id="applying-a-temporary-change">Applying a Temporary Change</h4>
+<p>To change the value immediately without rebooting:</p>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> sysctl vm.swappiness=10</span></code></pre></div>
+<p>This takes effect instantly across the operating system but resets
+upon a reboot.</p>
+<h4 id="applying-a-permanent-change">Applying a Permanent Change</h4>
+<p>To make the configuration persist across system restarts, add or
+update the parameter in the sysctl configuration:</p>
+<ol type="1">
+<li>Open <code>/etc/sysctl.conf</code> or create a new file such as
+<code>/etc/sysctl.d/99-swappiness.conf</code>.</li>
+<li>Add the line:
+<pre class="text"><code>vm.swappiness = 10</code></pre></li>
+<li>Apply the changes immediately:
+<div class="sourceCode" id="cb5"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> sysctl <span class="at">-p</span></span></code></pre></div></li>
+</ol>
+<h3 id="performance-considerations">Performance Considerations</h3>
+<p>Tuning <code>swappiness</code> depends entirely on system
+workload:</p>
+<ul>
+<li><strong>Desktop Systems:</strong> A value between 10 and 60 is
+standard. Lower values prevent UI freezes caused by desktop application
+memory being swapped out while running memory-heavy tasks.</li>
+<li><strong>Database and Low-Latency Servers:</strong> Values between 1
+and 10 prevent latency spikes by ensuring working data sets remain in
+physical RAM.</li>
+<li><strong>High-Throughput File Servers:</strong> Values closer to 60
+or higher allow the system to maintain a larger page cache, speeding up
+I/O read operations for connected clients.</li>
+</ul></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>

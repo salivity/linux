@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Logitech Receivers on Linux with Solaar - linux</title>
+    <meta name="description" content="Solaar serves as an open-source device manager that allows the Linux operating system to interact with, monitor, and configure Logitech wireless hardware. Because Logitech does not provide an official version of its Logi Options+ software for Linux, Sola">
+    <link rel="canonical" href="https://salivity.github.io/linux/article/manage-logitech-receivers-on-linux-with-solaar">
+    <link rel="search" type="application/opensearchdescription+xml" title="linux" href="/linux/opensearch.xml">
+    <link rel="icon" href="/linux/favicon.ico">
+    <link rel="stylesheet" href="/linux/css/style.css">
+    <link media="print" rel="stylesheet" href="/linux/css/print.css">
+    <script src="/linux/js/fuse.min.js"></script>
+    <script src="/linux/js/script.js"></script>
+    <script id="MathJax-script" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/4.1.3/tex-chtml.min.js" defer></script>
+    <script src="/monetize/monetize.js"></script>
+    <script src="/social/social.js"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Manage Logitech Receivers on Linux with Solaar - linux" />
+    <meta property="og:url" content="https://salivity.github.io/linux/article/manage-logitech-receivers-on-linux-with-solaar" />
+    <meta property="og:image:url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:secure_url" content="https://salivity.github.io/linux/images/open-graph/default.webp" />
+    <meta property="og:image:width" content="1120" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:description" content="Solaar serves as an open-source device manager that allows the Linux operating system to interact with, monitor, and configure Logitech wireless hardware. Because Logitech does not provide an official version of its Logi Options+ software for Linux, Sola" />
+    <link rel="manifest" href="/linux/pwa/manifest.json" />
+</head>
+<body>
+    <header>
+        <a href="/linux/" aria-label="Go To Home Page" title="Go To Home Page" id="logo">
+            <span>salivity.github.io/</span><span>linux</span>
+        </a>
+        <nav>
+            <ul class="header-links">
+                <li><a href="/linux/search" title="Search" aria-label="Go To Search Page"><svg class="svg-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"></path></svg></a></li>
+                <li><a id="theme-toggle" title="Theme" href="javascript:void(0);" aria-label="Toggle Website Theme"></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article><h1 id="manage-logitech-receivers-on-linux-with-solaar">Manage Logitech
+Receivers on Linux with Solaar</h1>
+<p>Solaar serves as an open-source device manager that allows the Linux
+operating system to interact with, monitor, and configure Logitech
+wireless hardware. Because Logitech does not provide an official version
+of its Logi Options+ software for Linux, Solaar bridges this gap by
+communicating directly with Logitech Unifying and Bolt receivers. This
+article details how the Linux system architecture utilizes Solaar to
+pair devices, monitor battery levels, and adjust hardware-level
+peripheral settings through both graphical and command-line
+interfaces.</p>
+<h2 id="kernel-integration-and-user-space-permissions">Kernel
+Integration and User-Space Permissions</h2>
+<p>Linux manages input hardware at the kernel level using drivers like
+<code>hid-logitech-dj</code> and generic HID interfaces such as
+<code>hidraw</code>. When a Logitech Unifying Receiver is plugged into a
+USB port, the Linux kernel creates corresponding device nodes (such as
+<code>/dev/hidraw*</code>) to handle data transmission.</p>
+<p>To allow Solaar to interact with these devices without requiring
+administrative (root) privileges, Linux relies on <code>udev</code>
+rules. Solaar packages provide custom udev configurations, typically
+placed in <code>/etc/udev/rules.d/</code> or
+<code>/usr/lib/udev/rules.d/</code>. These rules identify the vendor ID
+for Logitech devices and grant read/write access to the active desktop
+user via access control lists (ACLs) or specific user groups like
+<code>plugdev</code>.</p>
+<h2 id="communication-via-the-hid-protocol">Communication via the HID++
+Protocol</h2>
+<p>Logitech Unifying Receivers and compatible peripherals communicate
+using Logitech's proprietary HID++ protocol (versions 1.0, 2.0, and
+4.5+). Solaar functions as an interpreter between Linux user-space
+applications and this protocol.</p>
+<p>Through HID++ commands sent over the raw HID interface, Solaar
+can:</p>
+<ul>
+<li>Query the receiver to identify connected devices.</li>
+<li>Read unique device identifiers, firmware versions, and supported
+feature sets.</li>
+<li>Request battery voltage and operational status updates from active
+peripherals.</li>
+</ul>
+<h2 id="device-pairing-and-unpairing">Device Pairing and Unpairing</h2>
+<p>A core utility of the Logitech Unifying Receiver is its ability to
+connect up to six compatible devices simultaneously to a single USB
+dongle. Solaar gives Linux systems full access to this
+functionality:</p>
+<ul>
+<li><strong>Pairing:</strong> Solaar puts the receiver into a pairing
+state. When an unassigned Logitech mouse or keyboard is powered off and
+back on within range, the receiver negotiates the connection and writes
+the pairing directly to the receiver's internal memory.</li>
+<li><strong>Unpairing:</strong> Solaar sends a direct instruction to the
+receiver to forget a specific slot or hardware ID, freeing up space for
+another peripheral.</li>
+</ul>
+<p>Because pairing data is stored on the receiver itself, any
+configurations made via Solaar persist even if the receiver is moved to
+another computer or boot environment.</p>
+<h2 id="peripheral-configuration-and-feature-control">Peripheral
+Configuration and Feature Control</h2>
+<p>Beyond basic input handling, Solaar allows Linux users to toggle
+hardware features that are otherwise locked to defaults on non-Windows
+platforms. These adjustments include:</p>
+<ul>
+<li><strong>SmartShift and Scroll Wheel Tuning:</strong> Adjusting the
+sensitivity threshold where the mouse wheel switches between ratchet and
+free-spin modes.</li>
+<li><strong>DPI Sensitivity:</strong> Configuring precise sensor
+sensitivity stages on supported mice.</li>
+<li><strong>Function Key Inversion:</strong> Toggling whether the top
+row of a keyboard acts as standard function keys (F1–F12) or media
+control keys by default.</li>
+<li><strong>Gestures and Key Remapping:</strong> Rebinding mouse buttons
+and divert keys to custom actions or system shortcuts.</li>
+</ul>
+<h2 id="desktop-and-command-line-integration">Desktop and Command-Line
+Integration</h2>
+<p>Solaar integrates into the Linux desktop environment via a background
+daemon and system tray indicator. The tray applet uses system
+notification specifications (such as libnotify) to alert users when a
+peripheral's battery drops below a critical threshold.</p>
+<p>For headless servers or lightweight window managers (such as i3 or
+sway), Solaar includes a command-line interface (<code>solaar</code>).
+Administrators can run commands such as <code>solaar show</code> to
+inspect connected hardware details or <code>solaar config</code> to
+modify hardware settings directly from shell scripts.</p></article>
+        <div id="comments-container"></div>
+
+        <script>
+            const utterancesScript = document.createElement('script');
+            
+            utterancesScript.setAttribute('src', 'https://utteranc.es/client.js');
+            utterancesScript.setAttribute('repo', 'salivity/linux'); 
+            utterancesScript.setAttribute('issue-term', 'pathname'); 
+            utterancesScript.setAttribute('theme', localStorage.getItem('theme') === 'dark' ? 'github-dark' : 'github-light'); 
+            utterancesScript.setAttribute('crossorigin', 'anonymous');
+            utterancesScript.async = true;
+
+            document.getElementById('comments-container').appendChild(utterancesScript);
+        </script>
+    
+    </main>
+    <footer>
+        <nav>
+            <ul class="social-links">
+            </ul>
+        </nav>
+        <nav>
+            <ul class="footer-links">
+                <li><a href="/linux/privacy-policy">Privacy Policy</a></li>
+                <li><a href="/linux/terms-and-conditions">Terms and Conditions</a></li>
+            </ul>
+        </nav>
+        <div class="copyright">
+            Copyright &copy; <span id="current-year"></span>
+        </div>
+    </footer>
+</body>
+</html>
